@@ -24,7 +24,9 @@
 
 Implementado: sembrar las categorías por defecto, crear categoría y subcategoría, editar (nombre, icono, color), archivar y restaurar, asignar los tags de una categoría, archivar un tag, y listar categorías y tags. Endpoints: `GET` y `POST W/categories`; `PATCH W/categories/{id}`; `POST W/categories/{id}/archive` y `/restore`; `PUT W/categories/{id}/tags`; `POST W/categories/defaults`; `GET W/tags`; `POST W/tags/{id}/archive`.
 
-Diferido: mover una categoría a otro padre, `CreateTag` y `RenameTag`, `ICategoryLookup` e `ITagLookup` (fase 3, con el ledger) y el evento `CategoryArchived` (fase 7, con Scheduling).
+Diferido: mover una categoría a otro padre, `RenameTag` y el evento `CategoryArchived` (fase 7, con Scheduling).
+
+Desde la fase 3 el módulo expone `ICategoryLookup` (una categoría, varias, y una con sus subcategorías) e `ITagLookup` (resolver nombres creando los que falten, nombres por id, y buscar por nombre). Los usa el ledger; ambos pasan por el filtro de dueño.
 
 - Categorías y tags son privados: llevan `workspace_id` y `owner_user_id` y el filtro global los aísla. Dos miembros del mismo workspace tienen cada uno los suyos, y ningún rol ve los de otro.
 - Solo hay dos niveles. Una subcategoría toma el tipo, el icono, el color y los tags sugeridos de su categoría y no guarda ninguno; por eso los tags se asignan solo a categorías de primer nivel.

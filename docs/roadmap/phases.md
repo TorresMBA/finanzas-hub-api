@@ -231,6 +231,48 @@ Diferencias respecto al diseño de la fase:
 | Risks | OQ-05 y OQ-22 afectan estados y edición |
 | Out of scope | Transferencias, tarjetas, multimoneda en reportes, importación |
 
+**Estado: implementada el 13-oct-2026**, con OQ-05, OQ-06 y OQ-22 en su opción A (un movimiento pendiente cuenta en el saldo; la moneda es la de la cuenta; un movimiento confirmado se edita en sitio con antes y después en auditoría).
+
+Verificado:
+
+| Comprobación | Resultado |
+|---|---|
+| `dotnet build PersonalFinance.slnx` | Sin errores ni advertencias |
+| `dotnet test PersonalFinance.slnx` | 177 tests: 89 unitarios, 19 de arquitectura, 69 de integración contra PostgreSQL 18 |
+| Criterio de aceptación | Cuenta con saldo 1 000, gasto de 54 y saldo 946; al anularlo, 1 000; reenviar el mismo POST con la misma clave devuelve el mismo movimiento y no duplica. Probado por API y en el navegador |
+| Saldo = suma de asientos | El saldo de la API coincide con la suma de `signed_amount` de los asientos efectivos leída de la base. `Account` no tiene ninguna propiedad ni columna de saldo, y un test lo comprueba |
+| Saldo inicial y ajuste | Son operaciones con su asiento. Ajustar al mismo saldo no registra nada. No cuentan como ingreso ni como gasto |
+| Pendiente, confirmar, anular | Un pendiente cuenta desde que se registra y se confirma una sola vez. Anular lo saca de saldos, listas y totales y lo conserva con su motivo; anular dos veces no cambia nada |
+| Edición | Cambiar monto, cuenta, fecha, tipo y categoría mueve el dinero entre cuentas; la auditoría guarda el antes y el después. Lo que registró la aplicación (saldo inicial, ajuste) y lo anulado no se editan |
+| Reglas | Monto mayor que cero y con los decimales de la moneda; la categoría debe ser propia, del tipo del movimiento y no archivada; la cuenta, propia y activa. Una petición rechazada no mueve ningún saldo ni deja etiquetas creadas |
+| Idempotencia | Clave obligatoria en abrir cuenta, ajustar saldo y registrar transacción. Misma clave y otro cuerpo, 422. Un comando que falla no retiene su clave |
+| Listado | Filtros por tipo, cuenta, categoría con sus subcategorías, etiqueta, texto y fechas; anulados solo si se piden. Totales por moneda sobre todo lo que cumple el filtro. Paginación por cursor sin repetir ni saltar filas |
+| Matriz de seguridad | Dos miembros del mismo workspace llevan libros separados: las cuentas y los movimientos de uno responden 404 al otro en leer, editar, archivar, ajustar, confirmar y anular; tampoco puede registrar en la cuenta ni con la categoría del otro; ni el Owner ve los del miembro. Lo mismo entre dos workspaces del mismo usuario |
+| Plataforma sin `Sample` | Los tests del pipeline usan módulos reales: transacción única, reacción que falla y revierte, idempotencia, y que una reacción ve lo que su comando escribió |
+| Frontend | `ng build` correcto y sin avisos; 101 tests unitarios; `ng lint` correcto |
+| E2E | 17 tests en Chrome, 4 nuevos: el criterio de aceptación de punta a punta, pendiente-confirmar-editar-filtrar, ajuste y archivo de cuenta, y móvil sin desbordes con el detalle como hoja. Repetidos tres veces seguidos sin fallos |
+| Revisión visual | Cuentas, transacciones, formulario y detalle en escritorio, tablet y móvil, tema claro y oscuro |
+
+No verificado: lo que depende de Docker; y la concurrencia de `xmin`, que ningún test provoca.
+
+Diferencias respecto al diseño de la fase:
+
+| Tema | Diseño | Implementación |
+|---|---|---|
+| `ETag` e `If-Match` | En `Account` y `Operation` | `Account` y `Operation` llevan `xmin`, que protege cada comando contra una escritura cruzada, pero la API no expone `ETag`. Son datos de un solo dueño: el conflicto real llega con los agregados colaborativos, y ahí se añade (fase 8) |
+| `SetTransactionTags` | Caso de uso propio | Las etiquetas van en el cuerpo de registrar y de editar; no hay endpoint aparte |
+| `POST W/tags` | Previsto para esta fase | No hace falta: una etiqueta se crea al nombrarla en una transacción, igual que en una categoría |
+| Cambiar el tipo al editar | No especificado | Se puede pasar de gasto a ingreso y al revés; la categoría debe corresponder al nuevo tipo |
+| Restaurar una cuenta | No especificado | `POST W/accounts/{id}/restore`, simétrico a archivar |
+| Eventos `OperationPosted`, `OperationChanged`, `OperationVoided`, `AccountArchived` | Se publican | No se levantan todavía: nadie reacciona. Los declarará la fase 5, cuando Budgets reaccione a un gasto |
+| `ILedgerQueries` inicial | En la fase | Llega con su primer consumidor (fase 4, el dashboard) |
+| Totales | Un resumen del filtro | Un resumen por moneda: nunca se suman dos monedas. La conversión a moneda base llega con el tipo de cambio (fase 4) |
+| Asientos | Privados por su operación | Cada asiento repite `workspace_id` y `owner_user_id` y tiene su propio filtro de dueño, así el saldo es una suma sobre una sola tabla |
+| Monto y movimientos por categoría en Categorías | Pendiente de la fase 2 para esta | Pasa a la fase 4, que trae la consulta de gasto por categoría para el Inicio |
+| Detalle del movimiento | Panel lateral | Panel lateral en escritorio; por debajo de ese ancho se abre como hoja, porque el panel quedaría fuera de la vista |
+| "Repetir cada mes" y "Dividir gasto" | En el formulario y el detalle del mock | Llegan con Scheduling (fase 7) y SharedExpenses (fase 9) |
+| Módulo `Sample` | Se elimina aquí | Eliminado, con la migración `RemoveSample` que borra sus dos tablas y su esquema |
+
 #### Fase 4 — Ledger II: transferencias, tarjetas básicas, patrimonio e Inicio
 
 | | |

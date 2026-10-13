@@ -15,10 +15,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PersonalFinance.Infrastructure\PersonalFinance.Infrastructure.csproj" />
-    <ProjectReference Include="..\Modules\Sample\PersonalFinance.Modules.Sample\PersonalFinance.Modules.Sample.csproj" />
     <ProjectReference Include="..\Modules\Identity\PersonalFinance.Modules.Identity\PersonalFinance.Modules.Identity.csproj" />
     <ProjectReference Include="..\Modules\Workspaces\PersonalFinance.Modules.Workspaces\PersonalFinance.Modules.Workspaces.csproj" />
     <ProjectReference Include="..\Modules\Categories\PersonalFinance.Modules.Categories\PersonalFinance.Modules.Categories.csproj" />
+    <ProjectReference Include="..\Modules\Ledger\PersonalFinance.Modules.Ledger\PersonalFinance.Modules.Ledger.csproj" />
   </ItemGroup>
 
 </Project>

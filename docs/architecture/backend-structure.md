@@ -2,7 +2,7 @@
 
 ## N. Backend folder/project structure
 
-Raíz: `finanzas-hub-api/`. El árbol muestra lo que existe tras la fase 0; cada módulo de negocio que se añada repite la forma de `Sample`.
+Raíz: `finanzas-hub-api/`. El árbol muestra lo que existe tras la fase 3; cada módulo de negocio que se añada repite la forma de `Ledger`.
 
 ```text
 finanzas-hub-api/
@@ -30,15 +30,17 @@ finanzas-hub-api/
     Modules/
       Identity/                    cuentas, sesión, perfil y preferencias (sobre ASP.NET Core Identity)
       Workspaces/                  workspaces, miembros, roles e invitaciones
-      Sample/                      módulo de ejemplo de la fase 0; se elimina en la fase 3
-        PersonalFinance.Modules.Sample/
-          Domain/                  Note, NoteCreated, NoteReceipt
+      Categories/                  categorías, subcategorías y tags, privados por usuario
+      Ledger/                      cuentas, operaciones y asientos: la única fuente de los saldos
+        PersonalFinance.Modules.Ledger/
+          Domain/                  Account, Operation, Entry, OperationTag
           Application/
-            Abstractions/          ISampleDb: las tablas que el módulo puede ver
-            CreateNote/            comando, respuesta y handler
-            GetNotes/              consulta y handler
-            Events/                reacciones a eventos de dominio
-          Contracts/               lo que otro módulo puede usar (aparece cuando hace falta)
+            Abstractions/          ILedgerDb: las tablas que el módulo puede ver
+            Accounts/              comandos, consultas, respuestas y handlers de cuentas
+            Transactions/          lo mismo para transacciones; TransactionReader arma las respuestas
+            LedgerScope.cs         dueño y fecha de hoy de la petición; AccountBalances
+          Contracts/               lo que otro módulo puede usar (aparece cuando hace falta;
+                                   ver Categories/Contracts, que usa el ledger)
     PersonalFinance.Infrastructure/
       DependencyInjection.cs       AddInfrastructure, MigrateDatabaseAsync; la lista de módulos
       Persistence/
@@ -58,7 +60,9 @@ finanzas-hub-api/
         ApiControllerBase.cs       Result a respuesta, lectura de Idempotency-Key
         Identity/                  AuthController, MeController
         Workspaces/                WorkspacesController, MembersController, invitaciones
-        Sample/NotesController.cs  un controller por recurso, en la carpeta de su módulo
+        Categories/                CategoriesController, TagsController
+        Ledger/                    AccountsController, TransactionsController: un controller por recurso,
+                                   en la carpeta de su módulo
       Http/                        correlación, contexto de actor, WorkspaceScopeFilter, Result a ProblemDetails,
                                    manejador global de excepciones, cookie de sesión, CORS, origen y límite de peticiones
     PersonalFinance.Worker/

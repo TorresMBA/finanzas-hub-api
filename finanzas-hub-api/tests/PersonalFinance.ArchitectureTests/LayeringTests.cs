@@ -50,7 +50,7 @@ public class LayeringTests
     [Fact]
     public void Application_does_not_depend_on_infrastructure_or_http()
     {
-        // EF Core's abstractions (DbSet, IQueryable extensions) are allowed on purpose; see ISampleDb.
+        // EF Core's abstractions (DbSet, IQueryable extensions) are allowed on purpose; see ILedgerDb.
         AssertNoDependencies("Application", root => [.. AspNetFor(root), Npgsql, Solution.Infrastructure]);
     }
 

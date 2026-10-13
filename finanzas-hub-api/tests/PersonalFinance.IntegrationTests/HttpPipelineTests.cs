@@ -22,7 +22,7 @@ public class HttpPipelineTests(ApiFixture api)
     [Fact]
     public async Task A_request_without_a_session_gets_401_as_a_problem_with_code_and_trace_id()
     {
-        var response = await api.AnonymousClient().GetAsync(ApiFixture.NotesUrl(Guid.NewGuid()));
+        var response = await api.AnonymousClient().GetAsync(Books.AccountsUrl(Guid.NewGuid()));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         var problem = await ReadProblemAsync(response);
@@ -36,7 +36,7 @@ public class HttpPipelineTests(ApiFixture api)
         var (_, workspaceId) = api.NewMember();
         var outsider = api.ClientFor(Guid.NewGuid());
 
-        var response = await outsider.GetAsync(ApiFixture.NotesUrl(workspaceId));
+        var response = await outsider.GetAsync(Books.AccountsUrl(workspaceId));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("workspace.not_found", (await ReadProblemAsync(response)).GetProperty("code").GetString());
@@ -47,12 +47,12 @@ public class HttpPipelineTests(ApiFixture api)
     {
         var (userId, workspaceId) = api.NewMember();
 
-        var response = await api.ClientFor(userId).SendAsync(ApiFixture.CreateNoteRequest(workspaceId, new { title = "" }, Guid.NewGuid().ToString()));
+        var response = await api.ClientFor(userId).PostWithKeyAsync(Books.AccountsUrl(workspaceId), new { name = "", type = "bank", currency = "PEN" });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var problem = await ReadProblemAsync(response);
         Assert.Equal("validation.failed", problem.GetProperty("code").GetString());
-        Assert.True(problem.GetProperty("errors").TryGetProperty("title", out _));
+        Assert.True(problem.GetProperty("errors").TryGetProperty("name", out _));
         Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("traceId").GetString()));
     }
 
@@ -60,7 +60,7 @@ public class HttpPipelineTests(ApiFixture api)
     public async Task Malformed_json_gets_400_instead_of_500()
     {
         var (userId, workspaceId) = api.NewMember();
-        var request = new HttpRequestMessage(HttpMethod.Post, ApiFixture.NotesUrl(workspaceId))
+        var request = new HttpRequestMessage(HttpMethod.Post, Books.AccountsUrl(workspaceId))
         {
             Content = new StringContent("{ not json", System.Text.Encoding.UTF8, "application/json")
         };
@@ -76,7 +76,7 @@ public class HttpPipelineTests(ApiFixture api)
     {
         var (userId, workspaceId) = api.NewMember();
 
-        var response = await api.ClientFor(userId).SendAsync(ApiFixture.CreateNoteRequest(workspaceId, new { title = "Sin clave" }, idempotencyKey: null));
+        var response = await api.ClientFor(userId).PostAsJsonAsync(Books.AccountsUrl(workspaceId), new { name = "Sin clave", type = "bank", currency = "PEN" });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("idempotency.key_required", (await ReadProblemAsync(response)).GetProperty("code").GetString());

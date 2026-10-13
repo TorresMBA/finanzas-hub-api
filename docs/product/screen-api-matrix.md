@@ -15,13 +15,13 @@ Permisos: **D** dueño, **P** participante, **M** miembro del workspace, **A** A
 | Transacciones | GetTransactions | `GET W/transactions` | Ledger | Operation, Entry | — | D | — |
 | Transacciones | PostTransaction | `POST W/transactions` | Ledger | Operation, Entry | OperationPosted | D | — |
 | Transacciones | PostTransfer | `POST W/transfers` | Ledger | Operation, Entry | OperationPosted | D | — |
-| Transacciones | EditTransaction | `PATCH W/transactions/{id}` | Ledger | Operation | OperationChanged | D | — |
-| Transacciones | VoidTransaction | `POST W/transactions/{id}/void` | Ledger | Operation | OperationVoided | D | — |
+| Transacciones | EditTransaction (incluye las etiquetas) | `PATCH W/transactions/{id}` | Ledger | Operation | OperationChanged | D | — |
+| Transacciones | ConfirmTransaction, VoidTransaction | `POST W/transactions/{id}/confirm`, `POST W/transactions/{id}/void` | Ledger | Operation | OperationVoided | D | — |
 | Transacciones | "Repetir cada mes" | `POST W/recurring-rules` | Scheduling | RecurringRule | — | D | — |
 | Transacciones | "Dividir gasto" | `POST W/shared-groups/{id}/expenses` con `fromTransactionId` | SharedExpenses | SharedExpense | SharedExpensePublished | P | Señal |
 | Cuentas | GetAccounts, GetAccountSummary | `GET W/accounts`, `GET W/accounts/summary` | Ledger | Account | — | D | — |
 | Cuentas | OpenAccount | `POST W/accounts` | Ledger | Account, CreditCardProfile | — | D | — |
-| Cuentas | UpdateAccount, ArchiveAccount | `PATCH W/accounts/{id}`, `POST .../archive` | Ledger | Account | AccountArchived | D | — |
+| Cuentas | UpdateAccount, ArchiveAccount | `PATCH W/accounts/{id}`, `POST .../archive`, `POST .../restore` | Ledger | Account | AccountArchived | D | — |
 | Cuentas | AdjustAccountBalance | `POST W/accounts/{id}/adjust-balance` | Ledger | Operation | OperationPosted | D | — |
 | Cuentas | PayCreditCard | `POST W/accounts/{id}/payments` | Ledger | Operation | OperationPosted | D | — |
 | Categorías | ListCategories, ListTags | `GET W/categories`, `GET W/tags` | Categories | Category, Tag | — | D | — |
@@ -29,7 +29,6 @@ Permisos: **D** dueño, **P** participante, **M** miembro del workspace, **A** A
 | Categorías | ArchiveCategory, RestoreCategory | `POST W/categories/{id}/archive`, `POST W/categories/{id}/restore` | Categories | Category | CategoryArchived (desde la fase 7) | D | — |
 | Categorías | SetCategoryTags, ArchiveTag | `PUT W/categories/{id}/tags`, `POST W/tags/{id}/archive` | Categories | Tag | — | D | — |
 | Categorías | SeedDefaultCategories | `POST W/categories/defaults` | Categories | Category | — | D | — |
-| Transacciones (fase 3) | CreateTag | `POST W/tags` | Categories | Tag | — | D | — |
 | Presupuestos | GetBudgets, GetBudgetDetail | `GET W/budgets`, `GET W/budgets/{id}` | Budgets | Budget | — | D | — |
 | Presupuestos | CreateBudget, AdjustBudgetLimit, EndBudget | `POST`, `PATCH`, `DELETE W/budgets[/{id}]` | Budgets | Budget | — | D | — |
 | Metas | GetGoals, GetGoalDetail | `GET W/goals`, `GET W/goals/{id}` | Goals | Goal, Participant, Contribution | — | P | Señal |

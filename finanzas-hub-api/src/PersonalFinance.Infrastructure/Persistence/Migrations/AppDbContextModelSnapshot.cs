@@ -590,53 +590,265 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("PersonalFinance.Modules.Sample.Domain.Note", b =>
+            modelBuilder.Entity("PersonalFinance.Modules.Ledger.Domain.Account", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("char(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Institution")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("institution");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NameKey")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name_key");
 
                     b.Property<Guid>("OwnerUserId")
                         .HasColumnType("uuid")
                         .HasColumnName("owner_user_id");
 
-                    b.Property<string>("Title")
+                    b.Property<string>("Type")
                         .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)")
-                        .HasColumnName("title");
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("type");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.Property<Guid>("WorkspaceId")
                         .HasColumnType("uuid")
                         .HasColumnName("workspace_id");
 
                     b.HasKey("Id")
-                        .HasName("pk_notes");
+                        .HasName("pk_accounts");
 
-                    b.HasIndex("WorkspaceId", "OwnerUserId", "CreatedAt")
-                        .HasDatabaseName("ix_notes_workspace_id_owner_user_id_created_at");
+                    b.HasIndex("WorkspaceId", "OwnerUserId", "NameKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_accounts_workspace_id_owner_user_id_name_key")
+                        .HasFilter("archived_at IS NULL");
 
-                    b.ToTable("notes", "sample");
+                    b.ToTable("accounts", "ledger", t =>
+                        {
+                            t.HasCheckConstraint("ck_accounts_type", "type IN ('Bank', 'Cash', 'Wallet')");
+                        });
                 });
 
-            modelBuilder.Entity("PersonalFinance.Modules.Sample.Domain.NoteReceipt", b =>
+            modelBuilder.Entity("PersonalFinance.Modules.Ledger.Domain.Entry", b =>
                 {
-                    b.Property<Guid>("NoteId")
+                    b.Property<Guid>("Id")
                         .HasColumnType("uuid")
-                        .HasColumnName("note_id");
+                        .HasColumnName("id");
 
-                    b.Property<DateTimeOffset>("ReceivedAt")
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("amount");
+
+                    b.Property<decimal?>("BaseAmount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("base_amount");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("char(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)")
+                        .HasColumnName("direction");
+
+                    b.Property<decimal?>("FxRate")
+                        .HasColumnType("numeric(18,8)")
+                        .HasColumnName("fx_rate");
+
+                    b.Property<DateOnly?>("FxRateDate")
+                        .HasColumnType("date")
+                        .HasColumnName("fx_rate_date");
+
+                    b.Property<bool>("IsEffective")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_effective");
+
+                    b.Property<DateOnly>("OccurredOn")
+                        .HasColumnType("date")
+                        .HasColumnName("occurred_on");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("operation_id");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<decimal>("SignedAmount")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("signed_amount")
+                        .HasComputedColumnSql("CASE WHEN direction = 'In' THEN amount ELSE -amount END", true);
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_entries");
+
+                    b.HasIndex("OperationId")
+                        .HasDatabaseName("ix_entries_operation_id");
+
+                    b.HasIndex("AccountId", "OccurredOn")
+                        .HasDatabaseName("ix_entries_account_id_occurred_on")
+                        .HasFilter("is_effective");
+
+                    NpgsqlIndexBuilderExtensions.IncludeProperties(b.HasIndex("AccountId", "OccurredOn"), new[] { "SignedAmount" });
+
+                    b.ToTable("entries", "ledger", t =>
+                        {
+                            t.HasCheckConstraint("ck_entries_amount", "amount > 0");
+
+                            t.HasCheckConstraint("ck_entries_direction", "direction IN ('In', 'Out')");
+                        });
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Ledger.Domain.Operation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("received_at");
+                        .HasColumnName("created_at");
 
-                    b.HasKey("NoteId")
-                        .HasName("pk_note_receipts");
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("description");
 
-                    b.ToTable("note_receipts", "sample");
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Merchant")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("merchant");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<DateOnly>("OccurredOn")
+                        .HasColumnType("date")
+                        .HasColumnName("occurred_on");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<Guid?>("SourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourceModule")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("source_module");
+
+                    b.Property<string>("SourceType")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("source_type");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<string>("VoidReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("void_reason");
+
+                    b.Property<DateTimeOffset?>("VoidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("voided_at");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_operations");
+
+                    b.HasIndex("OwnerUserId", "CategoryId", "OccurredOn")
+                        .HasDatabaseName("ix_operations_owner_user_id_category_id_occurred_on");
+
+                    b.HasIndex("SourceModule", "SourceType", "SourceId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_operations_source_module_source_type_source_id")
+                        .HasFilter("source_id IS NOT NULL");
+
+                    b.HasIndex("WorkspaceId", "OwnerUserId", "OccurredOn", "Id")
+                        .IsDescending(false, false, true, true)
+                        .HasDatabaseName("ix_operations_workspace_id_owner_user_id_occurred_on_id");
+
+                    b.ToTable("operations", "ledger", t =>
+                        {
+                            t.HasCheckConstraint("ck_operations_category", "kind NOT IN ('Income', 'Expense', 'Refund') OR category_id IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_operations_kind", "kind IN ('Income', 'Expense', 'Refund', 'Transfer', 'Adjustment', 'OpeningBalance')");
+
+                            t.HasCheckConstraint("ck_operations_status", "status IN ('Pending', 'Confirmed', 'Voided')");
+                        });
                 });
 
             modelBuilder.Entity("PersonalFinance.Modules.Workspaces.Domain.Invitation", b =>
@@ -894,6 +1106,51 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_user_preferences_users_user_id");
                 });
 
+            modelBuilder.Entity("PersonalFinance.Modules.Ledger.Domain.Entry", b =>
+                {
+                    b.HasOne("PersonalFinance.Modules.Ledger.Domain.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_entries_accounts_account_id");
+
+                    b.HasOne("PersonalFinance.Modules.Ledger.Domain.Operation", null)
+                        .WithMany("Entries")
+                        .HasForeignKey("OperationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_entries_operations_operation_id");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Ledger.Domain.Operation", b =>
+                {
+                    b.OwnsMany("PersonalFinance.Modules.Ledger.Domain.OperationTag", "Tags", b1 =>
+                        {
+                            b1.Property<Guid>("OperationId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("operation_id");
+
+                            b1.Property<Guid>("TagId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("tag_id");
+
+                            b1.HasKey("OperationId", "TagId")
+                                .HasName("pk_operation_tags");
+
+                            b1.HasIndex("TagId")
+                                .HasDatabaseName("ix_operation_tags_tag_id");
+
+                            b1.ToTable("operation_tags", "ledger");
+
+                            b1.WithOwner()
+                                .HasForeignKey("OperationId")
+                                .HasConstraintName("fk_operation_tags_operations_operation_id");
+                        });
+
+                    b.Navigation("Tags");
+                });
+
             modelBuilder.Entity("PersonalFinance.Modules.Workspaces.Domain.Invitation", b =>
                 {
                     b.HasOne("PersonalFinance.Modules.Workspaces.Domain.Workspace", null)
@@ -912,6 +1169,11 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_memberships_workspaces_workspace_id");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Ledger.Domain.Operation", b =>
+                {
+                    b.Navigation("Entries");
                 });
 
             modelBuilder.Entity("PersonalFinance.Modules.Workspaces.Domain.Workspace", b =>

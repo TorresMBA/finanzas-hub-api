@@ -27,3 +27,21 @@ Diseño completo en la sección K.
 | VoidTransaction | Dueño | id, motivo | Si viene de otro módulo solo la anula ese módulo | Excluida de toda suma; `OperationVoided` |
 | SetTransactionTags | Dueño | tags | Máximo 10 | — |
 | GetAccounts, GetAccountSummary, GetTransactions, GetTransaction (queries) | Dueño | filtros, cursor | — | Saldos derivados |
+
+## Estado tras la fase 3
+
+Implementado: abrir, renombrar, archivar y restaurar cuentas de banco, efectivo y billetera; ajustar el saldo; registrar, editar, confirmar y anular ingresos y gastos, con sus etiquetas; y las consultas de cuentas, de un movimiento y del listado con filtros, totales por moneda y cursor. Endpoints: `GET` y `POST W/accounts`; `GET` y `PATCH W/accounts/{id}`; `POST W/accounts/{id}/archive`, `/restore` y `/adjust-balance`; `GET` y `POST W/transactions`; `GET` y `PATCH W/transactions/{id}`; `POST W/transactions/{id}/confirm` y `/void`.
+
+Diferido: transferencias, tarjetas, tipo de cambio, `GetAccountSummary` e `ILedgerQueries` (fase 4); `ILedgerPosting` para otros módulos (fase 4 en adelante); los eventos del módulo (fase 5, con Budgets); `ETag` (fase 8).
+
+- **No existe una columna de saldo.** El saldo de una cuenta es la suma de `signed_amount` de sus asientos efectivos, calculada en cada respuesta (`AccountBalances`). Un test falla si `Account` gana una propiedad con "Balance" en el nombre.
+- El saldo inicial es una operación `OpeningBalance` y corregir un saldo es una operación `Adjustment` por la diferencia. Ninguna de las dos es ingreso ni gasto, y ninguna se edita: se anula y se registra de nuevo.
+- Son efectivos los movimientos pendientes y los confirmados (OQ-05). Anular marca la operación y sus asientos como no efectivos; nada se borra.
+- Editar reescribe el asiento en sitio (OQ-22): monto, cuenta, fecha, tipo y categoría. La auditoría guarda la versión anterior y la nueva. Un movimiento puede seguir en una cuenta archivada después, pero no moverse a una.
+- La moneda de un movimiento es la de su cuenta (OQ-06), fija desde que se abre. Los montos tienen como máximo los decimales de la moneda; uno con más se rechaza, no se redondea.
+- Los totales del listado se dan por moneda y cubren todo lo que cumple el filtro, no solo la página.
+- El listado va de más nuevo a más antiguo, por fecha y luego por id (que es temporal). El cursor es la fecha y el id de la última fila, opaco para el cliente.
+- La categoría y las etiquetas son de Categories: el ledger guarda sus ids y las valida y describe a través de `ICategoryLookup` e `ITagLookup`, que ya aplican el filtro de dueño. Una categoría ajena responde como si no existiera.
+- Cuentas, operaciones y asientos son `IOwned`. El asiento repite el workspace, el dueño, la fecha y si es efectivo de su operación, para que el saldo sea una suma indexada sobre una sola tabla.
+- Abrir cuenta, ajustar saldo y registrar transacción exigen `Idempotency-Key`. El frontend crea la clave al abrir el formulario, no al enviarlo.
+- Las columnas `base_amount`, `fx_rate` y `fx_rate_date` de `entries` existen desde esta migración y nadie las escribe todavía.

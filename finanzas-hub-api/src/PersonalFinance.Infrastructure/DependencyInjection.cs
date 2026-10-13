@@ -13,12 +13,12 @@ using PersonalFinance.Infrastructure.Email;
 using PersonalFinance.Infrastructure.Messaging;
 using PersonalFinance.Modules.Categories.Application.Abstractions;
 using PersonalFinance.Modules.Identity.Application.Abstractions;
+using PersonalFinance.Modules.Ledger.Application.Abstractions;
 using PersonalFinance.Modules.Identity.Domain;
 using PersonalFinance.Modules.Workspaces.Application.Abstractions;
 using PersonalFinance.Infrastructure.Observability;
 using PersonalFinance.Infrastructure.Persistence;
 using PersonalFinance.Infrastructure.Security;
-using PersonalFinance.Modules.Sample.Application.Abstractions;
 
 namespace PersonalFinance.Infrastructure;
 
@@ -85,8 +85,8 @@ public static class DependencyInjection
         services.AddModule(typeof(ICategoriesDb).Assembly);
         services.AddScoped<ICategoriesDb>(provider => provider.GetRequiredService<AppDbContext>());
 
-        services.AddModule(typeof(ISampleDb).Assembly);
-        services.AddScoped<ISampleDb>(provider => provider.GetRequiredService<AppDbContext>());
+        services.AddModule(typeof(ILedgerDb).Assembly);
+        services.AddScoped<ILedgerDb>(provider => provider.GetRequiredService<AppDbContext>());
 
         return services;
     }

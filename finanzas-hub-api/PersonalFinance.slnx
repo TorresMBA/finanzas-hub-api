@@ -12,7 +12,7 @@
     <Project Path="src/Modules/Identity/PersonalFinance.Modules.Identity/PersonalFinance.Modules.Identity.csproj" />
     <Project Path="src/Modules/Workspaces/PersonalFinance.Modules.Workspaces/PersonalFinance.Modules.Workspaces.csproj" />
     <Project Path="src/Modules/Categories/PersonalFinance.Modules.Categories/PersonalFinance.Modules.Categories.csproj" />
-    <Project Path="src/Modules/Sample/PersonalFinance.Modules.Sample/PersonalFinance.Modules.Sample.csproj" />
+    <Project Path="src/Modules/Ledger/PersonalFinance.Modules.Ledger/PersonalFinance.Modules.Ledger.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PersonalFinance.UnitTests/PersonalFinance.UnitTests.csproj" />

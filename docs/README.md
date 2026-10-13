@@ -60,4 +60,4 @@ Los documentos nacieron de un único análisis y conservan sus letras de secció
 
 ## Estado
 
-Fases 0, 1 y 2 terminadas; el tablero con el estado de cada fase y lo que quedó pendiente está en [roadmap/status.md](roadmap/status.md). La fase 0 se rediseñó tras su revisión ([ADR-019](adr/ADR-019-simplificacion-de-la-plataforma.md)). El detalle de lo verificado y de lo que no está en [roadmap/phases.md](roadmap/phases.md).
+Fases 0 a 3 terminadas; el tablero con el estado de cada fase y lo que quedó pendiente está en [roadmap/status.md](roadmap/status.md). La fase 0 se rediseñó tras su revisión ([ADR-019](adr/ADR-019-simplificacion-de-la-plataforma.md)). El detalle de lo verificado y de lo que no está en [roadmap/phases.md](roadmap/phases.md).

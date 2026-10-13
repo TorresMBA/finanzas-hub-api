@@ -9,117 +9,112 @@ using PersonalFinance.Infrastructure.Messaging;
 using PersonalFinance.Infrastructure.Persistence;
 using PersonalFinance.Infrastructure.Platform;
 using PersonalFinance.IntegrationTests.Support;
-using PersonalFinance.Modules.Sample.Domain;
+using PersonalFinance.Modules.Workspaces.Domain;
 
 namespace PersonalFinance.IntegrationTests;
 
-/// <summary>Ownership, one transaction per command, reactions to domain events, idempotency and the audit trail, through a real use case.</summary>
+/// <summary>One transaction per command, reactions to domain events, idempotency and the audit trail, through real use cases.</summary>
 [Collection(ApiCollection.Name)]
 public class CommandPipelineTests(ApiFixture api)
 {
-    private sealed record NoteDto(Guid Id, string Title, DateTimeOffset CreatedAt);
-
     [Fact]
-    public async Task Creating_a_note_stores_the_note_its_audit_entry_and_the_reaction_to_its_event_together()
+    public async Task A_command_stores_its_change_its_audit_entry_and_the_reactions_to_its_event_together()
     {
-        var (userId, workspaceId) = api.NewMember();
+        var brian = await api.RegisterAsync("Brian");
+        var workspaceId = brian.PersonalWorkspaceId;
 
-        var response = await api.ClientFor(userId).SendAsync(ApiFixture.CreateNoteRequest(workspaceId, new { title = "Pagar la luz" }, Guid.NewGuid().ToString()));
+        var response = await brian.Client.PostAsJsonAsync(
+            $"/api/v1/workspaces/{workspaceId}/onboarding/complete", new { baseCurrency = "PEN", timeZone = "America/Lima" });
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var note = (await response.Content.ReadFromJsonAsync<NoteDto>())!;
-        Assert.Equal("Pagar la luz", note.Title);
-        Assert.EndsWith($"/sample-notes/{note.Id}", response.Headers.Location!.ToString());
-
-        var audit = await api.ExecuteAsync(services => Db(services).AuditLog.AsNoTracking().SingleAsync(entry => entry.ResourceId == note.Id));
-        Assert.Equal("sample.note.created", audit.Action);
-        Assert.Equal(userId, audit.ActorUserId);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var audit = await api.ExecuteAsync(services => Db(services).AuditLog.AsNoTracking()
+            .SingleAsync(entry => entry.Action == "workspaces.workspace.onboarding_completed" && entry.ResourceId == workspaceId));
+        Assert.Equal(brian.UserId, audit.ActorUserId);
         Assert.Equal("User", audit.ActorType);
         Assert.Equal("Web", audit.Source);
         Assert.Equal(workspaceId, audit.WorkspaceId);
-        Assert.Equal(userId, audit.OwnerUserId);
-        Assert.Equal("Pagar la luz", JsonDocument.Parse(audit.After!).RootElement.GetProperty("title").GetString());
+        Assert.Equal("PEN", JsonDocument.Parse(audit.After!).RootElement.GetProperty("baseCurrency").GetString());
         Assert.False(string.IsNullOrWhiteSpace(audit.CorrelationId));
 
-        var receipts = await api.ExecuteAsync(services => Db(services).NoteReceipts.AsNoTracking().CountAsync(receipt => receipt.NoteId == note.Id));
-        Assert.Equal(1, receipts);
+        // Two reactions ran inside the same transaction: the real one seeded the categories, and the probe
+        // found in the database what the command had just written.
+        var seeded = await brian.Client.GetFromJsonAsync<JsonElement>($"/api/v1/workspaces/{workspaceId}/categories");
+        Assert.NotEmpty(seeded.EnumerateArray());
+        Assert.Equal("PEN", OnboardingProbe.CurrencySeen[workspaceId]);
+        var reactionAudit = await api.ExecuteAsync(services => Db(services).AuditLog.AsNoTracking()
+            .SingleAsync(entry => entry.Action == "categories.defaults.seeded" && entry.WorkspaceId == workspaceId));
+        Assert.Equal(audit.CorrelationId, reactionAudit.CorrelationId);
     }
 
     [Fact]
-    public async Task A_reaction_that_fails_rolls_back_the_command_that_caused_it()
+    public async Task A_reaction_that_fails_rolls_back_the_command_that_caused_it_and_the_other_reactions()
     {
-        var (userId, workspaceId) = api.NewMember();
-        var client = api.ClientFor(userId);
-        var key = Guid.NewGuid().ToString();
-        var title = $"{ExplodingNoteReaction.TitleMarker}-{Guid.NewGuid():N}";
+        var brian = await api.RegisterAsync("Brian");
+        var workspaceId = brian.PersonalWorkspaceId;
 
-        var response = await client.SendAsync(ApiFixture.CreateNoteRequest(workspaceId, new { title }, key));
+        var response = await brian.Client.PostAsJsonAsync(
+            $"/api/v1/workspaces/{workspaceId}/onboarding/complete", new { baseCurrency = "PEN", timeZone = OnboardingProbe.ExplodingTimeZone });
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Equal("unexpected", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
-        Assert.Empty((await client.GetFromJsonAsync<List<NoteDto>>(ApiFixture.NotesUrl(workspaceId)))!);
-        var (auditEntries, storedKeys) = await api.ExecuteAsync(async services => (
-            await Db(services).AuditLog.AsNoTracking().CountAsync(entry => entry.WorkspaceId == workspaceId),
-            await Db(services).IdempotencyKeys.AsNoTracking().CountAsync(record => record.UserId == userId)));
+        var workspace = await brian.Client.GetFromJsonAsync<JsonElement>($"/api/v1/workspaces/{workspaceId}");
+        Assert.Equal("pendingSetup", workspace.GetProperty("status").GetString());
+        Assert.Empty((await brian.Client.GetFromJsonAsync<JsonElement>($"/api/v1/workspaces/{workspaceId}/categories")).EnumerateArray());
+        var auditEntries = await api.ExecuteAsync(services => Db(services).AuditLog.AsNoTracking()
+            .CountAsync(entry => entry.WorkspaceId == workspaceId && entry.Action != "workspaces.workspace.created"));
         Assert.Equal(0, auditEntries);
-        Assert.Equal(0, storedKeys);
+
+        // Nothing is left half done: the same request with a healthy reaction succeeds.
+        var retry = await brian.Client.PostAsJsonAsync(
+            $"/api/v1/workspaces/{workspaceId}/onboarding/complete", new { baseCurrency = "PEN", timeZone = "America/Lima" });
+        Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
     }
 
     [Fact]
-    public async Task A_note_is_visible_only_to_its_owner_even_inside_the_same_workspace()
+    public async Task A_failed_command_does_not_keep_its_idempotency_key()
     {
-        var (brian, workspaceId) = api.NewMember();
-        var juan = api.Workspaces.Add(workspaceId, Guid.NewGuid()).UserId;
-        await api.ClientFor(brian).SendAsync(ApiFixture.CreateNoteRequest(workspaceId, new { title = "Privada de Brian" }, Guid.NewGuid().ToString()));
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var url = Books.AccountsUrl(brian.PersonalWorkspaceId);
+        var key = Guid.NewGuid().ToString();
 
-        var brianSees = await api.ClientFor(brian).GetFromJsonAsync<List<NoteDto>>(ApiFixture.NotesUrl(workspaceId));
-        var juanSees = await api.ClientFor(juan).GetFromJsonAsync<List<NoteDto>>(ApiFixture.NotesUrl(workspaceId));
+        var rejected = await brian.Client.PostWithKeyAsync(url, new { name = "Yenes", type = "bank", currency = "JPY" }, key);
+        var corrected = await brian.Client.PostWithKeyAsync(url, new { name = "Soles", type = "bank", currency = "PEN" }, key);
 
-        Assert.Single(brianSees!);
-        Assert.Empty(juanSees!);
-    }
-
-    [Fact]
-    public async Task The_same_user_keeps_separate_notes_in_each_workspace()
-    {
-        var (userId, firstWorkspace) = api.NewMember();
-        var secondWorkspace = api.Workspaces.Add(Guid.NewGuid(), userId).WorkspaceId;
-        await api.ClientFor(userId).SendAsync(ApiFixture.CreateNoteRequest(firstWorkspace, new { title = "Solo en el primero" }, Guid.NewGuid().ToString()));
-
-        var inSecond = await api.ClientFor(userId).GetFromJsonAsync<List<NoteDto>>(ApiFixture.NotesUrl(secondWorkspace));
-
-        Assert.Empty(inSecond!);
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, corrected.StatusCode);
     }
 
     [Fact]
     public async Task Replaying_an_idempotency_key_returns_the_first_response_and_applies_the_effect_once()
     {
-        var (userId, workspaceId) = api.NewMember();
-        var client = api.ClientFor(userId);
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var url = Books.AccountsUrl(brian.PersonalWorkspaceId);
         var key = Guid.NewGuid().ToString();
+        var body = new { name = "Una sola vez", type = "bank", currency = "PEN", openingBalance = 100m };
 
-        var first = await client.SendAsync(ApiFixture.CreateNoteRequest(workspaceId, new { title = "Una sola vez" }, key));
-        var second = await client.SendAsync(ApiFixture.CreateNoteRequest(workspaceId, new { title = "Una sola vez" }, key));
+        var first = await brian.Client.PostWithKeyAsync(url, body, key);
+        var second = await brian.Client.PostWithKeyAsync(url, body, key);
 
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
         Assert.Equal(HttpStatusCode.Created, second.StatusCode);
-        Assert.Equal((await first.Content.ReadFromJsonAsync<NoteDto>())!.Id, (await second.Content.ReadFromJsonAsync<NoteDto>())!.Id);
-        Assert.Single((await client.GetFromJsonAsync<List<NoteDto>>(ApiFixture.NotesUrl(workspaceId)))!);
+        Assert.Equal((await first.Content.ReadFromJsonAsync<JsonElement>()).Id(), (await second.Content.ReadFromJsonAsync<JsonElement>()).Id());
+        var accounts = await brian.Client.GetFromJsonAsync<JsonElement>(url);
+        Assert.Equal(100m, Assert.Single(accounts.EnumerateArray()).GetProperty("balance").GetDecimal());
     }
 
     [Fact]
     public async Task Reusing_an_idempotency_key_for_a_different_request_is_rejected()
     {
-        var (userId, workspaceId) = api.NewMember();
-        var client = api.ClientFor(userId);
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var url = Books.AccountsUrl(brian.PersonalWorkspaceId);
         var key = Guid.NewGuid().ToString();
-        await client.SendAsync(ApiFixture.CreateNoteRequest(workspaceId, new { title = "Original" }, key));
+        await brian.Client.PostWithKeyAsync(url, new { name = "Original", type = "bank", currency = "PEN" }, key);
 
-        var response = await client.SendAsync(ApiFixture.CreateNoteRequest(workspaceId, new { title = "Otra cosa" }, key));
+        var response = await brian.Client.PostWithKeyAsync(url, new { name = "Otra cosa", type = "bank", currency = "PEN" }, key);
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         Assert.Equal("idempotency.key_reused", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
-        Assert.Single((await client.GetFromJsonAsync<List<NoteDto>>(ApiFixture.NotesUrl(workspaceId)))!);
+        Assert.Single((await brian.Client.GetFromJsonAsync<JsonElement>(url)).EnumerateArray());
     }
 
     [Fact]
@@ -127,12 +122,15 @@ public class CommandPipelineTests(ApiFixture api)
     {
         var (brian, workspaceId) = api.NewMember();
         var juan = api.Workspaces.Add(workspaceId, Guid.NewGuid()).UserId;
-        const string key = "same-key-for-both";
+        var key = $"same-key-for-both-{workspaceId}";
+        var body = new { name = "Efectivo", type = "cash", currency = "PEN" };
 
-        var fromBrian = await api.ClientFor(brian).SendAsync(ApiFixture.CreateNoteRequest(workspaceId, new { title = "De Brian" }, key + workspaceId));
-        var fromJuan = await api.ClientFor(juan).SendAsync(ApiFixture.CreateNoteRequest(workspaceId, new { title = "De Brian" }, key + workspaceId));
+        var fromBrian = await api.ClientFor(brian).PostWithKeyAsync(Books.AccountsUrl(workspaceId), body, key);
+        var fromJuan = await api.ClientFor(juan).PostWithKeyAsync(Books.AccountsUrl(workspaceId), body, key);
 
-        Assert.NotEqual((await fromBrian.Content.ReadFromJsonAsync<NoteDto>())!.Id, (await fromJuan.Content.ReadFromJsonAsync<NoteDto>())!.Id);
+        Assert.Equal(HttpStatusCode.Created, fromBrian.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, fromJuan.StatusCode);
+        Assert.NotEqual((await fromBrian.Content.ReadFromJsonAsync<JsonElement>()).Id(), (await fromJuan.Content.ReadFromJsonAsync<JsonElement>()).Id());
     }
 
     [Fact]
@@ -147,24 +145,23 @@ public class CommandPipelineTests(ApiFixture api)
 
         Assert.True(result.IsFailure);
         Assert.Equal("test.forced_failure", result.Error.Code);
-        var (receipts, auditEntries) = await api.ExecuteAsync(async services => (
-            await Db(services).NoteReceipts.AsNoTracking().CountAsync(receipt => receipt.NoteId == marker),
+        var markerName = marker.ToString("N");
+        var (accounts, auditEntries) = await api.ExecuteAsync(async services => (
+            await Db(services).Accounts.IgnoreQueryFilters().AsNoTracking().CountAsync(account => account.Name == markerName),
             await Db(services).AuditLog.AsNoTracking().CountAsync(entry => entry.ResourceId == marker)));
-        Assert.Equal(0, receipts);
+        Assert.Equal(0, accounts);
         Assert.Equal(0, auditEntries);
     }
 
     [Fact]
     public async Task Saving_outside_the_command_pipeline_with_events_pending_is_refused()
     {
-        var (userId, workspaceId) = api.NewMember();
-
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => api.ExecuteAsync(async services =>
         {
             var db = Db(services);
-            db.Notes.Add(Note.Create(workspaceId, userId, "Fuera del pipeline", DateTimeOffset.UtcNow).Value);
+            db.Workspaces.Add(Workspace.Create("Fuera del pipeline", Guid.NewGuid(), DateTimeOffset.UtcNow).Value);
             return await db.SaveChangesAsync();
-        }, userId, workspaceId));
+        }));
 
         Assert.Contains("outside the command pipeline", exception.Message);
     }

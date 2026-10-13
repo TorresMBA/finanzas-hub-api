@@ -3,10 +3,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\PersonalFinance.BuildingBlocks.Domain\PersonalFinance.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\PersonalFinance.BuildingBlocks.Application\PersonalFinance.BuildingBlocks.Application.csproj" />
+    <ProjectReference Include="..\..\Categories\PersonalFinance.Modules.Categories\PersonalFinance.Modules.Categories.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Only the abstractions the use cases query through (DbSet, LINQ). The provider lives in Infrastructure. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
   </ItemGroup>
 

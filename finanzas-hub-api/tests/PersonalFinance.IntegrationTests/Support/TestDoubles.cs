@@ -12,8 +12,9 @@ using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Infrastructure.Persistence;
-using PersonalFinance.Modules.Sample.Application.Abstractions;
-using PersonalFinance.Modules.Sample.Domain;
+using PersonalFinance.Modules.Ledger.Application.Abstractions;
+using PersonalFinance.Modules.Ledger.Domain;
+using PersonalFinance.Modules.Workspaces.Contracts.Events;
 
 namespace PersonalFinance.IntegrationTests.Support;
 
@@ -70,33 +71,39 @@ internal sealed class FallbackWorkspaceAccess(FakeWorkspaceAccess declared, IWor
 /// </summary>
 internal sealed record WriteThenFailCommand(Guid MarkerId) : ICommand<Unit>;
 
-internal sealed class WriteThenFailHandler(ISampleDb db, AppDbContext context, IAuditLog audit, IClock clock)
+internal sealed class WriteThenFailHandler(ILedgerDb db, AppDbContext context, ICurrentUser currentUser, IWorkspaceContext workspace, IAuditLog audit, IClock clock)
     : ICommandHandler<WriteThenFailCommand, Unit>
 {
     public async Task<Result<Unit>> HandleAsync(WriteThenFailCommand command, CancellationToken cancellationToken)
     {
-        db.NoteReceipts.Add(new NoteReceipt(command.MarkerId, clock.UtcNow));
-        audit.Record(new AuditEntry("sample", "sample.test.written", "marker", command.MarkerId));
+        db.Accounts.Add(Account.Open(
+            workspace.WorkspaceId!.Value, currentUser.UserId!.Value, command.MarkerId.ToString("N"), AccountType.Cash, "PEN", null, clock.UtcNow).Value);
+        audit.Record(new AuditEntry("ledger", "ledger.test.written", "marker", command.MarkerId));
         await context.SaveChangesAsync(cancellationToken);
         return Error.BusinessRule("test.forced_failure", "Rejected after writing.");
     }
 }
 
 /// <summary>
-/// A reaction with a bug: it throws for notes whose title carries the marker. It finds the title by querying,
-/// which also proves that a reaction sees what its command just wrote.
+/// A reaction to the end of an onboarding, next to the real one that seeds the categories. It notes what it
+/// found in the database, which proves a reaction sees what its command just wrote, and it has a bug: it
+/// throws for the workspaces set up in the marker time zone.
 /// </summary>
-internal sealed class ExplodingNoteReaction(ISampleDb db) : IDomainEventHandler<NoteCreated>
+internal sealed class OnboardingProbe(AppDbContext db) : IDomainEventHandler<OnboardingCompleted>
 {
-    public const string TitleMarker = "explota";
+    /// <summary>A valid time zone nobody would pick by accident.</summary>
+    public const string ExplodingTimeZone = "Pacific/Kiritimati";
 
-    public async Task HandleAsync(NoteCreated domainEvent, CancellationToken cancellationToken)
+    /// <summary>The base currency each workspace had in the database when the reaction ran.</summary>
+    public static ConcurrentDictionary<Guid, string?> CurrencySeen { get; } = new();
+
+    public async Task HandleAsync(OnboardingCompleted domainEvent, CancellationToken cancellationToken)
     {
-        var title = await db.Notes.AsNoTracking()
-            .Where(note => note.Id == domainEvent.NoteId)
-            .Select(note => note.Title)
+        CurrencySeen[domainEvent.WorkspaceId] = await db.Workspaces.AsNoTracking()
+            .Where(workspace => workspace.Id == domainEvent.WorkspaceId)
+            .Select(workspace => workspace.BaseCurrency)
             .SingleAsync(cancellationToken);
-        if (title.StartsWith(TitleMarker, StringComparison.Ordinal))
+        if (domainEvent.TimeZone == ExplodingTimeZone)
         {
             throw new InvalidOperationException("Simulated failure in a reaction.");
         }

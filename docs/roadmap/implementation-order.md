@@ -33,7 +33,7 @@ Hecha. Se conserva como registro de qué hay montado.
 2. Crear `finanzas-hub-api/PersonalFinance.slnx`, `Directory.Build.props`, `Directory.Packages.props` y los dos BuildingBlocks.
 3. Crear `PersonalFinance.Infrastructure` con `AppDbContext`, el pipeline de comandos (logging, transacción con eventos de dominio, idempotencia), auditoría y OpenTelemetry.
 4. Crear `PersonalFinance.Api` (controllers, filtro de workspace, errores como `ProblemDetails`) y `PersonalFinance.Worker` (jobs).
-5. Módulo `Sample` de punta a punta: comando idempotente, evento de dominio con su reacción y consulta filtrada por dueño.
+5. Módulo `Sample` de punta a punta: comando idempotente, evento de dominio con su reacción y consulta filtrada por dueño. (Se eliminó en la fase 3; los tests de la plataforma usan desde entonces módulos reales.)
 6. Crear los tres proyectos de tests con las reglas de V.2 y el fixture de Testcontainers.
 7. Escribir `docker-compose.yml` con postgres, mailpit y aspire-dashboard.
 8. Crear `finanzas-hub-web` con Angular 22, tokens del mock, shell responsive, `shared/ui` base e interceptores.

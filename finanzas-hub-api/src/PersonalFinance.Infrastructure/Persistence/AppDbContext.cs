@@ -8,9 +8,9 @@ using PersonalFinance.Infrastructure.Platform;
 using PersonalFinance.Modules.Categories.Application.Abstractions;
 using PersonalFinance.Modules.Categories.Domain;
 using PersonalFinance.Modules.Identity.Application.Abstractions;
+using PersonalFinance.Modules.Ledger.Application.Abstractions;
+using PersonalFinance.Modules.Ledger.Domain;
 using PersonalFinance.Modules.Identity.Domain;
-using PersonalFinance.Modules.Sample.Application.Abstractions;
-using PersonalFinance.Modules.Sample.Domain;
 using PersonalFinance.Modules.Workspaces.Application.Abstractions;
 using PersonalFinance.Modules.Workspaces.Domain;
 
@@ -23,16 +23,16 @@ internal static class Schemas
     public const string Identity = "identity";
     public const string Workspaces = "workspaces";
     public const string Categories = "categories";
-    public const string Sample = "sample";
+    public const string Ledger = "ledger";
 }
 
 /// <summary>
 /// The one database context. A module reaches only its own tables, through the interface it declares
-/// (<see cref="ISampleDb"/> and the like); every <see cref="IOwned"/> entity is filtered by the current user
+/// (<see cref="ILedgerDb"/> and the like); every <see cref="IOwned"/> entity is filtered by the current user
 /// and workspace. It derives from ASP.NET Core Identity's context so the framework's own user store works on it.
 /// </summary>
 internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUser currentUser, IWorkspaceContext workspaceContext)
-    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ISampleDb
+    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ILedgerDb
 {
     private static readonly MethodInfo ApplyOwnerFilterMethod =
         typeof(AppDbContext).GetMethod(nameof(ApplyOwnerFilter), BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -57,9 +57,11 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurr
 
     public DbSet<Tag> Tags => Set<Tag>();
 
-    public DbSet<Note> Notes => Set<Note>();
+    public DbSet<Account> Accounts => Set<Account>();
 
-    public DbSet<NoteReceipt> NoteReceipts => Set<NoteReceipt>();
+    public DbSet<Operation> Operations => Set<Operation>();
+
+    public DbSet<Entry> Entries => Set<Entry>();
 
     // Read by the global query filters. With no user or workspace they match nothing.
     private Guid CurrentUserId => currentUser.UserId ?? Guid.Empty;

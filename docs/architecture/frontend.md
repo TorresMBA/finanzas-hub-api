@@ -90,8 +90,8 @@ Regla de dependencias: `features` → `shared`, `core`; `layout` → `shared`, `
 | `auth` | `/login`, `/register`, `/forgot-password`, `/reset-password`, `/invite/:token` | formularios | `SessionStore` (core) |
 | `onboarding` | `/onboarding` | selector de moneda y zona horaria | local |
 | `dashboard` | `/` | kpi-row, cashflow-chart, top-categories, recent-list, accounts-card, goals-card, upcoming-card | `DashboardStore` con recurso por mes |
-| `transactions` | `/transactions`, `?id=` para el detalle | tx-filters, tx-summary, tx-list, tx-detail, tx-form | `TransactionsStore`: filtros como signals, lista con cursor |
-| `accounts` | `/accounts` | account-stats, account-group, account-card, account-detail, account-form, card-payment-form | `AccountsStore` |
+| `transactions` | `/transactions`, `?accountId=` para llegar filtrado desde una cuenta | `transactions` (filtros, resumen y lista por día en una página), `transaction-detail`, `transaction-form` | Filtros como signals en la página; lista con cursor cargada con `TransactionsApi`. El mes sale de `PeriodStore` |
+| `accounts` | `/accounts` | `accounts` (totales por moneda, grupos, tarjetas y detalle en una página) y `account-form` | `AccountsApi` para los cambios y dos `httpResource` en la página. El formulario de pago de tarjeta llega con las tarjetas |
 | `categories` | `/categories` | `categories` (lista, filtros, etiqueta rápida y nube en una sola página) y `category-form` | `CategoriesApi` para los cambios y dos `httpResource` en la página. Los selectores de categoría y de tags llegan con el formulario de transacción |
 | `budgets` | `/budgets` | budget-summary, budget-list, budget-detail, daily-chart, budget-form | `BudgetsStore` con recurso por mes |
 | `goals` | `/goals` | goal-stats, goal-card, goal-detail, contribution-form, participants-panel, goal-form | `GoalsStore`; se invalida con la señal de tiempo real |

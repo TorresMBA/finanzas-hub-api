@@ -1,10 +1,8 @@
-using System.Net.Http.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using PersonalFinance.Api.Controllers;
 using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.Infrastructure;
 using PersonalFinance.Infrastructure.Messaging;
@@ -73,19 +71,6 @@ public sealed class ApiFixture : IAsyncLifetime
     {
         var membership = Workspaces.Add(Guid.NewGuid(), Guid.NewGuid());
         return (membership.UserId, membership.WorkspaceId);
-    }
-
-    public static string NotesUrl(Guid workspaceId) => $"/api/v1/workspaces/{workspaceId}/sample-notes";
-
-    public static HttpRequestMessage CreateNoteRequest(Guid workspaceId, object body, string? idempotencyKey)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Post, NotesUrl(workspaceId)) { Content = JsonContent.Create(body) };
-        if (idempotencyKey is not null)
-        {
-            request.Headers.Add(ApiControllerBase.IdempotencyKeyHeader, idempotencyKey);
-        }
-
-        return request;
     }
 
     /// <summary>Runs code in its own DI scope, optionally as a user inside a workspace, the way a Worker job would.</summary>
