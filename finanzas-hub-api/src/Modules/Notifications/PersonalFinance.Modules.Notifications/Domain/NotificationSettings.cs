@@ -71,8 +71,8 @@ public sealed class NotificationSettings : AggregateRoot
         LargeMovementThreshold = DefaultLargeMovementThreshold
     };
 
-    /// <summary>A budget about to run out is worth an email; a large movement the person just made is not.</summary>
-    public static bool EmailByDefault(NotificationCategory category) => category == NotificationCategory.Budget;
+    /// <summary>A budget about to run out or a payment coming up is worth an email; a large movement the person just made is not.</summary>
+    public static bool EmailByDefault(NotificationCategory category) => category != NotificationCategory.LargeMovement;
 
     public bool EmailEnabled(NotificationCategory category) =>
         _preferences.FirstOrDefault(preference => preference.Category == category && preference.Channel == NotificationChannel.Email)?.Enabled

@@ -13,8 +13,8 @@ Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance d
 | 4 | Ledger II: transferencias, tarjetas básicas, patrimonio e Inicio | ✅ Completada | 13-oct-2026 |
 | 5 | Budgets | ✅ Completada | 13-oct-2026 |
 | 6 | Notifications y tiempo real | ✅ Completada | 13-oct-2026 |
-| 7 | Scheduling y Calendario | ⏳ Pendiente (siguiente) | — |
-| 8 | Goals | ⏳ Pendiente | — |
+| 7 | Scheduling y Calendario | ✅ Completada | 13-oct-2026 |
+| 8 | Goals | ⏳ Pendiente (siguiente) | — |
 | 9 | SharedExpenses | ⏳ Pendiente | — |
 | 10 | Integrations: importación y reglas | ⏳ Pendiente | — |
 | 11 | WhatsApp | ⏳ Pendiente | — |
@@ -26,14 +26,14 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-13-oct-2026, al cerrar la fase 6.
+13-oct-2026, al cerrar la fase 7.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 236 en verde (135 unitarios, 19 de arquitectura, 82 de integración) |
-| Frontend: build, tests y lint | Build correcto y sin avisos, 121 tests, lint limpio |
-| E2E en Chrome | 23 en verde |
+| Backend: tests | 240 en verde (138 unitarios, 19 de arquitectura, 83 de integración) |
+| Frontend: build, tests y lint | Build correcto y sin avisos, 122 tests, lint limpio |
+| E2E en Chrome | 24 en verde |
 
 ## Pendientes que dejaron las fases cerradas
 
@@ -61,16 +61,14 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 |---|---|
 | Renombrar un tag | Sin fecha |
 | Mover una categoría a otro padre | Sin fecha: el mock no lo pide |
-| Evento `CategoryArchived` | Fase 7: lo usa Scheduling |
+| Evento `CategoryArchived` | Sin fecha. Scheduling no lo necesitó: una regla cuya categoría se archivó falla al registrarse, queda en pausa y avisa |
 
 ### Fase 3
 
 | Pendiente | Se retoma |
 |---|---|
-| `ILedgerPosting` para otros módulos | Con su primer consumidor: Scheduling (fase 7) o Goals (fase 8) |
 | Evento `AccountArchived` | Con su primer consumidor |
 | `ETag` / `If-Match` en la API | Fase 8, con el primer agregado que editan varias personas |
-| "Repetir cada mes" en el formulario de transacción | Fase 7 |
 | "Dividir gasto" en el detalle del movimiento | Fase 9 |
 | Concurrencia por `xmin` en cuentas y operaciones | Configurada; ningún test la provoca todavía |
 
@@ -80,9 +78,8 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 |---|---|
 | Comisión de una transferencia como gasto vinculado | Sin fecha. Hoy se registra aparte, como un gasto más |
 | Editar una transferencia | Sin fecha. Se anula y se registra de nuevo |
-| Aviso de vencimiento de tarjeta | Fase 7: necesita un job diario, que llega con Scheduling. La fecha del próximo pago ya se calcula y se muestra |
 | Marca de "cuenta favorita" para las cuentas del Inicio (OQ-24) | Sin fecha. El Inicio muestra las cuatro de mayor saldo |
-| Metas y próximos pagos en el Inicio | Fases 8 y 7, cada una con su módulo |
+| Metas en el Inicio | Fase 8 |
 | Historial de tipos de cambio en pantalla | Fase 14. Se guarda una fila por día; la pantalla solo muestra y cambia el vigente |
 | Cuentas de meta (`GoalFund`) fuera del patrimonio por defecto | Fase 8. La casilla "Incluir en mi patrimonio" ya existe en toda cuenta; Goals abrirá las suyas con ella desmarcada |
 
@@ -111,6 +108,19 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | WhatsApp, push móvil, resumen semanal, "Crear alerta" | Fase 11 y backlog |
 | Tablet y tema claro de la pantalla de Notificaciones | Sin revisar a ojo |
 
+### Fase 7
+
+| Pendiente | Se retoma |
+|---|---|
+| Editar una regla | Sin fecha. Se termina y se programa otra |
+| Programar una transferencia o un pago de tarjeta | Sin fecha. Una regla es un ingreso o un gasto |
+| Frecuencias semanal y quincenal, intervalos y política de fin de semana | Sin fecha. Hay una vez, cada mes y cada año |
+| `IScheduledActionHandler` e `ICalendarItemProvider` | Fase 8, con su primer consumidor: el aporte automático a una meta |
+| Pausar las reglas de quien pierde el acceso y avisarle | Sin fecha. Hoy esas reglas simplemente dejan de correr, y vuelven a correr si la persona recupera el acceso |
+| Ver el job del Worker registrar un movimiento | Sin verificar. El test corre el mismo caso de uso que el job, no la clase del job; en el E2E el Worker arrancó sin errores pero no tenía nada automático que registrar |
+| Métrica de la duración del ciclo | Sin fecha. Se cuenta lo registrado (`scheduler.occurrences`) |
+| Tablet y tema claro del Calendario | Sin revisar a ojo |
+
 ## Resuelto de fases anteriores
 
 | Qué | Quedó de | Se hizo en |
@@ -121,6 +131,9 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Selección de categoría y de tags en un formulario | Fase 2 | Fase 3, dentro del formulario de transacción |
 | Monto por categoría en la pantalla de Categorías | Fase 2 | Fase 4: cada categoría dice lo que movió en el mes de la barra superior |
 | Aviso al llegar al umbral del presupuesto y eventos del ledger | Fases 3 y 5 | Fase 6: `LedgerOperationChanged` y `EvaluateBudgetThresholds` |
+| `ILedgerPosting` para otros módulos | Fase 3 | Fase 7: Scheduling registra por él |
+| "Repetir cada mes" en el formulario de transacción | Fase 3 | Fase 7 |
+| Aviso de vencimiento de tarjeta y próximos pagos en el Inicio | Fase 4 | Fase 7 |
 | Presupuesto en el Inicio | Fase 4 | Fase 5: una cifra con el porcentaje usado |
 | `ILedgerQueries` para otros módulos | Fase 3 | Fase 4: lo usa Reporting para el Inicio |
 | Totales convertidos a la moneda base | Fase 3 | Fase 4, con el tipo de cambio de referencia |

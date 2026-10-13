@@ -20,7 +20,8 @@ public class ModuleBoundaryTests
         ["Notifications"] = ["Identity"],
         ["Ledger"] = ["Categories", "Notifications"],
         ["Budgets"] = ["Ledger", "Categories", "Notifications"],
-        ["Reporting"] = ["Ledger", "Categories", "Budgets"]
+        ["Scheduling"] = ["Ledger", "Categories", "Notifications", "Workspaces"],
+        ["Reporting"] = ["Ledger", "Categories", "Budgets", "Scheduling"]
     };
 
     [Fact]

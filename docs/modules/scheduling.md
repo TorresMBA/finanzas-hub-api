@@ -32,3 +32,11 @@ Qué es propio y qué se proyecta:
 | SkipOccurrence | Dueño | regla, fecha | Única por `(regla, fecha)` | — |
 | RunDueOccurrences (Sistema) | Actúa como el dueño de la regla | — | Sin relleno retroactivo; si el dueño perdió acceso, pausa la regla y avisa | Registra las de modo automático; emite recordatorios deduplicados |
 | GetCalendar, GetUpcoming (queries) | Dueño | rango, filtro | — | Composición de propios y proyectados; saldo proyectado |
+
+## Estado tras la fase 7
+
+Implementado: `CreateRecurringRule` (`POST W/recurring-rules`), pausar, reanudar y terminar (`POST W/recurring-rules/{id}/pause|resume|end`), `ConfirmOccurrence` y `SkipOccurrence` (`POST W/recurring-rules/{id}/occurrences/{fecha}/confirm|skip`), `ListRecurringRules`, `GetCalendar` (`GET W/calendar?from&to`, 92 días como máximo) y `RunSchedule`, el ciclo que el Worker corre cada 15 minutos como cada persona en cada uno de sus workspaces (`RunDueOccurrencesJob`). `IScheduleQueries` da a Reporting los próximos pagos del Inicio.
+
+Una regla es un ingreso o un gasto, una vez, cada mes o cada año, automática o con confirmación, con recordatorio opcional. Sus ocurrencias son una colección propia con clave `(rule_id, scheduled_on)`: solo existe la fila de lo registrado u omitido. El registro pasa por `ILedgerPosting` con la clave `scheduling:{regla}:{fecha}`.
+
+Diferido: editar una regla, transferencias programadas, más frecuencias, `IScheduledActionHandler` e `ICalendarItemProvider` (fase 8). Las diferencias con el diseño están en [phases.md](../roadmap/phases.md).

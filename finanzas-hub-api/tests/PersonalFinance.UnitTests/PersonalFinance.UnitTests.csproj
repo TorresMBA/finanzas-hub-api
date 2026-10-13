@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\src\Modules\Categories\PersonalFinance.Modules.Categories\PersonalFinance.Modules.Categories.csproj" />
     <ProjectReference Include="..\..\src\Modules\Ledger\PersonalFinance.Modules.Ledger\PersonalFinance.Modules.Ledger.csproj" />
     <ProjectReference Include="..\..\src\Modules\Budgets\PersonalFinance.Modules.Budgets\PersonalFinance.Modules.Budgets.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Scheduling\PersonalFinance.Modules.Scheduling\PersonalFinance.Modules.Scheduling.csproj" />
     <ProjectReference Include="..\..\src\Modules\Notifications\PersonalFinance.Modules.Notifications\PersonalFinance.Modules.Notifications.csproj" />
   </ItemGroup>
 

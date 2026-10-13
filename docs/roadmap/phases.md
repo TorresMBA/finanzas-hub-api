@@ -468,6 +468,45 @@ Diferencias respecto al diseño de la fase:
 | Risks | Zonas horarias; se trabaja con fechas locales del workspace |
 | Out of scope | Festivos; ediciones de serie complejas |
 
+**Estado: implementada el 13-oct-2026.** Con pocos tests, por pedido del dueño, y sin portar el motor de V1: la recurrencia que hace falta hoy cabe en un método.
+
+Verificado:
+
+| Comprobación | Resultado |
+|---|---|
+| `dotnet build PersonalFinance.slnx` | Sin errores ni advertencias |
+| `dotnet test PersonalFinance.slnx` | 240 tests: 138 unitarios, 19 de arquitectura, 83 de integración contra PostgreSQL 18 |
+| Criterio de aceptación | Una regla mensual aparece en el mes siguiente como programada; al llegar su fecha se registra una sola vez aunque el ciclo corra dos veces; el recordatorio de un día antes llega una vez (integración). En el navegador: programar, registrar y ver el mes siguiente |
+| Recurrencia | Cada fecha se cuenta desde la primera: una regla del día 31 cae el 28 en febrero y vuelve al 31 en marzo. Anual desde un 29 de febrero cae el 28. Una regla única solo tiene su día |
+| Unicidad | Una fecha de una regla se registra u omite una vez: lo impiden la clave `(regla, fecha)` y la clave de idempotencia con que se pide al ledger |
+| Sin relleno retroactivo | El ciclo solo mira el día de hoy. Una fecha anterior sin registrar queda "por confirmar" y cuenta en los pagos pendientes hasta que la persona la registra, con el monto real si cambió, o la omite |
+| Calendario | Lo ya registrado se lee del ledger; lo esperado se calcula de las reglas; el vencimiento de una tarjeta con deuda sale del ledger. Nada se guarda para pintarlo. Saldo proyectado = cuentas que no son tarjeta + ingresos pendientes − pagos pendientes |
+| Matriz de seguridad | Otro miembro del mismo workspace no ve reglas ni ítems del calendario; terminar u omitir la regla de otro responde 404; su ciclo no encuentra nada ajeno que correr |
+| Arquitectura | `Scheduling` usa los contratos de `Ledger`, `Categories`, `Notifications` y `Workspaces`; `Reporting` lee `IScheduleQueries`. Los 19 tests de arquitectura lo cubren |
+| Frontend | `ng build` correcto y sin avisos; 122 tests unitarios; `ng lint` correcto |
+| E2E | 24 tests en Chrome, 1 nuevo. Se ajustó un localizador de un test anterior: el formulario de transacción tiene ahora dos casillas |
+| Revisión visual | Calendario en escritorio y móvil, tema oscuro |
+
+No verificado: lo que depende de Docker; el job del Worker registrando un movimiento real (el test corre su caso de uso, no la clase del job); el aviso de vencimiento de tarjeta, que ningún test provoca; tablet y tema claro.
+
+Diferencias respecto al diseño de la fase:
+
+| Tema | Diseño | Implementación |
+|---|---|---|
+| Motor de recurrencia | Portar `RecurrenceSchedule`, `ScheduleProjection`, `SchedulingRunner` y `OccurrencePoster` de V1 | No se portó. `RecurringRule.DatesBetween` calcula una vez, mensual y anual; sin intervalo ni política de fin de semana |
+| Plantilla de la regla | Transacción o transferencia | Ingreso o gasto. Sin transferencias ni pago de tarjeta programados |
+| `UpdateRule` | Editar plantilla o calendario | No está: se termina la regla y se programa otra |
+| Registro en el ledger | Operación con `source = scheduling` | Movimiento normal, sin `source`: la persona lo puede editar o anular como cualquier otro. La fecha de la regla queda registrada igual |
+| `ILedgerPosting` | Contrato de escritura completo | Solo ingreso o gasto, y ejecuta el mismo caso de uso que la persona, con su idempotencia |
+| Dueño sin acceso | Pausar la regla y avisar | El ciclo recorre las membresías activas: quien perdió el acceso no está, y sus reglas no corren |
+| Aviso de vencimiento de tarjeta | Job de Ledger invocado por el ciclo | Lo publica el ciclo de Scheduling con lo que le dice `ILedgerQueries`: tres días antes, una vez por vencimiento |
+| `IScheduledActionHandler`, `ICalendarItemProvider`, `IRecurringRules` | En la fase | Fase 8, con Goals, que es quien los usa |
+| Eventos `ReminderDue`, `OccurrencePosted`, `OccurrenceFailed` | Eventos privados | No existen: el ciclo publica el aviso directamente |
+| Filtro del calendario | Parámetro `filter` | Lo aplica la pantalla sobre el mes ya cargado |
+| "Repetir cada mes" | Interruptor en el formulario | Crea una regla mensual automática desde el mismo día del mes siguiente. Si el día no existe ese mes (29 a 31), la regla se queda en el último día de ese mes |
+| Saldo proyectado | Riesgo abierto: qué cuentas entran | Las que no son tarjeta y cuentan en el patrimonio |
+| Categoría de aviso | — | Nueva: `Bills` ("Pagos y vencimientos"), por correo por defecto |
+
 #### Fase 8 — Goals
 
 | | |

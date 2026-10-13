@@ -1083,6 +1083,119 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PersonalFinance.Modules.Scheduling.Domain.RecurringRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character(3)")
+                        .HasColumnName("currency")
+                        .IsFixedLength();
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("description");
+
+                    b.Property<DateOnly?>("EndsOn")
+                        .HasColumnType("date")
+                        .HasColumnName("ends_on");
+
+                    b.Property<string>("Frequency")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("frequency");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<string>("PauseReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("pause_reason");
+
+                    b.Property<string>("PostingMode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("posting_mode");
+
+                    b.Property<int?>("ReminderDaysBefore")
+                        .HasColumnType("integer")
+                        .HasColumnName("reminder_days_before");
+
+                    b.Property<DateOnly>("StartsOn")
+                        .HasColumnType("date")
+                        .HasColumnName("starts_on");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("type");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_recurring_rules");
+
+                    b.HasIndex("WorkspaceId", "OwnerUserId", "Status")
+                        .HasDatabaseName("ix_recurring_rules_workspace_id_owner_user_id_status");
+
+                    b.ToTable("recurring_rules", "scheduling", t =>
+                        {
+                            t.HasCheckConstraint("ck_recurring_rules_amount", "amount > 0");
+
+                            t.HasCheckConstraint("ck_recurring_rules_frequency", "frequency IN ('Once', 'Monthly', 'Yearly')");
+
+                            t.HasCheckConstraint("ck_recurring_rules_period", "ends_on IS NULL OR ends_on >= starts_on");
+
+                            t.HasCheckConstraint("ck_recurring_rules_posting_mode", "posting_mode IN ('Automatic', 'Confirm')");
+
+                            t.HasCheckConstraint("ck_recurring_rules_status", "status IN ('Active', 'Paused', 'Ended')");
+
+                            t.HasCheckConstraint("ck_recurring_rules_type", "type IN ('Income', 'Expense')");
+                        });
+                });
+
             modelBuilder.Entity("PersonalFinance.Modules.Workspaces.Domain.Invitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1454,6 +1567,50 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         });
 
                     b.Navigation("Preferences");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Scheduling.Domain.RecurringRule", b =>
+                {
+                    b.OwnsMany("PersonalFinance.Modules.Scheduling.Domain.Occurrence", "Occurrences", b1 =>
+                        {
+                            b1.Property<Guid>("RuleId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("rule_id");
+
+                            b1.Property<DateOnly>("ScheduledOn")
+                                .HasColumnType("date")
+                                .HasColumnName("scheduled_on");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("amount");
+
+                            b1.Property<Guid?>("OperationId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("operation_id");
+
+                            b1.Property<DateTimeOffset>("RecordedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("recorded_at");
+
+                            b1.Property<string>("Status")
+                                .IsRequired()
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)")
+                                .HasColumnName("status");
+
+                            b1.HasKey("RuleId", "ScheduledOn")
+                                .HasName("pk_occurrences");
+
+                            b1.ToTable("occurrences", "scheduling");
+
+                            b1.WithOwner()
+                                .HasForeignKey("RuleId")
+                                .HasConstraintName("fk_occurrences_recurring_rules_rule_id");
+                        });
+
+                    b.Navigation("Occurrences");
                 });
 
             modelBuilder.Entity("PersonalFinance.Modules.Workspaces.Domain.Invitation", b =>

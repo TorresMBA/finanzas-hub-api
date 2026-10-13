@@ -1,3 +1,5 @@
+using PersonalFinance.BuildingBlocks.Domain;
+
 namespace PersonalFinance.Modules.Ledger.Contracts;
 
 /// <summary>Mirrors the type of an account for modules that must not see the Ledger domain.</summary>
@@ -49,6 +51,24 @@ public sealed record LedgerMovement(
 /// <param name="BaseAmount">In the base currency; null when there is no rate for its currency.</param>
 public sealed record LedgerExpense(Guid Id, DateOnly OccurredOn, string Description, string AccountName, decimal Amount, string Currency, decimal? BaseAmount);
 
+/// <param name="Debt">Positive, in the currency of the card.</param>
+public sealed record LedgerCardDue(Guid AccountId, string Name, string Currency, decimal Debt, DateOnly DueOn);
+
+/// <summary>An income or an expense another module asks the ledger to register for the current person.</summary>
+/// <param name="IdempotencyKey">The same key registers once, however many times it is sent.</param>
+public sealed record LedgerTransactionRequest(
+    bool IsExpense, Guid AccountId, decimal Amount, Guid CategoryId, DateOnly OccurredOn, string Description, string IdempotencyKey);
+
+/// <summary>
+/// How other modules register money in the ledger. It runs the same use case as a person registering it by
+/// hand, in the transaction of the caller and for the current person: nobody writes in the books of someone else.
+/// </summary>
+public interface ILedgerPosting
+{
+    /// <returns>The id of the operation.</returns>
+    Task<Result<Guid>> PostTransactionAsync(LedgerTransactionRequest request, CancellationToken cancellationToken);
+}
+
 /// <summary>
 /// What other modules read from the ledger. Every answer is about the current person in the current workspace:
 /// nobody reaches the books of someone else through here.
@@ -65,6 +85,12 @@ public interface ILedgerQueries
 
     /// <summary>The expenses of some categories in a period, newest first. Subcategories are not added: name them.</summary>
     Task<IReadOnlyList<LedgerExpense>> GetExpensesAsync(IReadOnlyCollection<Guid> categoryIds, DateOnly from, DateOnly to, CancellationToken cancellationToken);
+
+    /// <summary>The credit cards that owe something, each with the next day a payment is due, today included.</summary>
+    Task<IReadOnlyList<LedgerCardDue>> GetCardDueDatesAsync(DateOnly today, CancellationToken cancellationToken);
+
+    /// <summary>An amount in the base currency at the latest rate; null when its currency has no rate.</summary>
+    Task<decimal?> ToBaseAsync(string currency, decimal amount, CancellationToken cancellationToken);
 
     /// <summary>The accounts in use, with what each holds today.</summary>
     Task<IReadOnlyList<LedgerAccountBalance>> GetAccountBalancesAsync(CancellationToken cancellationToken);

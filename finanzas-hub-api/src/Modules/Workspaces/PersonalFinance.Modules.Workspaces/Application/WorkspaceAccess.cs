@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Workspaces.Application.Abstractions;
+using PersonalFinance.Modules.Workspaces.Contracts;
 using PersonalFinance.Modules.Workspaces.Domain;
 
 namespace PersonalFinance.Modules.Workspaces.Application;
@@ -18,6 +19,19 @@ internal sealed class WorkspaceAccess(IWorkspacesDb db) : IWorkspaceAccess
                 workspace => workspace.Id,
                 (membership, workspace) => new WorkspaceMembershipInfo(workspace.Id, membership.UserId, membership.Role, workspace.BaseCurrency, workspace.TimeZone))
             .SingleOrDefaultAsync(cancellationToken);
+}
+
+internal sealed class WorkspaceDirectory(IWorkspacesDb db) : IWorkspaceDirectory
+{
+    public async Task<IReadOnlyList<ActiveMembership>> ListActiveMembershipsAsync(CancellationToken cancellationToken) =>
+        await db.Memberships.AsNoTracking()
+            .Where(membership => membership.Status == MembershipStatus.Active)
+            .Join(
+                db.Workspaces.AsNoTracking().Where(workspace => workspace.Status != WorkspaceStatus.Archived),
+                membership => membership.WorkspaceId,
+                workspace => workspace.Id,
+                (membership, workspace) => new ActiveMembership(workspace.Id, membership.UserId, membership.Role, workspace.BaseCurrency, workspace.TimeZone))
+            .ToListAsync(cancellationToken);
 }
 
 internal static class WorkspaceErrors

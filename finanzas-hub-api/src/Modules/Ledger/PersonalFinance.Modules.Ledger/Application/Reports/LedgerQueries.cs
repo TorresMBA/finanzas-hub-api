@@ -15,6 +15,9 @@ namespace PersonalFinance.Modules.Ledger.Application.Reports;
 /// </summary>
 internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetWorthReader netWorth, ExchangeRateBook rates) : ILedgerQueries
 {
+    // The rates do not change within a request; a calendar converts many amounts.
+    private RateTable? _table;
+
     public async Task<LedgerNetWorth> GetNetWorthAsync(DateOnly asOf, CancellationToken cancellationToken)
     {
         var summary = await netWorth.ReadAsync(asOf, cancellationToken);
@@ -117,6 +120,19 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
             .ToList();
     }
 
+    public async Task<IReadOnlyList<LedgerCardDue>> GetCardDueDatesAsync(DateOnly today, CancellationToken cancellationToken)
+    {
+        var cards = await db.Accounts.AsNoTracking().Where(account => account.ArchivedAt == null && account.Type == AccountType.CreditCard).ToListAsync(cancellationToken);
+        var byAccount = await balances.AllAsync(cancellationToken);
+        return cards
+            .Where(card => card.CreditCard is not null && byAccount.GetValueOrDefault(card.Id) < 0)
+            .Select(card => new LedgerCardDue(card.Id, card.Name, card.Currency, -byAccount.GetValueOrDefault(card.Id), card.CreditCard!.NextPaymentDate(today)))
+            .ToList();
+    }
+
+    public async Task<decimal?> ToBaseAsync(string currency, decimal amount, CancellationToken cancellationToken) =>
+        (_table ??= await rates.LoadAsync(cancellationToken)).ToBase(currency, amount);
+
     public async Task<IReadOnlyList<LedgerAccountBalance>> GetAccountBalancesAsync(CancellationToken cancellationToken)
     {
         var accounts = await db.Accounts.AsNoTracking().Where(account => account.ArchivedAt == null).OrderBy(account => account.CreatedAt).ToListAsync(cancellationToken);
@@ -140,7 +156,7 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
             .Include(operation => operation.Entries)
             .OrderByDescending(operation => operation.OccurredOn)
             .ThenByDescending(operation => operation.Id)
-            .Take(Math.Clamp(count, 1, 50))
+            .Take(Math.Clamp(count, 1, 500))
             .ToListAsync(cancellationToken);
         var accountIds = operations.SelectMany(operation => operation.Entries).Select(entry => entry.AccountId).Distinct().ToList();
         var names = await db.Accounts.AsNoTracking()

@@ -4,7 +4,10 @@ namespace PersonalFinance.Modules.Notifications.Contracts;
 public enum NotificationCategory
 {
     Budget,
-    LargeMovement
+    LargeMovement,
+
+    /// <summary>Payments coming up: reminders of scheduled movements and credit cards about to fall due.</summary>
+    Bills
 }
 
 public enum NotificationSeverity

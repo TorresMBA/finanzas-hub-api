@@ -8,6 +8,7 @@ using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Budgets.Contracts;
 using PersonalFinance.Modules.Categories.Contracts;
 using PersonalFinance.Modules.Ledger.Contracts;
+using PersonalFinance.Modules.Scheduling.Contracts;
 
 namespace PersonalFinance.Modules.Reporting.Application.Dashboard;
 
@@ -18,6 +19,10 @@ public sealed record DashboardNetWorthResponse(decimal Amount, decimal Assets, d
 
 /// <param name="Month">As <c>2026-10</c>.</param>
 public sealed record DashboardMonthResponse(string Month, decimal Income, decimal Expense);
+
+/// <summary>Something still to be paid: a scheduled expense or a credit card falling due.</summary>
+/// <param name="Amount">Positive, in its own currency.</param>
+public sealed record DashboardUpcomingResponse(DateOnly Date, string Description, decimal Amount, string Currency, bool IsCardPayment);
 
 /// <summary>The budgets of the month added up.</summary>
 /// <param name="UsedPercent">What was spent of the limit; it passes 100 when the limit was passed.</param>
@@ -45,11 +50,12 @@ public sealed record DashboardAccountResponse(Guid Id, string Name, LedgerAccoun
 /// <param name="SavingsRate">What was left of the income, from 0 to 100; negative when more was spent than earned. Null in a month without income.</param>
 /// <param name="Cashflow">The six months that end in this one, oldest first.</param>
 /// <param name="Budget">Null when no budget applies to the month.</param>
+/// <param name="Upcoming">The next payments of the thirty days from today, the soonest first.</param>
 /// <param name="MissingRates">Currencies that could not be converted and are left out of the amounts.</param>
 public sealed record DashboardResponse(
     string Month, string? BaseCurrency, DashboardNetWorthResponse NetWorth, decimal Income, decimal Expense, decimal PreviousIncome, decimal PreviousExpense,
     decimal? SavingsRate, IReadOnlyList<DashboardMonthResponse> Cashflow, IReadOnlyList<DashboardCategoryResponse> TopCategories,
-    IReadOnlyList<DashboardMovementResponse> RecentMovements, IReadOnlyList<DashboardAccountResponse> Accounts, DashboardBudgetResponse? Budget,
+    IReadOnlyList<DashboardMovementResponse> RecentMovements, IReadOnlyList<DashboardAccountResponse> Accounts, DashboardBudgetResponse? Budget, IReadOnlyList<DashboardUpcomingResponse> Upcoming,
     IReadOnlyList<string> MissingRates);
 
 /// <param name="Month">As <c>2026-10</c>. The current month of the workspace when left out.</param>
@@ -59,13 +65,16 @@ public sealed record GetDashboardQuery(string? Month) : IQuery<DashboardResponse
 /// Puts the home page together from what the ledger and the categories answer. It owns no data, and everything
 /// it reads is already limited to the current person by the modules it asks.
 /// </summary>
-internal sealed class GetDashboardHandler(ILedgerQueries ledger, IBudgetQueries budgets, ICategoryLookup categories, IWorkspaceContext workspace, IClock clock)
+internal sealed class GetDashboardHandler(
+    ILedgerQueries ledger, IBudgetQueries budgets, IScheduleQueries schedule, ICategoryLookup categories, IWorkspaceContext workspace, IClock clock)
     : IQueryHandler<GetDashboardQuery, DashboardResponse>
 {
     private const int CashflowMonths = 6;
     private const int TopCategories = 5;
     private const int RecentMovements = 5;
     private const int MainAccounts = 4;
+    private const int UpcomingPayments = 5;
+    private const int UpcomingDays = 30;
 
     // Same meter name as the platform's, which is the one the hosts export.
     private static readonly Histogram<double> Duration =
@@ -94,6 +103,7 @@ internal sealed class GetDashboardHandler(ILedgerQueries ledger, IBudgetQueries 
         var movements = await ledger.GetRecentMovementsAsync(first, last, RecentMovements, cancellationToken);
         var accounts = await ledger.GetAccountBalancesAsync(cancellationToken);
         var budget = await budgets.GetMonthAsync(first, cancellationToken);
+        var upcoming = await schedule.GetUpcomingAsync(Today(), Today().AddDays(UpcomingDays), UpcomingPayments, cancellationToken);
         var info = await categories.GetAsync(
             totals.Categories.Select(total => total.CategoryId).Concat(movements.Where(movement => movement.CategoryId != null).Select(movement => movement.CategoryId!.Value))
                 .Distinct().ToList(),
@@ -123,6 +133,7 @@ internal sealed class GetDashboardHandler(ILedgerQueries ledger, IBudgetQueries 
                 .Select(account => new DashboardAccountResponse(account.Id, account.Name, account.Type, account.Currency, account.Balance))
                 .ToList(),
             budget.Count == 0 ? null : new DashboardBudgetResponse(budget.Limit, budget.Spent, decimal.Round(budget.Spent * 100 / budget.Limit, 1)),
+            upcoming.Select(payment => new DashboardUpcomingResponse(payment.Date, payment.Description, payment.Amount, payment.Currency, payment.IsCardPayment)).ToList(),
             netWorth.MissingRates.Union(flow.MissingRates).Union(totals.MissingRates).Order(StringComparer.Ordinal).ToList());
 
         Duration.Record(Stopwatch.GetElapsedTime(started).TotalMilliseconds);
