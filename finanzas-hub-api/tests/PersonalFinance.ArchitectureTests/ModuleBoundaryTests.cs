@@ -17,8 +17,9 @@ public class ModuleBoundaryTests
         ["Identity"] = [],
         ["Workspaces"] = ["Identity"],
         ["Categories"] = ["Workspaces"],
-        ["Ledger"] = ["Categories"],
-        ["Budgets"] = ["Ledger", "Categories"],
+        ["Notifications"] = ["Identity"],
+        ["Ledger"] = ["Categories", "Notifications"],
+        ["Budgets"] = ["Ledger", "Categories", "Notifications"],
         ["Reporting"] = ["Ledger", "Categories", "Budgets"]
     };
 

@@ -1,6 +1,7 @@
 namespace PersonalFinance.BuildingBlocks.Application.Abstractions;
 
-public sealed record EmailMessage(string To, string Subject, string Body);
+/// <param name="NotBefore">When set, the email waits in the queue until then.</param>
+public sealed record EmailMessage(string To, string Subject, string Body, DateTimeOffset? NotBefore = null);
 
 /// <summary>
 /// Queues an email in the current transaction; a Worker job sends it with retries. A use case never talks to

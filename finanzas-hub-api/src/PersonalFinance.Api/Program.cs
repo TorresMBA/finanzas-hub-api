@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using PersonalFinance.Api.Http;
+using PersonalFinance.Api.Realtime;
 using PersonalFinance.Infrastructure;
+using PersonalFinance.Infrastructure.Messaging;
 using PersonalFinance.Infrastructure.Observability;
 using Scalar.AspNetCore;
 
@@ -15,6 +17,10 @@ builder.AddObservability("personal-finance-api");
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApiHttp(builder.Configuration, builder.Environment);
 builder.Services.AddOpenApi("v1");
+
+// The hub lives in this host, so it is this host that knows how to reach the browsers.
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IRealtimeTransport, SignalRRealtimeTransport>();
 
 var app = builder.Build();
 
@@ -42,6 +48,7 @@ if (!app.Environment.IsProduction())
 }
 
 app.MapControllers();
+app.MapHub<RealtimeHub>(RealtimeHub.Path);
 
 await app.RunAsync();
 

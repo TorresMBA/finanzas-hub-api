@@ -977,6 +977,112 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PersonalFinance.Modules.Notifications.Domain.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("body");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("category");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DedupeKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("dedupe_key");
+
+                    b.Property<string>("Link")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("link");
+
+                    b.Property<DateTimeOffset?>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("severity");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("title");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid?>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notifications");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_notifications_unread")
+                        .HasFilter("read_at IS NULL");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .HasDatabaseName("ix_notifications_user_id_created_at");
+
+                    b.HasIndex("UserId", "DedupeKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notifications_user_id_dedupe_key")
+                        .HasFilter("dedupe_key IS NOT NULL");
+
+                    b.ToTable("notifications", "notifications");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Notifications.Domain.NotificationSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<decimal?>("LargeMovementThreshold")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("large_movement_threshold");
+
+                    b.Property<TimeOnly>("QuietFrom")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("quiet_from");
+
+                    b.Property<bool>("QuietHoursEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("quiet_hours_enabled");
+
+                    b.Property<TimeOnly>("QuietTo")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("quiet_to");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notification_settings");
+
+                    b.ToTable("notification_settings", "notifications", t =>
+                        {
+                            t.HasCheckConstraint("ck_notification_settings_threshold", "large_movement_threshold IS NULL OR large_movement_threshold > 0");
+                        });
+                });
+
             modelBuilder.Entity("PersonalFinance.Modules.Workspaces.Domain.Invitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1313,6 +1419,41 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         });
 
                     b.Navigation("Tags");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Notifications.Domain.NotificationSettings", b =>
+                {
+                    b.OwnsMany("PersonalFinance.Modules.Notifications.Domain.NotificationPreference", "Preferences", b1 =>
+                        {
+                            b1.Property<Guid>("UserId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("user_id");
+
+                            b1.Property<string>("Category")
+                                .HasMaxLength(32)
+                                .HasColumnType("character varying(32)")
+                                .HasColumnName("category");
+
+                            b1.Property<string>("Channel")
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)")
+                                .HasColumnName("channel");
+
+                            b1.Property<bool>("Enabled")
+                                .HasColumnType("boolean")
+                                .HasColumnName("enabled");
+
+                            b1.HasKey("UserId", "Category", "Channel")
+                                .HasName("pk_notification_preferences");
+
+                            b1.ToTable("notification_preferences", "notifications");
+
+                            b1.WithOwner()
+                                .HasForeignKey("UserId")
+                                .HasConstraintName("fk_notification_preferences_notification_settings_user_id");
+                        });
+
+                    b.Navigation("Preferences");
                 });
 
             modelBuilder.Entity("PersonalFinance.Modules.Workspaces.Domain.Invitation", b =>

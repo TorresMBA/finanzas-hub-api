@@ -4,6 +4,7 @@ using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Application.ExchangeRates;
+using PersonalFinance.Modules.Ledger.Contracts.Events;
 using PersonalFinance.Modules.Ledger.Domain;
 
 namespace PersonalFinance.Modules.Ledger.Application.Transactions;
@@ -49,6 +50,7 @@ internal sealed class PostTransactionHandler(ILedgerDb db, TransactionReader rea
         }
 
         await rates.ValueAsync(operation, cancellationToken);
+        operation.Announce(LedgerOperationChange.Posted);
         db.Operations.Add(operation);
         LedgerMetrics.OperationsPosted.Add(1, new KeyValuePair<string, object?>("kind", operation.Kind.ToString()));
         audit.Record(new AuditEntry("ledger", "ledger.transaction.posted", "operation", operation.Id)
@@ -103,6 +105,7 @@ internal sealed class EditTransactionHandler(ILedgerDb db, TransactionReader rea
 
         // The amount, the account or the date may have changed, and with them what it is worth in the base currency.
         await rates.ValueAsync(operation, cancellationToken);
+        operation.Announce(LedgerOperationChange.Edited);
         audit.Record(new AuditEntry("ledger", "ledger.transaction.edited", "operation", operation.Id)
         {
             OwnerUserId = operation.OwnerUserId,
@@ -153,6 +156,11 @@ internal sealed class VoidTransactionHandler(ILedgerDb db, TransactionReader rea
         if (voided.IsFailure)
         {
             return voided.Error;
+        }
+
+        if (wasEffective)
+        {
+            operation.Announce(LedgerOperationChange.Voided);
         }
 
         if (wasEffective)

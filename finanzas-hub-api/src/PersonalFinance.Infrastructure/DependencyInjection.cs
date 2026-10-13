@@ -15,6 +15,7 @@ using PersonalFinance.Modules.Budgets.Application.Abstractions;
 using PersonalFinance.Modules.Categories.Application.Abstractions;
 using PersonalFinance.Modules.Identity.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
+using PersonalFinance.Modules.Notifications.Application.Abstractions;
 using PersonalFinance.Modules.Identity.Domain;
 using PersonalFinance.Modules.Reporting.Application.Dashboard;
 using PersonalFinance.Modules.Workspaces.Application.Abstractions;
@@ -67,6 +68,9 @@ public static class DependencyInjection
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<IAuditLog, AuditLogWriter>();
         services.AddScoped<DomainEventDispatcher>();
+        services.AddScoped<RealtimeBuffer>();
+        services.AddScoped<IRealtimeNotifier>(provider => provider.GetRequiredService<RealtimeBuffer>());
+        services.TryAddSingleton<IRealtimeTransport, NoRealtimeTransport>();
         services.AddScoped<IIdempotencyKeyCleanup, IdempotencyKeyCleanup>();
 
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
@@ -86,6 +90,9 @@ public static class DependencyInjection
 
         services.AddModule(typeof(ICategoriesDb).Assembly);
         services.AddScoped<ICategoriesDb>(provider => provider.GetRequiredService<AppDbContext>());
+
+        services.AddModule(typeof(INotificationsDb).Assembly);
+        services.AddScoped<INotificationsDb>(provider => provider.GetRequiredService<AppDbContext>());
 
         services.AddModule(typeof(ILedgerDb).Assembly);
         services.AddScoped<ILedgerDb>(provider => provider.GetRequiredService<AppDbContext>());

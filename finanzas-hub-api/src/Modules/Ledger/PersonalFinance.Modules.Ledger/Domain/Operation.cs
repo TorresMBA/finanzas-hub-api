@@ -1,4 +1,5 @@
 using PersonalFinance.BuildingBlocks.Domain;
+using PersonalFinance.Modules.Ledger.Contracts.Events;
 
 namespace PersonalFinance.Modules.Ledger.Domain;
 
@@ -90,6 +91,18 @@ public sealed class Operation : AggregateRoot, IOwned
     public bool IsEffective => Status != OperationStatus.Voided;
 
     public bool IsTransaction => Kind is OperationKind.Income or OperationKind.Expense;
+
+    /// <summary>
+    /// Tells the other modules that this income or expense was registered, edited or voided. Called once its
+    /// entries are valued, so whoever reacts reads it as it stands. Any other kind of operation says nothing.
+    /// </summary>
+    public void Announce(LedgerOperationChange change)
+    {
+        if (IsTransaction && _entries is [var entry, ..])
+        {
+            Raise(new LedgerOperationChanged(Id, WorkspaceId, OwnerUserId, change, Kind == OperationKind.Expense, CategoryId, OccurredOn, entry.Amount, entry.Currency, Description));
+        }
+    }
 
     /// <summary>An income or an expense on one account, as a person registers it.</summary>
     public static Result<Operation> PostTransaction(

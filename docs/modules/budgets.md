@@ -26,4 +26,6 @@ Implementado: `GetBudgets` (`GET W/budgets?month=2026-10`), `GetBudgetDetail` (`
 
 El consumo se pide a `ILedgerQueries` en cada lectura y nunca se guarda. Cuentan los gastos no anulados del mes en la categoría y sus subcategorías, en la moneda base. `BudgetProgress` y `MonthPace` son el cálculo puro del estado y del ritmo. `IBudgetQueries` da a Reporting el total del mes para el Inicio.
 
-Diferido: `EvaluateThresholds`, `budget_alerts` y el evento `BudgetThresholdReached` (fase 6); que el reembolso reste, cuando el ledger lo registre; presupuesto semanal y acumulación del sobrante. Las diferencias con el diseño están en [phases.md](../roadmap/phases.md).
+Desde la fase 6, `EvaluateBudgetThresholds` avisa una vez al llegar al umbral y otra al exceder el límite, sin tabla `budget_alerts`: deduplica la clave del aviso.
+
+Diferido: que el reembolso reste, cuando el ledger lo registre; presupuesto semanal y acumulación del sobrante. Las diferencias con el diseño están en [phases.md](../roadmap/phases.md).

@@ -4,6 +4,7 @@
     <ProjectReference Include="..\..\..\BuildingBlocks\PersonalFinance.BuildingBlocks.Domain\PersonalFinance.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\PersonalFinance.BuildingBlocks.Application\PersonalFinance.BuildingBlocks.Application.csproj" />
     <ProjectReference Include="..\..\Categories\PersonalFinance.Modules.Categories\PersonalFinance.Modules.Categories.csproj" />
+    <ProjectReference Include="..\..\Notifications\PersonalFinance.Modules.Notifications\PersonalFinance.Modules.Notifications.csproj" />
   </ItemGroup>
 
   <ItemGroup>

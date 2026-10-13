@@ -29,7 +29,7 @@ Los módulos no dependen de SignalR: llaman a `IRealtimeNotifier`. La implementa
 
 El hub vive en la API. Un aviso creado por un job del Worker (un recordatorio, un pago programado) no se empuja: el navegador lo recoge con el sondeo de respaldo, cada 60 s y al recuperar el foco. Azure SignalR Service se añade cuando haya más de una réplica.
 
-Nada de esto existe todavía: llega en la fase 6.
+Desde la fase 6 existe el hub y `notification.created`, que lleva `{ id, category, title }`: el navegador vuelve a pedir el contador por HTTP. Se dirige con `Clients.User`, que SignalR resuelve con la identidad de la cookie, en lugar de un grupo propio. Las señales `resource.changed` llegan con sus módulos.
 
 ### T.3 Flujo
 

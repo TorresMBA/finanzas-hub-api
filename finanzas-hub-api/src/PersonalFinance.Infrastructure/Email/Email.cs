@@ -50,7 +50,7 @@ internal sealed class AppLinks(IOptions<FrontendOptions> options) : IAppLinks
 internal sealed class EmailQueue(AppDbContext db, IClock clock) : IEmailSender
 {
     public void Queue(EmailMessage message) =>
-        db.OutgoingEmails.Add(OutgoingEmail.Create(message.To, message.Subject, message.Body, clock.UtcNow));
+        db.OutgoingEmails.Add(OutgoingEmail.Create(message.To, message.Subject, message.Body, clock.UtcNow, message.NotBefore));
 }
 
 /// <summary>Sends what is waiting in the email queue. Called by a Worker job.</summary>

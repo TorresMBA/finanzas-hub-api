@@ -87,7 +87,7 @@ internal sealed class LoggingQueryHandlerDecorator<TQuery, TResponse>(
 /// result or a failing reaction rolls everything back. A command invoked from inside another joins its transaction.
 /// </summary>
 internal sealed class TransactionCommandHandlerDecorator<TCommand, TResponse>(
-    ICommandHandler<TCommand, TResponse> inner, AppDbContext db, DomainEventDispatcher domainEvents)
+    ICommandHandler<TCommand, TResponse> inner, AppDbContext db, DomainEventDispatcher domainEvents, RealtimeBuffer realtime)
     : ICommandHandler<TCommand, TResponse>
     where TCommand : ICommand<TResponse>
 {
@@ -110,6 +110,7 @@ internal sealed class TransactionCommandHandlerDecorator<TCommand, TResponse>(
 
             await domainEvents.SaveAndDispatchAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+            await realtime.FlushAsync();
             return result;
         }
         catch (DbUpdateConcurrencyException)
@@ -133,6 +134,7 @@ internal sealed class TransactionCommandHandlerDecorator<TCommand, TResponse>(
     private async Task RollbackAsync(IDbContextTransaction transaction)
     {
         await transaction.RollbackAsync(CancellationToken.None);
+        realtime.Discard();
 
         // Tracked entities no longer match the database; nothing in this scope may reuse them.
         db.ChangeTracker.Clear();

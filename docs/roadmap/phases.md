@@ -411,6 +411,43 @@ Diferencias respecto al diseño de la fase:
 | Risks | Reconexión de SignalR; se cubre con el sondeo de respaldo |
 | Out of scope | WhatsApp, push móvil, alertas personalizadas, resumen semanal |
 
+**Estado: implementada el 13-oct-2026.** Con pocos tests, por pedido del dueño, y apoyada en lo que la plataforma ya tenía: la cola de correos y los eventos de dominio.
+
+Verificado:
+
+| Comprobación | Resultado |
+|---|---|
+| `dotnet build PersonalFinance.slnx` | Sin errores ni advertencias |
+| `dotnet test PersonalFinance.slnx` | 236 tests: 135 unitarios, 19 de arquitectura, 82 de integración contra PostgreSQL 18 |
+| Criterio de aceptación | Cruzar el 90 % de un presupuesto deja un aviso en la bandeja y el badge sube sin recargar la página (E2E en Chrome, por el hub). Con la preferencia desactivada no se encola correo (integración) |
+| Deduplicación | Un presupuesto avisa una vez al llegar al umbral y una vez al excederse, por categoría y mes; más gastos por encima no repiten el aviso |
+| Preferencias | Presupuesto va también por correo por defecto; movimiento grande, no. Desactivar el correo de una categoría deja el aviso solo en la bandeja |
+| Silencio | Un correo escrito entre las 22:00 y las 07:00 espera a las 07:00, también cruzando la medianoche (unitario). Un aviso crítico no espera |
+| Movimiento grande | Un ingreso o gasto desde el monto elegido (500 por defecto, en moneda base) deja un aviso; por debajo, no; con el monto desactivado, tampoco |
+| Matriz de seguridad | Otro miembro del mismo workspace tiene la bandeja vacía, marcar el aviso de otro responde 404 y su "marcar todo" no toca los ajenos |
+| Arquitectura | `Notifications` solo usa `Identity.Contracts`; `Ledger` y `Budgets` publican por `INotificationPublisher`. Los 19 tests de arquitectura lo cubren |
+| Frontend | `ng build` correcto y sin avisos; 121 tests unitarios; `ng lint` correcto |
+| E2E | 23 tests en Chrome, 1 nuevo |
+| Revisión visual | Notificaciones en escritorio y móvil, tema oscuro |
+
+No verificado: lo que depende de Docker; que el hub no entregue a otra persona (ningún test lo prueba); la reconexión de SignalR; el envío real del correo del aviso por SMTP; tablet y tema claro.
+
+Diferencias respecto al diseño de la fase:
+
+| Tema | Diseño | Implementación |
+|---|---|---|
+| Cola de envíos | Tabla `notifications.deliveries` y `SendDeliveriesJob` | No existen. El correo del aviso va a la cola de correos de la plataforma, que ya tenía reintentos y su job; se le añadió "no antes de" para el horario silencioso. Se crea `deliveries` cuando haya un segundo canal externo (WhatsApp, fase 11) |
+| `budget_alerts` | Tabla en Budgets | No existe. La clave de deduplicación del aviso lleva la categoría, el mes y el umbral, y Notifications no repite una clave |
+| Eventos del ledger | `OperationPosted`, `OperationChanged`, `OperationVoided` | Uno solo, `LedgerOperationChanged`, con el tipo de cambio dentro. Solo lo levantan ingresos y gastos |
+| Preferencias por canal | Categoría × canal, también In-app | La bandeja recibe siempre; la preferencia decide el correo. La tabla conserva la columna de canal |
+| `ChannelEndpoint` | En el modelo | Fase 11: el único canal externo es el correo de la cuenta |
+| Endpoints | `/me/notification-preferences` y `/me/notification-settings` | Uno: `GET/PUT /me/notification-settings`, con las preferencias dentro |
+| Listado | Filtro y cursor | `unreadOnly` y los 100 últimos |
+| Carga de la señal | `{ id, category, severity, title, unreadCount }` | `{ id, category, title }`; el contador se vuelve a pedir por HTTP |
+| Grupo del hub | `user:{userId}` | `Clients.User(id)`, que SignalR resuelve con la identidad de la cookie |
+| Aviso de vencimiento de tarjeta | Pendiente de la fase 4 para esta | Fase 7: necesita un job diario |
+| Montos en el texto del aviso | No especificado | Con el código de la moneda (`PEN 370.00`): el texto se escribe en el backend, que no conoce el formato de la persona |
+
 #### Fase 7 — Scheduling y Calendario
 
 | | |

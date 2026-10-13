@@ -11,7 +11,9 @@ using PersonalFinance.Modules.Budgets.Domain;
 using PersonalFinance.Modules.Categories.Domain;
 using PersonalFinance.Modules.Identity.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
+using PersonalFinance.Modules.Notifications.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Domain;
+using PersonalFinance.Modules.Notifications.Domain;
 using PersonalFinance.Modules.Identity.Domain;
 using PersonalFinance.Modules.Workspaces.Application.Abstractions;
 using PersonalFinance.Modules.Workspaces.Domain;
@@ -27,6 +29,7 @@ internal static class Schemas
     public const string Categories = "categories";
     public const string Ledger = "ledger";
     public const string Budgets = "budgets";
+    public const string Notifications = "notifications";
 }
 
 /// <summary>
@@ -35,7 +38,7 @@ internal static class Schemas
 /// and workspace. It derives from ASP.NET Core Identity's context so the framework's own user store works on it.
 /// </summary>
 internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUser currentUser, IWorkspaceContext workspaceContext)
-    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ILedgerDb, IBudgetsDb
+    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ILedgerDb, IBudgetsDb, INotificationsDb
 {
     private static readonly MethodInfo ApplyOwnerFilterMethod =
         typeof(AppDbContext).GetMethod(nameof(ApplyOwnerFilter), BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -69,6 +72,10 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurr
     public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
 
     public DbSet<Budget> Budgets => Set<Budget>();
+
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
 
     // Read by the global query filters. With no user or workspace they match nothing.
     private Guid CurrentUserId => currentUser.UserId ?? Guid.Empty;

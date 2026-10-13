@@ -127,14 +127,14 @@ internal sealed class OutgoingEmail
 
     public string? LastError { get; private set; }
 
-    public static OutgoingEmail Create(string to, string subject, string body, DateTimeOffset now) => new()
+    public static OutgoingEmail Create(string to, string subject, string body, DateTimeOffset now, DateTimeOffset? notBefore = null) => new()
     {
         Id = Guid.CreateVersion7(),
         To = to,
         Subject = subject,
         Body = body,
         CreatedAt = now,
-        NextAttemptAt = now
+        NextAttemptAt = notBefore > now ? notBefore.Value : now
     };
 
     public void MarkSent(DateTimeOffset now)

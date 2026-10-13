@@ -12,8 +12,8 @@ Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance d
 | 3 | Ledger I: cuentas y transacciones | ✅ Completada | 13-oct-2026 |
 | 4 | Ledger II: transferencias, tarjetas básicas, patrimonio e Inicio | ✅ Completada | 13-oct-2026 |
 | 5 | Budgets | ✅ Completada | 13-oct-2026 |
-| 6 | Notifications y tiempo real | ⏳ Pendiente (siguiente) | — |
-| 7 | Scheduling y Calendario | ⏳ Pendiente | — |
+| 6 | Notifications y tiempo real | ✅ Completada | 13-oct-2026 |
+| 7 | Scheduling y Calendario | ⏳ Pendiente (siguiente) | — |
 | 8 | Goals | ⏳ Pendiente | — |
 | 9 | SharedExpenses | ⏳ Pendiente | — |
 | 10 | Integrations: importación y reglas | ⏳ Pendiente | — |
@@ -26,14 +26,14 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-13-oct-2026, al cerrar la fase 5.
+13-oct-2026, al cerrar la fase 6.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 229 en verde (129 unitarios, 19 de arquitectura, 81 de integración) |
-| Frontend: build, tests y lint | Build correcto y sin avisos, 120 tests, lint limpio |
-| E2E en Chrome | 22 en verde |
+| Backend: tests | 236 en verde (135 unitarios, 19 de arquitectura, 82 de integración) |
+| Frontend: build, tests y lint | Build correcto y sin avisos, 121 tests, lint limpio |
+| E2E en Chrome | 23 en verde |
 
 ## Pendientes que dejaron las fases cerradas
 
@@ -68,7 +68,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Pendiente | Se retoma |
 |---|---|
 | `ILedgerPosting` para otros módulos | Con su primer consumidor: Scheduling (fase 7) o Goals (fase 8) |
-| Eventos `OperationPosted`, `OperationChanged`, `OperationVoided`, `AccountArchived` | Fase 6: Budgets los necesita para avisar del umbral, y el aviso llega con Notifications |
+| Evento `AccountArchived` | Con su primer consumidor |
 | `ETag` / `If-Match` en la API | Fase 8, con el primer agregado que editan varias personas |
 | "Repetir cada mes" en el formulario de transacción | Fase 7 |
 | "Dividir gasto" en el detalle del movimiento | Fase 9 |
@@ -80,7 +80,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 |---|---|
 | Comisión de una transferencia como gasto vinculado | Sin fecha. Hoy se registra aparte, como un gasto más |
 | Editar una transferencia | Sin fecha. Se anula y se registra de nuevo |
-| Aviso de vencimiento de tarjeta | Fase 6, con Notifications. La fecha del próximo pago ya se calcula y se muestra |
+| Aviso de vencimiento de tarjeta | Fase 7: necesita un job diario, que llega con Scheduling. La fecha del próximo pago ya se calcula y se muestra |
 | Marca de "cuenta favorita" para las cuentas del Inicio (OQ-24) | Sin fecha. El Inicio muestra las cuatro de mayor saldo |
 | Metas y próximos pagos en el Inicio | Fases 8 y 7, cada una con su módulo |
 | Historial de tipos de cambio en pantalla | Fase 14. Se guarda una fila por día; la pantalla solo muestra y cambia el vigente |
@@ -90,7 +90,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 
 | Pendiente | Se retoma |
 |---|---|
-| Aviso al llegar al umbral, con `budget_alerts` y los eventos del ledger | Fase 6, con Notifications. El umbral elegido ya se guarda |
 | El reembolso resta del consumo | Cuando el ledger permita registrar un reembolso |
 | Elegir desde qué mes vale un ajuste | Sin fecha. Hoy vale desde el mes actual |
 | Presupuesto semanal y acumular lo no gastado | Sin fecha (OQ-17) |
@@ -98,6 +97,19 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | "Ver movimientos" abre Transacciones ya filtrado por la categoría | Sin fecha. Transacciones no lee filtros de la URL todavía |
 | Span del cálculo del presupuesto | Sin fecha |
 | Tablet y tema claro de la pantalla de Presupuestos | Sin revisar a ojo; se revisó escritorio y móvil en tema oscuro |
+
+### Fase 6
+
+| Pendiente | Se retoma |
+|---|---|
+| Test de que el hub solo entrega al destinatario | Sin fecha. La señal se dirige por el id de la persona de la cookie y el E2E prueba que llega a su dueño; ningún test prueba que no llegue a otro |
+| Badge de avisos en móvil | Sin fecha. En móvil la campana no está en la barra superior; el aviso emergente sí aparece |
+| Filtros Alertas y Hogar, y paginación de la bandeja | Cuando haya más categorías. La bandeja muestra los 100 últimos |
+| Purga de avisos a los 90 días | Sin fecha |
+| Desactivar la bandeja por categoría | Sin fecha. Todo aviso llega a la bandeja; la preferencia decide solo el correo |
+| Métrica de envíos pendientes | Sin fecha. Se cuenta lo publicado (`notifications.published`) |
+| WhatsApp, push móvil, resumen semanal, "Crear alerta" | Fase 11 y backlog |
+| Tablet y tema claro de la pantalla de Notificaciones | Sin revisar a ojo |
 
 ## Resuelto de fases anteriores
 
@@ -108,6 +120,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Crear un tag sin pasar por una categoría | Fase 2 | Fase 3: se crea al nombrarlo en una transacción |
 | Selección de categoría y de tags en un formulario | Fase 2 | Fase 3, dentro del formulario de transacción |
 | Monto por categoría en la pantalla de Categorías | Fase 2 | Fase 4: cada categoría dice lo que movió en el mes de la barra superior |
+| Aviso al llegar al umbral del presupuesto y eventos del ledger | Fases 3 y 5 | Fase 6: `LedgerOperationChanged` y `EvaluateBudgetThresholds` |
 | Presupuesto en el Inicio | Fase 4 | Fase 5: una cifra con el porcentaje usado |
 | `ILedgerQueries` para otros módulos | Fase 3 | Fase 4: lo usa Reporting para el Inicio |
 | Totales convertidos a la moneda base | Fase 3 | Fase 4, con el tipo de cambio de referencia |
