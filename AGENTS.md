@@ -79,4 +79,4 @@ npm run e2e                                      # requiere la API en marcha
 
 ## Estado
 
-Fase 0 terminada y simplificada tras su revisión (ADR-019). Lo siguiente es la fase 1 (Identity y Workspaces). El módulo `Sample` es un ejemplo de la plataforma y se elimina cuando exista el primer módulo real.
+Fases 0 y 1 terminadas: plataforma, cuentas y sesión (Identity) y workspaces con miembros, roles e invitaciones. Lo siguiente es la fase 2 (Categories). El módulo `Sample` es un ejemplo de la plataforma y se elimina en la fase 3, cuando el ledger aporte lo que los tests de la plataforma toman hoy de él.

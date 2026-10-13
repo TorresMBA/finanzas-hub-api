@@ -19,14 +19,6 @@ public interface ICurrentUser
     bool IsAuthenticated => UserId is not null;
 }
 
-/// <summary>Ordered from least to most privileged. No role grants access to another member's private data.</summary>
-public enum WorkspaceRole
-{
-    Member = 0,
-    Admin = 1,
-    Owner = 2
-}
-
 public sealed record WorkspaceMembershipInfo(Guid WorkspaceId, Guid UserId, WorkspaceRole Role, string? BaseCurrency, string TimeZone);
 
 /// <summary>The workspace the current use case runs in, resolved once per request from an active membership.</summary>

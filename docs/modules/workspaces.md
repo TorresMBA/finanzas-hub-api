@@ -25,3 +25,14 @@ Relación confirmada: `User 1:N WorkspaceMembership N:1 Workspace`. Clave única
 | RemoveMember / LeaveWorkspace | Admin u Owner / el propio miembro | usuario | El Owner no puede salir sin transferir | Membresía `Removed`; `MemberRemoved` |
 | TransferOwnership | Owner | usuario | El destino debe ser miembro activo | Auditoría |
 | ListMembers, ListInvitations, GetWorkspace (queries) | Miembro / Admin / Miembro | — | — | — |
+
+## Estado tras la fase 1
+
+Implementado: crear, completar el onboarding, renombrar y cambiar zona horaria; invitar, revocar, aceptar; cambiar rol, quitar miembro, salir y transferir la propiedad; y sus consultas. Endpoints: `GET /me/workspaces`; `POST /workspaces`; `GET` y `PATCH W`; `POST W/onboarding/complete`; `POST W/ownership-transfer`; `GET W/members`; `PATCH` y `DELETE W/members/{userId}` (con el id propio, salir); `GET` y `POST W/invitations`; `DELETE W/invitations/{id}`; `GET /invitations/{token}` (anónimo) y `POST /invitations/{token}/accept`.
+
+Diferido: `ChangeBaseCurrency` (necesita saber si hay asientos: fase 3), archivar un workspace, e `IWorkspaceDirectory` (llega con Goals, fase 8). El evento `MemberInvited` no existe: el correo de invitación se encola directamente en el caso de uso.
+
+- Quien se registra desde una invitación recibe su workspace personal y además se une al que le invitó, que queda como el que abre por defecto (OQ-21).
+- Una invitación caducada sigue en estado pendiente; invitar de nuevo al mismo correo la revoca y crea otra.
+- Solo el Owner invita o nombra administradores; un Admin gestiona miembros.
+- `Workspace` lleva `xmin` como token de concurrencia sobre sus propios datos (nombre, zona horaria, propietario). Dos cambios simultáneos de miembros no chocan en ese token: afectan a filas de `memberships`.

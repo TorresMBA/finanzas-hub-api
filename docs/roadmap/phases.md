@@ -100,7 +100,7 @@ Piezas que se crean con el primer módulo que las use: ver la tabla final de [ar
 | Functional scope | Registro, login, logout, confirmación y recuperación; workspace personal automático; onboarding de moneda y zona horaria; invitaciones; roles; perfil y preferencias |
 | Domain model | `User`, `UserPreferences`, `Workspace`, `Membership`, `Invitation` |
 | Use cases | Los de H.1 y H.2 |
-| Infrastructure | ASP.NET Core Identity; cookie; antifalsificación; `IEmailSender` con SMTP; implementación real de `IWorkspaceAccess`; registro de las implementaciones de `Contracts` en `AddInfrastructure` |
+| Infrastructure | ASP.NET Core Identity; cookie; comprobación de origen contra CSRF; cola de correos (`platform.outgoing_emails`) con `SendEmailsJob`; implementación real de `IWorkspaceAccess`; registro de las implementaciones de `Contracts` en `AddInfrastructure` |
 | Database | Esquemas `identity` y `workspaces` |
 | API | `/auth/*`, `/me`, `/me/profile`, `/me/preferences`, `/workspaces`, `W/onboarding/complete`, `W/members`, `W/invitations`, `/invitations/{token}` |
 | Frontend | `auth`, `onboarding`, `settings` (perfil, miembros, preferencias); selector de workspace; guards |
@@ -109,8 +109,50 @@ Piezas que se crean con el primer módulo que las use: ver la tabla final de [ar
 | Security | Límite de peticiones en `/auth`; bloqueo por intentos; token de invitación con hash |
 | Acceptance | Brian se registra, completa onboarding con PEN, invita a Juan; Juan acepta y aparece como Member; Juan no puede invitar |
 | Dependencies | Fase 0 |
-| Risks | Cookie entre SPA y API en local: se resuelve con el proxy. ASP.NET Core Identity trae su propio contexto EF: hay que decidir entre un store propio sobre `AppDbContext` (recomendado) y un segundo contexto solo para sus tablas |
+| Risks | Cookie entre SPA y API en local: se resuelve con el proxy. ASP.NET Core Identity se usa con su almacenamiento estándar (`AddEntityFrameworkStores<AppDbContext>`), sin escribir ningún store: `AppDbContext` hereda de `IdentityUserContext` y el módulo usa `UserManager` directamente, lo que pide una excepción en los tests de arquitectura limitada al namespace `Microsoft.AspNetCore.Identity` y a este módulo. Se confirma al planificar la fase |
 | Out of scope | 2FA, sesiones activas, foto por subida de archivo, plan |
+
+**Estado: implementada el 13-oct-2026.**
+
+Verificado:
+
+| Comprobación | Resultado |
+|---|---|
+| `dotnet build PersonalFinance.slnx` | Sin errores ni advertencias |
+| `dotnet test PersonalFinance.slnx` | 116 tests: 48 unitarios, 19 de arquitectura, 49 de integración contra PostgreSQL 18 |
+| Criterio de aceptación | Brian se registra, completa el onboarding con PEN e invita a Juan; Juan se registra desde el enlace, aparece como Member y recibe 403 al invitar. Probado por API y, en el navegador, con el enlace del correo real |
+| Sesión | Los tests de identidad usan la cookie real, no un usuario simulado. Cerrar sesión deja `/me` en 401 |
+| Bloqueo | Cinco contraseñas erróneas bloquean la cuenta también para la correcta; restablecer la contraseña la desbloquea |
+| Registro atómico | Un registro que falla en la invitación no deja cuenta: el mismo correo se puede registrar después |
+| Recuperación | El enlace cambia la contraseña una sola vez; pedirlo para un correo sin cuenta responde igual y no encola nada |
+| Segundo nivel de autorización | Quien no es miembro recibe 404 en el workspace, sus miembros y sus invitaciones. Un miembro expulsado lo pierde en la siguiente petición, con la misma cookie |
+| Roles | Un Admin invita miembros pero no crea ni degrada Admins; nadie cambia su propio rol; el Owner no sale sin transferir |
+| CSRF | Una petición que cambia estado con `Origin` ajeno recibe 403 y no tiene efecto |
+| Correos | La cola se entrega una vez y el cuerpo se borra al enviar |
+| Frontend | `ng build` correcto; 47 tests unitarios; `ng lint` correcto |
+| E2E | 10 tests en Chrome: registro con onboarding, validación del formulario, cerrar y abrir sesión, invitación completa entre dos navegadores, y los del shell ya con sesión |
+| Revisión visual | Login, registro, onboarding y ajustes en escritorio y móvil, tema claro y oscuro |
+
+No verificado:
+
+- El envío por SMTP real. Sin servidor configurado los correos se escriben como archivos `.eml`, y eso es lo que se probó.
+- El límite de peticiones de `/auth`: está configurado, pero ningún test provoca el 429.
+- Lo que depende de Docker, igual que en la fase 0.
+
+Diferencias respecto al diseño de la fase:
+
+| Tema | Diseño | Implementación |
+|---|---|---|
+| Protección CSRF | Tokens antifalsificación | Cookie `SameSite=Lax` más rechazo de toda petición que cambia estado con un `Origin` que no sea la propia API o un frontend permitido ([ADR-020](../adr/ADR-020-sesion-y-correos.md)) |
+| Correos | `IEmailSender` que envía por SMTP | `IEmailSender` encola en la transacción del comando y un job del Worker envía con reintentos |
+| `GET /me` | Incluye los workspaces | `GET /me` y `GET /me/workspaces` por separado: un controller sirve a un solo módulo |
+| Correo confirmado | No especificado | No se exige para entrar; el perfil muestra si está confirmado |
+| Eventos `UserRegistered`, `UserProfileChanged`, `MemberInvited` | Se publican | No se levantan todavía: nadie reacciona a ellos. Los de Workspaces que sí usará la fase 2 (`OnboardingCompleted`, `MemberJoined`, `MemberRemoved`) existen |
+| `ChangeBaseCurrency`, archivar workspace, foto de perfil, `IWorkspaceDirectory` | En H.1 y H.2 | Diferidos: cambiar la moneda exige saber si hay asientos (fase 3); el directorio llega con su primer consumidor (fase 8) |
+| `ETag` e `If-Match` | En `Workspace` | `Workspace` lleva `xmin` como token de concurrencia sobre sus propios datos (nombre, zona horaria, propietario), pero la API aún no expone `ETag` y ningún test lo ejercita; llega con el ledger (fase 3). Los cambios de miembros no pasan por ese token |
+| Índices únicos de Owner y de invitación pendiente | En L.2 | Se validan en el dominio y en el handler. Son índices parciales y EF Core no ordena las sentencias de un cambio de propietario para respetarlos |
+| Módulo `Sample` | Se elimina con el primer módulo real | Se conserva hasta la fase 3: los tests de la plataforma necesitan un comando idempotente y una entidad `IOwned`, que aparecen con el ledger |
+| Guards del frontend | Uno de sesión y otro de onboarding en la misma ruta | Un guard completo por ruta. El router ejecuta a la vez los guards de una ruta, y el de onboarding decidía antes de que cargaran los workspaces; se vio en el navegador |
 
 #### Fase 2 — Categories
 
@@ -374,4 +416,4 @@ Piezas que se crean con el primer módulo que las use: ver la tabla final de [ar
 
 ### Y.5 Backlog diferido
 
-Conexión bancaria automática; planes, facturación y límites; 2FA, sesiones activas y biometría; reportes programados y resumen semanal; PDF; push; alertas personalizadas y detección de cargos duplicados; invitados sin usuario y comentarios en gastos compartidos; lectura de correo; Google Sheets; tokens de API y webhooks salientes; precios automáticos; perfil de riesgo; app móvil.
+Conexión bancaria automática; planes, facturación y límites; inicio de sesión con Google y Microsoft (OQ-25); 2FA, sesiones activas y biometría; reportes programados y resumen semanal; PDF; push; alertas personalizadas y detección de cargos duplicados; invitados sin usuario y comentarios en gastos compartidos; lectura de correo; Google Sheets; tokens de API y webhooks salientes; precios automáticos; perfil de riesgo; app móvil.

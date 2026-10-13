@@ -8,6 +8,8 @@
     <ProjectReference Include="..\BuildingBlocks\PersonalFinance.BuildingBlocks.Domain\PersonalFinance.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="..\BuildingBlocks\PersonalFinance.BuildingBlocks.Application\PersonalFinance.BuildingBlocks.Application.csproj" />
     <ProjectReference Include="..\Modules\Sample\PersonalFinance.Modules.Sample\PersonalFinance.Modules.Sample.csproj" />
+    <ProjectReference Include="..\Modules\Identity\PersonalFinance.Modules.Identity\PersonalFinance.Modules.Identity.csproj" />
+    <ProjectReference Include="..\Modules\Workspaces\PersonalFinance.Modules.Workspaces\PersonalFinance.Modules.Workspaces.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -19,6 +21,8 @@
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />

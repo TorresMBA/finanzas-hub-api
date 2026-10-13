@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -16,27 +17,34 @@ using PersonalFinance.Modules.Sample.Domain;
 
 namespace PersonalFinance.IntegrationTests.Support;
 
-/// <summary>Signs the caller in as the user named in a header. Without the header the request is anonymous.</summary>
+/// <summary>
+/// Signs the caller in as the user named in a header, for tests that are not about signing in. Without the
+/// header it falls back to the real session cookie, so the sign-in flows are tested as they run in production.
+/// </summary>
 internal sealed class TestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     public const string SchemeName = "Test";
     public const string UserHeader = "X-Test-User";
 
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         if (!Request.Headers.TryGetValue(UserHeader, out var value) || !Guid.TryParse(value, out var userId))
         {
-            return Task.FromResult(AuthenticateResult.NoResult());
+            var cookie = await Context.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return cookie.Succeeded ? AuthenticateResult.Success(new AuthenticationTicket(cookie.Principal, SchemeName)) : AuthenticateResult.NoResult();
         }
 
         var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())], SchemeName);
-        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName)));
+        return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName));
     }
 }
 
-/// <summary>Stands in for the Workspaces module, which does not exist yet.</summary>
-internal sealed class FakeWorkspaceAccess : IWorkspaceAccess
+/// <summary>
+/// Memberships declared by a test without creating users and workspaces, for tests of the platform itself.
+/// Anything not declared here is answered by the real Workspaces module.
+/// </summary>
+internal sealed class FakeWorkspaceAccess
 {
     private readonly ConcurrentDictionary<(Guid WorkspaceId, Guid UserId), WorkspaceMembershipInfo> _memberships = new();
 
@@ -47,8 +55,13 @@ internal sealed class FakeWorkspaceAccess : IWorkspaceAccess
         return membership;
     }
 
-    public Task<WorkspaceMembershipInfo?> GetActiveMembershipAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken) =>
-        Task.FromResult(_memberships.GetValueOrDefault((workspaceId, userId)));
+    public WorkspaceMembershipInfo? Find(Guid workspaceId, Guid userId) => _memberships.GetValueOrDefault((workspaceId, userId));
+}
+
+internal sealed class FallbackWorkspaceAccess(FakeWorkspaceAccess declared, IWorkspaceAccess real) : IWorkspaceAccess
+{
+    public async Task<WorkspaceMembershipInfo?> GetActiveMembershipAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken) =>
+        declared.Find(workspaceId, userId) ?? await real.GetActiveMembershipAsync(workspaceId, userId, cancellationToken);
 }
 
 /// <summary>

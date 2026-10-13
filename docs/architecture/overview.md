@@ -42,7 +42,7 @@
 8. **Operaciones entre módulos atómicas.** Aportar a una meta o pagar un gasto compartido escribe en dos módulos dentro de una misma transacción PostgreSQL mediante llamada síncrona al contrato de `Ledger`. Las reacciones (alertas de presupuesto, avisos a otros participantes) son eventos de dominio entregados en proceso dentro de esa misma transacción. Solo los envíos externos (correo, WhatsApp) se encolan y los procesa el Worker con reintentos.
 9. **Sin dependencias de moda.** No se usa MediatR, AutoMapper, MassTransit, Hangfire, Quartz, Redis, Service Bus ni NgRx. Handlers por caso de uso con decoradores DI, `Result<T>` con `ProblemDetails`, `BackgroundService` con PostgreSQL como cola.
 10. **Roadmap de 15 fases (0 a 14) en 4 hitos.** El orden propuesto en el encargo se corrige en dos puntos: Notifications sube a Fase 6 y Scheduling a Fase 7, porque Goals y SharedExpenses dependen de ambos.
-11. **24 preguntas abiertas** documentadas con alternativa A/B, recomendación e impacto (sección E). Las de mayor impacto son el alcance de los datos privados (OQ-01), el alcance de la taxonomía (OQ-03) y el tratamiento contable de los reembolsos (OQ-09).
+11. **25 preguntas abiertas** documentadas con alternativa A/B, recomendación e impacto (sección E). Las de mayor impacto son el alcance de los datos privados (OQ-01), el alcance de la taxonomía (OQ-03) y el tratamiento contable de los reembolsos (OQ-09).
 
 ## F. Arquitectura propuesta
 
@@ -162,7 +162,7 @@ Un `AppDbContext` en `PersonalFinance.Infrastructure`, un esquema PostgreSQL por
 
 Alternativa descartada: un `DbContext` y un historial de migraciones por módulo sobre una conexión compartida. Aísla más y deja cada módulo listo para extraerse, pero añade maquinaria que a esta escala no se usa. Se construyó en la fase 0 y se retiró (ADR-019).
 
-Pendiente para la fase 1: ASP.NET Core Identity trae su propio contexto EF. Hay que decidir si `Identity` usa un store propio sobre `AppDbContext` (recomendado, para no meter tipos de ASP.NET en el dominio) o un segundo contexto solo para las tablas del framework.
+Para la fase 1: se usa el almacenamiento estándar de ASP.NET Core Identity (`AddEntityFrameworkStores<AppDbContext>`), sin escribir ningún store. `AppDbContext` hereda de `IdentityUserContext` (usuarios, sin tablas de roles) y sus tablas van al esquema `identity`. El módulo `Identity` usa `UserManager` directamente; como ese tipo está en el namespace `Microsoft.AspNetCore.Identity`, los tests de arquitectura llevarán una excepción limitada a ese namespace y a ese módulo. Se confirma al planificar la fase.
 
 ### F.8 Flujo de una petición
 

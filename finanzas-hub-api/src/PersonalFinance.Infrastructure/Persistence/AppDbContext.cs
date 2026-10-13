@@ -1,10 +1,16 @@
 using System.Reflection;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Infrastructure.Platform;
+using PersonalFinance.Modules.Identity.Application.Abstractions;
+using PersonalFinance.Modules.Identity.Domain;
 using PersonalFinance.Modules.Sample.Application.Abstractions;
 using PersonalFinance.Modules.Sample.Domain;
+using PersonalFinance.Modules.Workspaces.Application.Abstractions;
+using PersonalFinance.Modules.Workspaces.Domain;
 
 namespace PersonalFinance.Infrastructure.Persistence;
 
@@ -12,15 +18,18 @@ namespace PersonalFinance.Infrastructure.Persistence;
 internal static class Schemas
 {
     public const string Platform = "platform";
+    public const string Identity = "identity";
+    public const string Workspaces = "workspaces";
     public const string Sample = "sample";
 }
 
 /// <summary>
 /// The one database context. A module reaches only its own tables, through the interface it declares
-/// (<see cref="ISampleDb"/>); every <see cref="IOwned"/> entity is filtered by the current user and workspace.
+/// (<see cref="ISampleDb"/> and the like); every <see cref="IOwned"/> entity is filtered by the current user
+/// and workspace. It derives from ASP.NET Core Identity's context so the framework's own user store works on it.
 /// </summary>
 internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUser currentUser, IWorkspaceContext workspaceContext)
-    : DbContext(options), ISampleDb
+    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ISampleDb
 {
     private static readonly MethodInfo ApplyOwnerFilterMethod =
         typeof(AppDbContext).GetMethod(nameof(ApplyOwnerFilter), BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -28,6 +37,18 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurr
     public DbSet<IdempotencyRecord> IdempotencyKeys => Set<IdempotencyRecord>();
 
     public DbSet<AuditLogEntry> AuditLog => Set<AuditLogEntry>();
+
+    public DbSet<OutgoingEmail> OutgoingEmails => Set<OutgoingEmail>();
+
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+
+    public DbSet<UserPreferences> UserPreferences => Set<UserPreferences>();
+
+    public DbSet<Workspace> Workspaces => Set<Workspace>();
+
+    public DbSet<Membership> Memberships => Set<Membership>();
+
+    public DbSet<Invitation> Invitations => Set<Invitation>();
 
     public DbSet<Note> Notes => Set<Note>();
 
@@ -52,6 +73,8 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurr
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Identity maps its own tables first; the configurations below move them to the identity schema.
+        base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
         foreach (var entityType in modelBuilder.Model.GetEntityTypes().ToList())

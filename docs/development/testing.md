@@ -22,7 +22,7 @@ Los módulos, controllers y jobs se descubren a partir de los dos hosts, así qu
 
 | Regla | Cómo | Test |
 |---|---|---|
-| `X/Domain` solo depende de `BuildingBlocks.Domain` y de su propio `Contracts`: ni EF Core, ni ASP.NET, ni `X/Application` | Dependencias por namespace (NetArchTest) | `LayeringTests` |
+| `X/Domain` solo depende de `BuildingBlocks.Domain` y de su propio `Contracts`: ni EF Core, ni ASP.NET, ni `X/Application`. Única excepción: el módulo Identity puede usar el namespace `Microsoft.AspNetCore.Identity` (la parte de biblioteca de ASP.NET Core Identity), y nada más de ASP.NET | Dependencias por namespace (NetArchTest) | `LayeringTests` |
 | `X/Application` no referencia ASP.NET, Npgsql ni `Infrastructure` | Dependencias por namespace | `LayeringTests` |
 | `X/Contracts` solo depende de `BuildingBlocks.Domain` | Dependencias por namespace | `LayeringTests` |
 | Un módulo usa de otro solo su `Contracts` | Dependencias por namespace | `ModuleBoundaryTests` |
@@ -58,7 +58,7 @@ dotnet test finanzas-hub-api/PersonalFinance.slnx
 cd finanzas-hub-web
 npm test -- --watch=false
 npm run lint
-npm run e2e          # requiere la API en http://localhost:5166
+npm run e2e          # requiere la API (http://localhost:5166) y el Worker en marcha
 ```
 
 ### V.3 Tests de seguridad obligatorios

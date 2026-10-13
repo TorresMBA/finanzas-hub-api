@@ -27,7 +27,7 @@ Los documentos nacieron de un único análisis y conservan sus letras de secció
 | A | Resumen ejecutivo | [architecture/overview.md](architecture/overview.md) |
 | B | Análisis de los mocks | [product/mock-analysis.md](product/mock-analysis.md) |
 | C, D | Requisitos funcionales y no funcionales | [product/requirements.md](product/requirements.md) |
-| E | Decisiones pendientes (OQ-01 a OQ-24) | [product/open-questions.md](product/open-questions.md) |
+| E | Decisiones pendientes (OQ-01 a OQ-25) | [product/open-questions.md](product/open-questions.md) |
 | F, G | Arquitectura y diagramas generales | [architecture/overview.md](architecture/overview.md) |
 | H | Límites de módulos | [architecture/modules.md](architecture/modules.md) y [modules/](modules/) |
 | I | Reglas de dependencia | [architecture/module-communication.md](architecture/module-communication.md) |
@@ -59,4 +59,4 @@ Los documentos nacieron de un único análisis y conservan sus letras de secció
 
 ## Estado
 
-Fase 0 terminada, y rediseñada tras su revisión ([ADR-019](adr/ADR-019-simplificacion-de-la-plataforma.md)). El detalle de lo verificado y de lo que no está en [roadmap/phases.md](roadmap/phases.md).
+Fases 0 y 1 terminadas. La fase 0 se rediseñó tras su revisión ([ADR-019](adr/ADR-019-simplificacion-de-la-plataforma.md)). El detalle de lo verificado y de lo que no está en [roadmap/phases.md](roadmap/phases.md).

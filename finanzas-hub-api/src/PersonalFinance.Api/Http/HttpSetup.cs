@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
@@ -40,9 +41,47 @@ internal sealed class GlobalExceptionHandler(IProblemDetailsService problemDetai
     }
 }
 
+/// <summary>The browser origins that may send state-changing requests with the session cookie.</summary>
+internal sealed record CrossSiteGuard(IReadOnlyCollection<string> AllowedOrigins);
+
+/// <summary>
+/// Defence against cross-site request forgery. The session cookie is SameSite=Lax, which already keeps it out
+/// of cross-site POSTs; this also rejects any state-changing request whose Origin is neither the API's own
+/// address nor an allowed frontend. Requests without an Origin (not sent by a browser page) pass.
+/// </summary>
+internal sealed class CrossSiteMiddleware(RequestDelegate next, CrossSiteGuard guard, IProblemDetailsService problemDetails)
+{
+    public async Task InvokeAsync(HttpContext context)
+    {
+        var request = context.Request;
+        var origin = request.Headers.Origin.ToString();
+        var changesState = !HttpMethods.IsGet(request.Method) && !HttpMethods.IsHead(request.Method) && !HttpMethods.IsOptions(request.Method);
+        if (changesState && origin.Length > 0
+            && !string.Equals(origin, $"{request.Scheme}://{request.Host}", StringComparison.OrdinalIgnoreCase)
+            && !guard.AllowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await problemDetails.TryWriteAsync(new ProblemDetailsContext
+            {
+                HttpContext = context,
+                ProblemDetails =
+                {
+                    Status = StatusCodes.Status403Forbidden,
+                    Title = "Requests from this site are not allowed.",
+                    Extensions = { ["code"] = "request.cross_site" }
+                }
+            });
+            return;
+        }
+
+        await next(context);
+    }
+}
+
 internal static class HttpSetup
 {
     public const string CorsPolicy = "Frontend";
+    public const string AuthRateLimit = "auth";
 
     /// <summary>Controllers, error responses, session cookie, authorization and CORS.</summary>
     public static IServiceCollection AddApiHttp(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
@@ -116,7 +155,18 @@ internal static class HttpSetup
         services.AddAuthorizationBuilder()
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
+        // Slows down password guessing and account enumeration. Per client address, on the /auth endpoints only.
+        var authPermitsPerMinute = configuration.GetValue("RateLimiting:AuthPermitsPerMinute", 20);
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.AddPolicy(AuthRateLimit, context => RateLimitPartition.GetFixedWindowLimiter(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = authPermitsPerMinute, Window = TimeSpan.FromMinutes(1) }));
+        });
+
         var allowedOrigins = ResolveAllowedOrigins(configuration, environment);
+        services.AddSingleton(new CrossSiteGuard(allowedOrigins));
         services.AddCors(options => options.AddPolicy(CorsPolicy, policy => policy
             .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
@@ -148,17 +198,19 @@ internal static class HttpSetup
 
         // CORS answers the browser preflight before HTTPS redirection would turn it into a redirect.
         app.UseCors(CorsPolicy);
+        app.UseMiddleware<CrossSiteMiddleware>();
         
         app.UseHttpsRedirection();
         app.UseAuthentication();
 
         app.UseMiddleware<ActorContextMiddleware>();
         app.UseAuthorization();
+        app.UseRateLimiter();
 
         return app;
     }
 
-    private static void ConfigureJson(JsonSerializerOptions options) => options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+    private static void ConfigureJson(JsonSerializerOptions options) => options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
 
     /// <summary>
     /// The allow-list is a set of exact browser origins. Production fails closed: with no origin configured the

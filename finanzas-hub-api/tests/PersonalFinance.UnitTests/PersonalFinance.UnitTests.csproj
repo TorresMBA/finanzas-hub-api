@@ -17,6 +17,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\BuildingBlocks\PersonalFinance.BuildingBlocks.Domain\PersonalFinance.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Sample\PersonalFinance.Modules.Sample\PersonalFinance.Modules.Sample.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identity\PersonalFinance.Modules.Identity\PersonalFinance.Modules.Identity.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Workspaces\PersonalFinance.Modules.Workspaces\PersonalFinance.Modules.Workspaces.csproj" />
   </ItemGroup>
 
 </Project>

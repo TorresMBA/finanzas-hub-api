@@ -60,10 +60,16 @@ Los secretos no van en `appsettings`: `dotnet user-secrets` en local, variables 
 | `Database:MigrateOnStartup` | `false`; `true` en Development | Aplica las migraciones pendientes al arrancar |
 | `Cors:AllowedOrigins` | `http://localhost:4200` en Development | Orígenes del navegador permitidos. En Production es obligatoria |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` en el perfil de arranque | Destino de la telemetría. Sin ella no se exporta nada |
+| `Frontend:BaseUrl` | `http://localhost:4200` | Con qué empiezan los enlaces de los correos |
+| `Email:SmtpHost`, `Email:SmtpPort`, `Email:SmtpUser`, `Email:SmtpPassword`, `Email:From` | Sin servidor | Servidor de correo. Sin `SmtpHost` los correos se escriben como archivos `.eml` |
+| `Email:PickupDirectory` | `personal-hub-mail` en la carpeta temporal del sistema | Dónde se escriben esos archivos |
+| `RateLimiting:AuthPermitsPerMinute` | 20; 300 en Development | Peticiones a `/auth` por minuto y dirección |
 
 ## Qué hace hoy la aplicación
 
-Tras la fase 0 no hay inicio de sesión: toda ruta de negocio responde 401. El frontend muestra el shell con las 13 secciones y una página provisional en cada una. La autenticación y los workspaces llegan en la fase 1.
+Tras la fase 1 se puede crear una cuenta, iniciar sesión, configurar el espacio personal, invitar a otras personas y gestionar miembros y roles, además de editar el perfil y las preferencias. El resto de secciones muestra todavía una página provisional.
+
+Los correos (confirmación, recuperación de contraseña, invitaciones) los envía el Worker. En local, sin servidor SMTP, aparecen como archivos `.eml` en `%TEMP%\personal-hub-mail`: ábrelos para copiar el enlace.
 
 ## Tareas habituales
 
@@ -81,4 +87,4 @@ Tras la fase 0 no hay inicio de sesión: toda ruta de negocio responde 401. El f
 
 - La API no ejecuta ningún job. Si el Worker no está en marcha, lo encolado espera.
 - El Worker no aplica migraciones. Si arranca antes que la API en una base vacía, sus jobs fallan, lo registran y reintentan al minuto.
-- Hoy su único job es la purga diaria de claves de idempotencia caducadas, así que en local solo hace falta arrancarlo cuando se trabaja en un job.
+- Sus jobs de hoy son el envío de correos y la purga diaria de claves de idempotencia. Hace falta tenerlo en marcha para recibir los correos de confirmación, recuperación e invitación, y para los tests E2E.

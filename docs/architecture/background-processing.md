@@ -9,6 +9,7 @@ Todo lo que corre sin una petición es un job del Worker, en `PersonalFinance.Wo
 | Job | Módulo | Disparo | Idempotencia |
 |---|---|---|---|
 | Purga de claves de idempotencia caducadas | Platform | Diario | Natural |
+| Envío de correos (confirmación, recuperación, invitaciones) | Platform | Cada 10 s | Fila reclamada con `SKIP LOCKED` y marcada como enviada |
 | Envío de notificaciones por correo y WhatsApp | Notifications | Cada 10 s | `(notification_id, channel)` |
 | Ocurrencias vencidas y recordatorios | Scheduling | Cada 15 min | `(rule_id, scheduled_date)`; clave de deduplicación del aviso |
 | Vencimiento de tarjeta | Ledger, invocado por el ciclo de Scheduling | Cada 15 min | Clave de deduplicación |
@@ -20,7 +21,7 @@ Todo lo que corre sin una petición es un job del Worker, en `PersonalFinance.Wo
 
 La evaluación de umbrales de presupuesto no es un job: es una reacción a `OperationPosted` dentro de la transacción del gasto (ver [module-communication.md](module-communication.md)).
 
-Hoy existe solo el primero, que además fija el patrón.
+Hoy existen los dos primeros. Sin servidor SMTP configurado, el de correos escribe cada mensaje como un archivo `.eml` en una carpeta, que es lo que se usa en local y en los tests E2E.
 
 ### R.2 Cómo es un job
 

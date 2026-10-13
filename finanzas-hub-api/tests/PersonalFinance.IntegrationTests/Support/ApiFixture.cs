@@ -28,6 +28,9 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public IServiceProvider Services => _factory.Services;
 
+    /// <summary>Where the email dispatcher writes messages instead of sending them.</summary>
+    public string MailDirectory { get; } = Path.Combine(Path.GetTempPath(), $"pf-test-mail-{Guid.NewGuid():N}");
+
     public async Task InitializeAsync()
     {
         _database = await TestDatabase.CreateAsync();
@@ -35,6 +38,8 @@ public sealed class ApiFixture : IAsyncLifetime
         // Read by WebApplication.CreateBuilder, so they are in place before any service is registered.
         Environment.SetEnvironmentVariable("ConnectionStrings__PersonalFinance", _database.ConnectionString);
         Environment.SetEnvironmentVariable("Database__MigrateOnStartup", "false");
+        Environment.SetEnvironmentVariable("RateLimiting__AuthPermitsPerMinute", "100000");
+        Environment.SetEnvironmentVariable("Email__PickupDirectory", MailDirectory);
 
         _factory = new ApiFactory(Workspaces);
         await _factory.Services.MigrateDatabaseAsync();
@@ -44,9 +49,17 @@ public sealed class ApiFixture : IAsyncLifetime
     {
         await _factory.DisposeAsync();
         await _database.DisposeAsync();
+        if (Directory.Exists(MailDirectory))
+        {
+            Directory.Delete(MailDirectory, recursive: true);
+        }
     }
 
     public HttpClient AnonymousClient() => _factory.CreateClient();
+
+    /// <summary>A browser-like client: it keeps the session cookie, which is only sent over HTTPS.</summary>
+    public HttpClient BrowserClient() =>
+        _factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), HandleCookies = true });
 
     public HttpClient ClientFor(Guid userId)
     {
@@ -108,7 +121,9 @@ public sealed class ApiFixture : IAsyncLifetime
                     options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
                 });
 
-                services.AddSingleton<IWorkspaceAccess>(workspaces);
+                // The real module keeps answering; a membership a test declared by hand wins over it.
+                var real = services.Last(descriptor => descriptor.ServiceType == typeof(IWorkspaceAccess));
+                services.AddScoped<IWorkspaceAccess>(provider => new FallbackWorkspaceAccess(workspaces, (IWorkspaceAccess)real.ImplementationFactory!(provider)));
                 services.AddHandlersFromAssembly(typeof(ApiFixture).Assembly);
             });
         }

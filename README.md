@@ -28,4 +28,4 @@ Detalle y alternativa sin Docker en [docs/development/local-development.md](docs
 
 ## Estado
 
-Fase 0 (fundación) terminada: estructura de la solución, plataforma común, reglas de arquitectura vigiladas por tests y shell del frontend. Todavía no hay inicio de sesión ni funcionalidad de negocio; llegan a partir de la fase 1. Ver [docs/roadmap/phases.md](docs/roadmap/phases.md).
+Fases 0 y 1 terminadas: la plataforma común y el shell del frontend, y sobre ellos las cuentas (registro, sesión, recuperación de contraseña) y los workspaces con miembros, roles e invitaciones. La funcionalidad financiera empieza en la fase 2. Ver [docs/roadmap/phases.md](docs/roadmap/phases.md).

@@ -56,12 +56,3 @@ internal sealed class ActorContext : ICurrentUser, IWorkspaceContext, IActorCont
             ? Result.Success()
             : Error.Forbidden("workspace.insufficient_role", $"This action requires the {minimum} role in the workspace.");
 }
-
-/// <summary>
-/// Stands in until the Workspaces module (phase 1) provides the real implementation: nobody is a member of anything.
-/// </summary>
-internal sealed class NoWorkspacesModuleAccess : IWorkspaceAccess
-{
-    public Task<WorkspaceMembershipInfo?> GetActiveMembershipAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken) =>
-        Task.FromResult<WorkspaceMembershipInfo?>(null);
-}

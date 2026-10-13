@@ -9,6 +9,8 @@
     <Project Path="src/BuildingBlocks/PersonalFinance.BuildingBlocks.Application/PersonalFinance.BuildingBlocks.Application.csproj" />
   </Folder>
   <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/Identity/PersonalFinance.Modules.Identity/PersonalFinance.Modules.Identity.csproj" />
+    <Project Path="src/Modules/Workspaces/PersonalFinance.Modules.Workspaces/PersonalFinance.Modules.Workspaces.csproj" />
     <Project Path="src/Modules/Sample/PersonalFinance.Modules.Sample/PersonalFinance.Modules.Sample.csproj" />
   </Folder>
   <Folder Name="/tests/">

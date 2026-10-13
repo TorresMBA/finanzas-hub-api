@@ -50,8 +50,9 @@ Del topbar del mock faltan a propósito el selector de workspace, el buscador, e
 src/app/
   core/                       singletons, sin UI
     api/                      cliente generado desde openapi.v1.json y ApiClient base
-    auth/                     SessionStore, authGuard, guestGuard
-    workspace/                WorkspaceStore, workspaceGuard, onboardingGuard
+    auth/                     SessionStore; appGuard, onboardingGuard, guestGuard
+    workspace/                WorkspaceStore, zonas horarias
+    testing/                  provideSession: sesión y workspace simulados para tests de componentes
     period/                   PeriodStore (mes global del topbar)
     realtime/                 RealtimeService (SignalR)
     http/                     interceptores: credenciales y XSRF, correlation-id, idempotency-key, errores
@@ -128,3 +129,13 @@ Estado global en `core`: sesión, workspace actual, mes seleccionado, tema, cont
 ### O.5 Sistema de diseño
 
 Los tokens del mock (`--bg`, `--sf`, `--sf2`, `--sf3`, `--bd`, `--tx`, `--tx2`, `--mu`, `--ac`, `--bl`, `--rd`, `--am`, `--vi` y sus variantes suaves) pasan tal cual a `_tokens.scss`. Tipografía Manrope e iconos Material Symbols Rounded. Los gráficos del mock son CSS puro (barras, `conic-gradient`); no se añade librería de gráficos hasta que Reportes lo pida.
+
+### Guards
+
+El router ejecuta a la vez todos los guards de una ruta, no uno tras otro. Por eso cada ruta lleva un solo guard y cada guard es completo: carga la sesión y los workspaces antes de decidir. `appGuard` protege la aplicación (sin sesión lleva a `/login` con la dirección de vuelta; con un workspace sin configurar lleva a su dueño a `/onboarding`), `onboardingGuard` protege esa página y `guestGuard` saca de las páginas de acceso a quien ya tiene sesión.
+
+Dentro de un guard, `inject()` solo funciona antes del primer `await`.
+
+### Errores de la API
+
+La API responde con un `code` estable y un mensaje en inglés pensado para quien desarrolla. El texto que ve la persona sale de `core/errors/error-messages.ts`, que traduce cada `code`. Un código nuevo sin entrada muestra un mensaje genérico.

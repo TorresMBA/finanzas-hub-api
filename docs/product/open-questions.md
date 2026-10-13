@@ -30,3 +30,4 @@ Cada pregunta tiene opción por defecto. Se ejecuta la recomendada salvo indicac
 | 22 | Editar monto, cuenta o fecha de un movimiento confirmado | En sitio, con antes y después en auditoría | Anular y recrear | **A**. B es fricción de nivel bancario | Medio |
 | 23 | Alcance de WhatsApp | Recordatorios salientes y comandos de solo lectura (`saldo`, `ayuda`) | También registrar gastos por chat | **A**. Los mensajes iniciados por el negocio exigen plantillas aprobadas por Meta | Medio |
 | 24 | "Cuentas principales" en Inicio | Marca de favorita | Top por saldo | **A** | Bajo |
+| 25 | Inicio de sesión con Google o Microsoft | Solo correo y contraseña en la fase 1; los proveedores externos quedan en el backlog | Añadirlos ya, solos o junto a la contraseña | **A**, decidida por el dueño el 13-oct-2026. ASP.NET Core Identity ya trae la tabla `user_logins`, así que añadirlos después no cambia el modelo | Bajo |

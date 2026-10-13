@@ -26,9 +26,11 @@ finanzas-hub-api/
         Messaging/                 ICommand, IQuery, ICommandHandler, IQueryHandler, IIdempotentCommand, Unit
         Security/                  ICurrentUser, IWorkspaceContext, IWorkspaceAccess, WorkspaceRole
         Events/                    IDomainEventHandler
-        Abstractions/              IClock, IAuditLog
+        Abstractions/              IClock, IAuditLog, IEmailSender, IAppLinks
     Modules/
-      Sample/                      módulo de ejemplo de la fase 0; se elimina al llegar el primer módulo real
+      Identity/                    cuentas, sesión, perfil y preferencias (sobre ASP.NET Core Identity)
+      Workspaces/                  workspaces, miembros, roles e invitaciones
+      Sample/                      módulo de ejemplo de la fase 0; se elimina en la fase 3
         PersonalFinance.Modules.Sample/
           Domain/                  Note, NoteCreated, NoteReceipt
           Application/
@@ -47,20 +49,23 @@ finanzas-hub-api/
       Messaging/                   registro de handlers; decoradores de logging, transacción e idempotencia;
                                    DomainEventDispatcher; limpieza de claves de idempotencia
       Audit/                       AuditLogWriter
+      Email/                       cola de correos y su envío por SMTP
       Security/                    ActorContext, IActorContextInitializer
       Observability/               OpenTelemetry, Telemetry, CorrelationContext, health checks
     PersonalFinance.Api/
       Program.cs
       Controllers/
         ApiControllerBase.cs       Result a respuesta, lectura de Idempotency-Key
+        Identity/                  AuthController, MeController
+        Workspaces/                WorkspacesController, MembersController, invitaciones
         Sample/NotesController.cs  un controller por recurso, en la carpeta de su módulo
       Http/                        correlación, contexto de actor, WorkspaceScopeFilter, Result a ProblemDetails,
-                                   manejador global de excepciones, cookie, CORS
+                                   manejador global de excepciones, cookie de sesión, CORS, origen y límite de peticiones
     PersonalFinance.Worker/
       Program.cs                   registra los jobs
       Jobs/
         PeriodicJob.cs             base de un job periódico
-        Platform/                  PurgeExpiredIdempotencyKeysJob
+        Platform/                  PurgeExpiredIdempotencyKeysJob, SendEmailsJob
         <Módulo>/                  jobs de cada módulo
   tests/
     PersonalFinance.UnitTests/           dominio y funciones puras, carpeta por módulo
@@ -114,7 +119,7 @@ Que un módulo no use las entidades de otro lo garantizan los tests de arquitect
 3. En `PersonalFinance.Infrastructure`: referencia al proyecto, `IXDb` en `AppDbContext`, sus configuraciones en `Persistence/Configurations/X/` con el esquema del módulo, y dos líneas en `DependencyInjection.cs`:
 
    ```csharp
-   services.AddHandlersFromAssembly(typeof(IXDb).Assembly);
+   services.AddModule(typeof(IXDb).Assembly);
    services.AddScoped<IXDb>(provider => provider.GetRequiredService<AppDbContext>());
    ```
 
@@ -122,7 +127,7 @@ Que un módulo no use las entidades de otro lo garantizan los tests de arquitect
 5. Controllers en `PersonalFinance.Api/Controllers/X/` y, si los hay, jobs en `PersonalFinance.Worker/Jobs/X/`.
 6. Su entrada en el grafo de `ModuleBoundaryTests.AllowedDependencies`.
 
-`AddHandlersFromAssembly` registra los handlers de comando, de consulta y de evento de dominio, y envuelve cada handler de comando en los decoradores.
+`AddModule` registra los handlers de comando, de consulta y de evento de dominio (cada handler de comando envuelto en los decoradores) y los servicios del módulo: toda clase `internal` de su capa `Application` que no sea un handler, bajo las interfaces que implemente. Así un módulo aporta la implementación de sus `Contracts` sin que nadie de fuera la nombre.
 
 **Paquetes.** EF Core y Npgsql; `EFCore.NamingConventions`; OpenTelemetry con exportador OTLP; `Microsoft.AspNetCore.OpenApi`. Para tests: xUnit, Testcontainers para PostgreSQL y NetArchTest. Previstos: ASP.NET Core Identity (fase 1) y un lector de XLSX en `Integrations` (fase 10).
 
@@ -130,11 +135,8 @@ Que un módulo no use las entidades de otro lo garantizan los tests de arquitect
 
 | Pieza | Llega en |
 |---|---|
-| `IEmailSender` y su adaptador SMTP | Fase 1 |
-| Implementación real de `IWorkspaceAccess` (hoy `NoWorkspacesModuleAccess`, que niega todo) | Fase 1 |
-| Registro automático de las implementaciones de `Contracts` | Fase 1 |
-| Persistencia de claves de Data Protection | Fase 1 |
 | Tipos de paginación por cursor | Fase 3 |
+| `ETag` e `If-Match` en la API | Fase 3 |
 | Marca de "comando con efecto financiero" y su test de arquitectura | Fase 3 |
 | `IRealtimeNotifier` y el hub SignalR | Fase 6 |
 | Cola de envíos (`notifications.deliveries`) y su job | Fase 6 |

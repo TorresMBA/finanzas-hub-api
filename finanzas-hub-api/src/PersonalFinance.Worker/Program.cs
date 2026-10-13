@@ -10,5 +10,6 @@ builder.AddObservability("personal-finance-worker");
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddHostedService<PurgeExpiredIdempotencyKeysJob>();
+builder.Services.AddHostedService<SendEmailsJob>();
 
 await builder.Build().RunAsync();

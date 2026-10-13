@@ -14,6 +14,8 @@ public class ModuleBoundaryTests
     /// </summary>
     private static readonly Dictionary<string, string[]> AllowedDependencies = new(StringComparer.Ordinal)
     {
+        ["Identity"] = [],
+        ["Workspaces"] = ["Identity"],
         ["Sample"] = []
     };
 
@@ -63,10 +65,14 @@ public class ModuleBoundaryTests
     public void A_module_project_brings_no_database_provider_and_no_web_framework()
     {
         // EF Core's abstractions are the one package a module needs: its use cases query through DbSet.
+        // Identity also uses ASP.NET Core Identity's library part (user type, password hashing, tokens), which has no web dependency.
         string[] allowedPackages = ["Microsoft.EntityFrameworkCore"];
+        var allowedPerModule = new Dictionary<string, string[]> { ["Identity"] = ["Microsoft.Extensions.Identity.Stores"] };
 
         var violations = Solution.Projects.Where(project => Solution.IsModule(project.Name))
-            .SelectMany(project => project.PackageReferences.Where(package => !allowedPackages.Contains(package))
+            .SelectMany(project => project.PackageReferences
+                .Where(package => !allowedPackages.Contains(package)
+                    && !allowedPerModule.GetValueOrDefault(Solution.ModuleNameOf(project.Name), []).Contains(package))
                 .Concat(project.FrameworkReferences)
                 .Select(reference => $"{project.Name} references {reference}."));
 

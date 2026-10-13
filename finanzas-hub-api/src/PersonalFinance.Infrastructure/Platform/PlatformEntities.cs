@@ -98,3 +98,57 @@ internal sealed class AuditLogEntry
             TraceId = traceId
         };
 }
+
+/// <summary>
+/// An email waiting to be sent. Written in the transaction of the command that needs it and sent by a Worker
+/// job, so a mail outage never fails a command. The body is erased once sent: it may carry a one-time link.
+/// </summary>
+internal sealed class OutgoingEmail
+{
+    private OutgoingEmail()
+    {
+    }
+
+    public Guid Id { get; private set; }
+
+    public string To { get; private set; } = null!;
+
+    public string Subject { get; private set; } = null!;
+
+    public string? Body { get; private set; }
+
+    public DateTimeOffset CreatedAt { get; private set; }
+
+    public DateTimeOffset NextAttemptAt { get; private set; }
+
+    public DateTimeOffset? SentAt { get; private set; }
+
+    public int Attempts { get; private set; }
+
+    public string? LastError { get; private set; }
+
+    public static OutgoingEmail Create(string to, string subject, string body, DateTimeOffset now) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        To = to,
+        Subject = subject,
+        Body = body,
+        CreatedAt = now,
+        NextAttemptAt = now
+    };
+
+    public void MarkSent(DateTimeOffset now)
+    {
+        SentAt = now;
+        Body = null;
+        LastError = null;
+    }
+
+    /// <summary>Waits longer after each failure: 1, 2, 4... minutes, up to an hour.</summary>
+    public void MarkFailed(string error, DateTimeOffset now)
+    {
+        Attempts++;
+        LastError = error.Length > 1000 ? error[..1000] : error;
+        NextAttemptAt = now.AddMinutes(Math.Min(60, Math.Pow(2, Attempts - 1)));
+    }
+}

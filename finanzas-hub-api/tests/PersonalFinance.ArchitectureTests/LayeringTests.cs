@@ -13,6 +13,20 @@ public class LayeringTests
 {
     private const string EfCore = "Microsoft.EntityFrameworkCore";
     private const string AspNetCore = "Microsoft.AspNetCore";
+
+    /// <summary>
+    /// ASP.NET Core Identity's library part lives in this namespace. Only the Identity module may use it; everything
+    /// else of ASP.NET stays forbidden for it too.
+    /// </summary>
+    private const string AspNetIdentity = "Microsoft.AspNetCore.Identity";
+    private const string IdentityModule = "PersonalFinance.Modules.Identity";
+
+    /// <summary>The web part of ASP.NET Core: what no module layer may touch.</summary>
+    private static readonly string[] AspNetWeb =
+    [
+        "Microsoft.AspNetCore.Http", "Microsoft.AspNetCore.Mvc", "Microsoft.AspNetCore.Routing", "Microsoft.AspNetCore.Builder",
+        "Microsoft.AspNetCore.Hosting", "Microsoft.AspNetCore.Authentication", "Microsoft.AspNetCore.Authorization"
+    ];
     private const string Npgsql = "Npgsql";
 
     /// <summary>Job folders that do not belong to a module: housekeeping of the platform's own tables.</summary>
@@ -25,14 +39,14 @@ public class LayeringTests
     public void Domain_depends_only_on_the_domain_building_block_and_its_own_contracts()
     {
         AssertNoDependencies("Domain", root =>
-            [EfCore, AspNetCore, Npgsql, Solution.BuildingBlocksApplication, Solution.Infrastructure, $"{root}.Application"]);
+            [EfCore, .. AspNetFor(root), Npgsql, Solution.BuildingBlocksApplication, Solution.Infrastructure, $"{root}.Application"]);
     }
 
     [Fact]
     public void Application_does_not_depend_on_infrastructure_or_http()
     {
         // EF Core's abstractions (DbSet, IQueryable extensions) are allowed on purpose; see ISampleDb.
-        AssertNoDependencies("Application", _ => [AspNetCore, Npgsql, Solution.Infrastructure]);
+        AssertNoDependencies("Application", root => [.. AspNetFor(root), Npgsql, Solution.Infrastructure]);
     }
 
     [Fact]
@@ -137,6 +151,8 @@ public class LayeringTests
     }
 
     /// <summary>The interfaces through which each module reaches its tables. Only that module's handlers may use them.</summary>
+    private static string[] AspNetFor(string moduleRoot) => moduleRoot == IdentityModule ? AspNetWeb : [AspNetCore];
+
     private static IEnumerable<string> PersistenceAbstractions() =>
         Solution.ModuleNames.Select(module => $"{Solution.ModuleRoot(module)}.Application.Abstractions");
 
@@ -177,7 +193,7 @@ public class LayeringTests
 
         return actions.SelectMany(action => action.StartsWith('/') || action.StartsWith("~/", StringComparison.Ordinal)
             ? [action]
-            : prefixes.Select(prefix => $"{prefix}/{action}"));
+            : prefixes.Select(prefix => $"{prefix}/{action}".TrimEnd('/')));
     }
 
     // Read by name so this project needs no reference to ASP.NET Core: [Route], [HttpGet] and the rest all expose Template.

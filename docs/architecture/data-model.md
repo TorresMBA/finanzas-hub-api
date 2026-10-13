@@ -32,7 +32,7 @@ Columnas de acceso: **P** privado `(workspace_id, owner_user_id)`, **C** colabor
 
 | Tabla | Clave y relaciones | Únicos, índices y checks | Acceso |
 |---|---|---|---|
-| `users` | PK `id` | UNIQUE `normalized_email`; `status IN (Active, Deactivated)` | U |
+| `users` | PK `id` | UNIQUE `normalized_user_name` (el correo es el nombre de usuario); índice `normalized_email`. Columnas de ASP.NET Core Identity más `display_name` y `created_at` | U |
 | `user_preferences` | PK y FK `user_id` → `users` | `week_start IN (Monday, Sunday)`; `savings_rate_target` entre 0 y 100 | U |
 | Tablas de ASP.NET Identity (`user_tokens`, `user_logins`, `user_claims`) | FK → `users` | Las del framework. Sin tablas de roles | U |
 
@@ -41,8 +41,8 @@ Columnas de acceso: **P** privado `(workspace_id, owner_user_id)`, **C** colabor
 | Tabla | Clave y relaciones | Únicos, índices y checks | Acceso |
 |---|---|---|---|
 | `workspaces` | PK `id`; ref `owner_user_id` | `status IN (PendingSetup, Active, Archived)`; `base_currency` no nulo si `status = Active` | W |
-| `memberships` | PK `id`; FK `workspace_id`; ref `user_id` | UNIQUE `(workspace_id, user_id)`; índice `(user_id) WHERE status = Active`; único parcial `(workspace_id) WHERE role = Owner AND status = Active` | W |
-| `invitations` | PK `id`; FK `workspace_id` | UNIQUE `token_hash`; único parcial `(workspace_id, lower(email)) WHERE status = Pending`; `role <> Owner` | W |
+| `memberships` | PK `id`; FK `workspace_id`; ref `user_id` | UNIQUE `(workspace_id, user_id)`; índice `(user_id) WHERE status = Active`. Que haya un solo Owner lo garantiza el agregado | W |
+| `invitations` | PK `id`; FK `workspace_id` | UNIQUE `token_hash`; índice `(workspace_id, status)`; `role IN (Member, Admin)`. Que un correo no tenga dos invitaciones abiertas lo comprueba el caso de uso | W |
 
 **`notifications`**
 
@@ -132,7 +132,8 @@ Columnas de acceso: **P** privado `(workspace_id, owner_user_id)`, **C** colabor
 |---|---|---|---|
 | `idempotency_keys` | PK `(user_id, key)` | Índice `(expires_at)` | Reintentos de API |
 | `audit_log` | PK `id` | Índices `(resource_type, resource_id, occurred_at)` y `(scope_type, scope_id, occurred_at)` | Auditoría funcional; el rol de la aplicación solo tiene INSERT y SELECT |
-| `data_protection_keys` | PK `id` | — | Claves de cookies. Se crea en la fase 1, junto con la autenticación |
+| `outgoing_emails` | PK `id` | Índice `(next_attempt_at) WHERE sent_at IS NULL` | Cola de correos; el cuerpo se borra al enviar |
+| `data_protection_keys` | PK `id` | — | Claves que protegen la cookie de sesión y los tokens de los correos |
 
 ### L.3 Semántica de eliminación
 

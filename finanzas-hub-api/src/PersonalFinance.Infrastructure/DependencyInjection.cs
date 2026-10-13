@@ -6,8 +6,14 @@ using Microsoft.Extensions.Logging;
 using Npgsql;
 using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.BuildingBlocks.Application.Security;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
 using PersonalFinance.Infrastructure.Audit;
+using PersonalFinance.Infrastructure.Email;
 using PersonalFinance.Infrastructure.Messaging;
+using PersonalFinance.Modules.Identity.Application.Abstractions;
+using PersonalFinance.Modules.Identity.Domain;
+using PersonalFinance.Modules.Workspaces.Application.Abstractions;
 using PersonalFinance.Infrastructure.Observability;
 using PersonalFinance.Infrastructure.Persistence;
 using PersonalFinance.Infrastructure.Security;
@@ -54,18 +60,55 @@ public static class DependencyInjection
         services.AddScoped<IWorkspaceContext>(provider => provider.GetRequiredService<ActorContext>());
         services.AddScoped<IActorContextInitializer>(provider => provider.GetRequiredService<ActorContext>());
         services.AddScoped<CorrelationContext>();
-        services.TryAddSingleton<IWorkspaceAccess, NoWorkspacesModuleAccess>();
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<IAuditLog, AuditLogWriter>();
         services.AddScoped<DomainEventDispatcher>();
         services.AddScoped<IIdempotencyKeyCleanup, IdempotencyKeyCleanup>();
 
-        // Modules. Adding one takes two lines: its handlers, and the tables it may see.
-        services.AddHandlersFromAssembly(typeof(ISampleDb).Assembly);
+        services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
+        services.Configure<FrontendOptions>(configuration.GetSection(FrontendOptions.SectionName));
+        services.AddSingleton<IAppLinks, AppLinks>();
+        services.AddScoped<IEmailSender, EmailQueue>();
+        services.AddScoped<IEmailDispatcher, EmailDispatcher>();
+
+        AddIdentity(services);
+
+        // Modules. Adding one takes two lines: its services and handlers, and the tables it may see.
+        services.AddModule(typeof(IIdentityDb).Assembly);
+        services.AddScoped<IIdentityDb>(provider => provider.GetRequiredService<AppDbContext>());
+
+        services.AddModule(typeof(IWorkspacesDb).Assembly);
+        services.AddScoped<IWorkspacesDb>(provider => provider.GetRequiredService<AppDbContext>());
+
+        services.AddModule(typeof(ISampleDb).Assembly);
         services.AddScoped<ISampleDb>(provider => provider.GetRequiredService<AppDbContext>());
 
         return services;
+    }
+
+    /// <summary>
+    /// ASP.NET Core Identity with its standard store on the application's context: password hashing, lockout
+    /// and the tokens of the confirmation and recovery emails. The session cookie itself belongs to the API.
+    /// </summary>
+    private static void AddIdentity(IServiceCollection services)
+    {
+        services.AddIdentityCore<User>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+                options.Password.RequiredLength = 12;
+                options.Password.RequireDigit = true;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = false;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+            })
+            .AddEntityFrameworkStores<AppDbContext>()
+            .AddDefaultTokenProviders();
+
+        // In the database so that a redeploy does not sign everyone out or invalidate the links already emailed.
+        services.AddDataProtection().SetApplicationName("PersonalHub").PersistKeysToDbContext<AppDbContext>();
     }
 
     /// <summary>Applies the pending migrations. Run before the application starts serving, never by two processes at once.</summary>

@@ -70,14 +70,20 @@ Las dos primeras filas las aplica el filtro de rutas y `Require(role)`. `Resourc
 
 ### J.6 Autenticación
 
-ASP.NET Core Identity dentro del módulo `Identity`, con cookie de sesión HttpOnly, Secure y SameSite=Lax, y protección antifalsificación en métodos no seguros (OQ-14). La SPA y la API se sirven bajo el mismo sitio; en local, el proxy de Angular. SignalR usa la misma cookie. Los endpoints de registro son propios (no `MapIdentityApi`) porque el registro crea el workspace y puede aceptar una invitación. Los webhooks son anónimos y se autentican por firma.
+ASP.NET Core Identity dentro del módulo `Identity`, con cookie de sesión HttpOnly, Secure y SameSite=Lax (OQ-14). La cookie lleva solo el id del usuario: workspace y rol se resuelven en cada petición. La SPA y la API se sirven bajo el mismo sitio; en local, el proxy de Angular. SignalR usa la misma cookie. Los endpoints de registro son propios (no `MapIdentityApi`) porque el registro crea el workspace y puede aceptar una invitación. Los webhooks son anónimos y se autentican por firma.
 
-Las claves de Data Protection se persisten fuera del contenedor para que las cookies sobrevivan a un reinicio.
+Las claves de Data Protection se guardan en la base (`platform.data_protection_keys`), para que un redespliegue no cierre las sesiones ni invalide los enlaces ya enviados por correo.
+
+**CSRF.** `SameSite=Lax` ya deja la cookie fuera de un POST hecho desde otro sitio. Además, la API rechaza con 403 (`request.cross_site`) toda petición que cambia estado cuyo `Origin` no sea su propia dirección o un frontend de `Cors:AllowedOrigins`. No se usan tokens antifalsificación.
+
+**Contraseñas y bloqueo.** Las de ASP.NET Core Identity: mínimo 12 caracteres con minúscula, dígito y símbolo; cinco intentos fallidos bloquean la cuenta 15 minutos. El login responde lo mismo para un correo desconocido y para una contraseña errónea, y pedir la recuperación responde lo mismo exista o no la cuenta.
+
+**Enlaces por correo.** Confirmación y recuperación usan los tokens de Identity. La invitación usa un token aleatorio de 256 bits del que solo se guarda el hash.
 
 ### J.7 Otras medidas
 
 - CORS con lista explícita de orígenes y fallo cerrado en producción (se reutiliza la validación de `Program.cs` de V1).
-- Límite de peticiones en login, registro, recuperación de contraseña, invitaciones y webhooks.
+- Límite de peticiones en `/auth` (login, registro, recuperación): 20 por minuto y dirección, configurable con `RateLimiting:AuthPermitsPerMinute`. Los webhooks tendrán el suyo en la fase 11.
 - El comando por WhatsApp solo actúa para un teléfono verificado con código, vinculado a un usuario. En V1 el teléfono se vinculaba al workspace (`WorkspaceWhatsAppRecipient`), no a un usuario.
 - No se registran en logs contraseñas, tokens, correos, teléfonos ni cuerpos de archivos.
 - Secretos fuera del repositorio: `dotnet user-secrets` en local, Key Vault en Azure.

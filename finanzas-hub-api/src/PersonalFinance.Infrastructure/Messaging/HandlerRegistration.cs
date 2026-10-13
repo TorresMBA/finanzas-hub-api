@@ -8,7 +8,38 @@ namespace PersonalFinance.Infrastructure.Messaging;
 public static class HandlerRegistration
 {
     /// <summary>
-    /// Registers every command handler, query handler and domain event handler of a module.
+    /// Registers everything a module contributes: its handlers (see <see cref="AddHandlersFromAssembly"/>) and
+    /// its application services. A service is any internal class of the module's Application layer that is not
+    /// a handler; it is registered as itself and under the interfaces it implements, which is how a module
+    /// provides the contracts other modules call.
+    /// </summary>
+    public static IServiceCollection AddModule(this IServiceCollection services, Assembly assembly)
+    {
+        services.AddHandlersFromAssembly(assembly);
+
+        var applicationNamespace = assembly.GetName().Name + ".Application";
+        foreach (var type in assembly.GetTypes().Where(type =>
+                     type is { IsClass: true, IsAbstract: false, IsNested: false, IsNotPublic: true, IsGenericTypeDefinition: false }
+                     && type.Namespace?.StartsWith(applicationNamespace, StringComparison.Ordinal) == true
+                     && !type.GetInterfaces().Any(IsHandlerContract)))
+        {
+            services.AddScoped(type);
+            foreach (var contract in type.GetInterfaces().Where(contract => contract.Namespace?.StartsWith("PersonalFinance.", StringComparison.Ordinal) == true))
+            {
+                services.AddScoped(contract, provider => provider.GetRequiredService(type));
+            }
+        }
+
+        return services;
+    }
+
+    private static bool IsHandlerContract(Type contract) =>
+        contract.IsGenericType
+        && contract.GetGenericTypeDefinition() is var definition
+        && (definition == typeof(ICommandHandler<,>) || definition == typeof(IQueryHandler<,>) || definition == typeof(IDomainEventHandler<>));
+
+    /// <summary>
+    /// Registers every command handler, query handler and domain event handler of an assembly.
     /// Command handlers are wrapped, outermost first, in logging, transaction and (when idempotent) idempotency.
     /// </summary>
     public static IServiceCollection AddHandlersFromAssembly(this IServiceCollection services, Assembly assembly)

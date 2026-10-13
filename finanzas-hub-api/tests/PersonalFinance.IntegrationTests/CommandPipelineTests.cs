@@ -219,6 +219,12 @@ public class CommandPipelineTests(ApiFixture api)
     private static string ExpectedSchema(Type entity)
     {
         const string modulePrefix = "PersonalFinance.Modules.";
+        if (entity.Namespace == "Microsoft.AspNetCore.Identity")
+        {
+            // The tables ASP.NET Core Identity brings belong to the Identity module.
+            return "identity";
+        }
+
         if (entity.Namespace?.StartsWith(modulePrefix, StringComparison.Ordinal) != true)
         {
             return "platform";
