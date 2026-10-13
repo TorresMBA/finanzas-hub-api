@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\PersonalFinance.BuildingBlocks.Domain\PersonalFinance.BuildingBlocks.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

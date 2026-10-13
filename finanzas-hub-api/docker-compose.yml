@@ -1,0 +1,37 @@
+# Local infrastructure only. The API runs on the host with "dotnet run".
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      # Change POSTGRES_PORT in .env when a PostgreSQL installed on the machine already uses 5432.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+
+  # Catches every email the application sends. Inbox at http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
+  # Traces, metrics and logs. UI at http://localhost:18888, OTLP endpoint at http://localhost:4317
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
+    environment:
+      DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+    ports:
+      - "127.0.0.1:18888:18888"
+      - "127.0.0.1:4317:18889"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,82 @@
+# AGENTS.md — PersonalHub
+
+Punto de entrada para personas y agentes que cambian este repositorio. La documentación completa está en [docs/README.md](docs/README.md); lee solo lo que la tarea necesite.
+
+## Qué es
+
+Finanzas personales y colaborativas. Backend .NET 10 (monolito modular, PostgreSQL) en `finanzas-hub-api/`, frontend Angular 22 en `finanzas-hub-web/`. Pensado para unos 10 usuarios y una persona que lo mantiene: se prefiere lo simple.
+
+El backend tiene dos entradas, la API (`Controllers/<Módulo>`) y el Worker (`Jobs/<Módulo>`). Las dos llaman a los casos de uso de `Modules.<Módulo>/Application`, que usan `Modules.<Módulo>/Domain`.
+
+## Prioridades
+
+1. Corrección financiera.
+2. Privacidad y autorización.
+3. Fronteras entre módulos.
+4. Integridad y auditoría.
+5. Idempotencia.
+6. Testabilidad y mantenibilidad.
+
+## Reglas que no se negocian
+
+**Privacidad.** Pertenecer a un workspace no da acceso a lo financiero de otros miembros. Lo privado lleva `workspace_id` y `owner_user_id` e implementa `IOwned`; el filtro global de EF lo aísla. Lo colaborativo (metas y gastos compartidos) se autoriza por participación en el recurso. Ningún rol ve datos privados ajenos. Un recurso ajeno responde 404.
+
+**Dinero.** `decimal` siempre, moneda explícita. El saldo se deriva de los asientos; no existe una columna de saldo. Una transferencia no es ingreso ni gasto. Nada financiero se borra: se anula.
+
+**Módulos.**
+
+- Un módulo es un proyecto, `Modules.X`, con carpetas `Domain`, `Application` y `Contracts`. De otro módulo solo se usa su `Contracts`, y solo siguiendo el grafo de [docs/diagrams/modules.md](docs/diagrams/modules.md).
+- `Domain` no depende de nada salvo `BuildingBlocks.Domain`. `Application` no depende de `Infrastructure`, de Npgsql ni de ASP.NET.
+- Cada entrada va en la carpeta de su módulo y no toca persistencia: los controllers en `PersonalFinance.Api/Controllers/X`, los jobs en `PersonalFinance.Worker/Jobs/X`. Solo llaman a handlers.
+- Un solo `AppDbContext`, en `PersonalFinance.Infrastructure`, con un esquema de PostgreSQL por módulo. Un módulo llega a sus tablas por su interfaz `IXDb`. Entre módulos se guarda el id, sin propiedad de navegación.
+- `BuildingBlocks` no referencia módulos, y ningún módulo referencia `Infrastructure`.
+
+Los tipos de un módulo son públicos, así que el compilador no impide nada de esto: lo impiden los tests de arquitectura. Si uno falla, se corrige el código, no el test.
+
+**Casos de uso.**
+
+- Un handler por caso de uso (`ICommandHandler` o `IQueryHandler`), que devuelve `Result<T>`. Las reglas de negocio no lanzan excepciones.
+- Los handlers no llaman a `SaveChanges`; lo hace el decorador de transacción.
+- Un comando con efecto financiero implementa `IIdempotentCommand`.
+- Cada acción de negocio relevante se registra con `IAuditLog`.
+- Para que otro módulo reaccione: evento de dominio declarado en `Contracts/Events` y un `IDomainEventHandler` en el módulo que reacciona. Se entrega en proceso, dentro de la transacción del comando: si la reacción falla, el comando se revierte.
+- Una reacción no llama a nada externo. Para enviar un correo o un WhatsApp escribe en la cola de envíos, que procesa un job.
+
+**No añadir** sin justificarlo en un ADR: MediatR, AutoMapper, repositorios o unidades de trabajo genéricos, Redis, colas externas, Hangfire, Quartz, NgRx. Tampoco lo que se retiró en el [ADR-019](docs/adr/ADR-019-simplificacion-de-la-plataforma.md): outbox, eventos de integración, un `DbContext` por módulo, proyectos `Contracts` separados o Minimal APIs dentro de los módulos.
+
+## Cómo se trabaja
+
+Por porciones verticales, en el orden de [docs/roadmap/implementation-order.md](docs/roadmap/implementation-order.md): dominio y sus tests, handler y su test de integración, configuración EF y migración, controller y contrato OpenAPI, casos de seguridad, pantalla con sus cuatro estados. Cómo se añade un módulo está en [docs/architecture/backend-structure.md](docs/architecture/backend-structure.md).
+
+Una feature está terminada cuando cumple [docs/development/definition-of-done.md](docs/development/definition-of-done.md).
+
+## Comandos
+
+```powershell
+# Backend (desde finanzas-hub-api)
+dotnet build PersonalFinance.slnx
+dotnet test PersonalFinance.slnx                 # integración: Docker, o PERSONALFINANCE_TEST_POSTGRES
+tools/add-migration.ps1 -Name Nombre
+tools/update-openapi.ps1                         # tras cambiar la API
+dotnet run --project src/PersonalFinance.Api     # http://localhost:5166
+dotnet run --project src/PersonalFinance.Worker  # jobs
+
+# Frontend (desde finanzas-hub-web)
+npm run build
+npm test -- --watch=false
+npm run lint
+npm run api:generate                             # tras actualizar el contrato
+npm run e2e                                      # requiere la API en marcha
+```
+
+## Frontend
+
+- Angular sin zonas, componentes standalone, signals. Archivos y clases sin sufijo de rol (`shell.ts`, `class Shell`).
+- `core` (singletons sin UI), `shared` (UI reutilizable sin negocio), `layout` (marco), `features/<sección>`. Una feature no importa a otra; ESLint lo comprueba.
+- Los tipos de la API se generan; no se escriben a mano.
+- Cada vista implementa carga, vacío, error y datos.
+- Los colores y medidas salen de los tokens de `src/styles/_tokens.scss`, que son los del mock.
+
+## Estado
+
+Fase 0 terminada y simplificada tras su revisión (ADR-019). Lo siguiente es la fase 1 (Identity y Workspaces). El módulo `Sample` es un ejemplo de la plataforma y se elimina cuando exista el primer módulo real.

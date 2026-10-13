@@ -1,0 +1,21 @@
+root = true
+
+[*.cs]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+
+# Keep executable code reviewable; compact one-line blocks hide business rules.
+csharp_preserve_single_line_blocks = false
+csharp_preserve_single_line_statements = false
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_members_in_object_initializers = true
+csharp_indent_block_contents = true
+csharp_indent_braces = false
+
+# Project-wide defaults applied by `dotnet format`.
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_readonly_field = true:suggestion
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:suggestion

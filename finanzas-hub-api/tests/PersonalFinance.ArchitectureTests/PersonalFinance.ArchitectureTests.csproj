@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="NetArchTest.Rules" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Between them the two hosts reference everything that ships. -->
+    <ProjectReference Include="..\..\src\PersonalFinance.Api\PersonalFinance.Api.csproj" />
+    <ProjectReference Include="..\..\src\PersonalFinance.Worker\PersonalFinance.Worker.csproj" />
+  </ItemGroup>
+
+</Project>

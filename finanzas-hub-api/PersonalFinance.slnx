@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PersonalFinance.Api/PersonalFinance.Api.csproj" />
+    <Project Path="src/PersonalFinance.Worker/PersonalFinance.Worker.csproj" />
+    <Project Path="src/PersonalFinance.Infrastructure/PersonalFinance.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/PersonalFinance.BuildingBlocks.Domain/PersonalFinance.BuildingBlocks.Domain.csproj" />
+    <Project Path="src/BuildingBlocks/PersonalFinance.BuildingBlocks.Application/PersonalFinance.BuildingBlocks.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/Sample/PersonalFinance.Modules.Sample/PersonalFinance.Modules.Sample.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PersonalFinance.UnitTests/PersonalFinance.UnitTests.csproj" />
+    <Project Path="tests/PersonalFinance.IntegrationTests/PersonalFinance.IntegrationTests.csproj" />
+    <Project Path="tests/PersonalFinance.ArchitectureTests/PersonalFinance.ArchitectureTests.csproj" />
+  </Folder>
+</Solution>
