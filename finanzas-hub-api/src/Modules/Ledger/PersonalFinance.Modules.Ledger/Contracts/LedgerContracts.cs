@@ -44,6 +44,11 @@ public sealed record LedgerMovement(
     Guid Id, LedgerMovementKind Kind, DateOnly OccurredOn, string Description, decimal SignedAmount, string Currency, string AccountName,
     string? CounterAccountName, Guid? CategoryId);
 
+/// <summary>One expense, as a budget lists it.</summary>
+/// <param name="Amount">Positive, in the currency of the account.</param>
+/// <param name="BaseAmount">In the base currency; null when there is no rate for its currency.</param>
+public sealed record LedgerExpense(Guid Id, DateOnly OccurredOn, string Description, string AccountName, decimal Amount, string Currency, decimal? BaseAmount);
+
 /// <summary>
 /// What other modules read from the ledger. Every answer is about the current person in the current workspace:
 /// nobody reaches the books of someone else through here.
@@ -57,6 +62,9 @@ public interface ILedgerQueries
     Task<LedgerFlow> GetFlowAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken);
 
     Task<LedgerCategoryTotals> GetCategoryTotalsAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken);
+
+    /// <summary>The expenses of some categories in a period, newest first. Subcategories are not added: name them.</summary>
+    Task<IReadOnlyList<LedgerExpense>> GetExpensesAsync(IReadOnlyCollection<Guid> categoryIds, DateOnly from, DateOnly to, CancellationToken cancellationToken);
 
     /// <summary>The accounts in use, with what each holds today.</summary>
     Task<IReadOnlyList<LedgerAccountBalance>> GetAccountBalancesAsync(CancellationToken cancellationToken);

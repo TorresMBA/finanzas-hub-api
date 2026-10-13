@@ -355,6 +355,42 @@ Diferencias respecto al diseño de la fase:
 | Risks | OQ-16 y OQ-17 |
 | Out of scope | Semanal; acumulación del sobrante; presupuesto por tag o cuenta; aviso del umbral (Fase 6) |
 
+**Estado: implementada el 13-oct-2026.** Por pedido del dueño ese día, la fase lleva solo los tests clave: las reglas de dinero, la privacidad y el criterio de aceptación. Los riesgos estaban decididos: la marca de fijo es explícita (OQ-16) y solo hay presupuesto mensual (OQ-17).
+
+Verificado:
+
+| Comprobación | Resultado |
+|---|---|
+| `dotnet build PersonalFinance.slnx` | Sin errores ni advertencias |
+| `dotnet test PersonalFinance.slnx` | 229 tests: 129 unitarios, 19 de arquitectura, 81 de integración contra PostgreSQL 18 |
+| Criterio de aceptación | Con límite 450 y gasto 498 el estado es Excedido; una transferencia no cambia el consumo. Probado por API y en el navegador |
+| Qué entra en el consumo | Los gastos del mes en la categoría y en sus subcategorías, también los pendientes. No entran un gasto anulado, un ingreso, una transferencia ni el gasto de otra categoría |
+| Estados | Excedido si lo gastado pasa del límite; Fijo o Pagado si es fijo; En riesgo si el porcentaje usado supera en más de 10 puntos la parte del mes transcurrida; si no, En ritmo. Un mes cerrado nunca está en riesgo |
+| Versión por vigencia | Ajustar el límite en un mes posterior cierra el presupuesto y abre otro desde ese mes: el mes anterior conserva su límite. En el mismo mes se cambia en el sitio |
+| Matriz de seguridad | Otro miembro del mismo workspace no ve el presupuesto en su lista, y leerlo, ajustarlo o quitarlo responde 404. Cada uno puede tener el suyo sobre la categoría del mismo nombre |
+| Arquitectura | `Budgets` usa solo los contratos de `Ledger` y de `Categories`; `Reporting` lee `IBudgetQueries`. Los 19 tests de arquitectura lo cubren |
+| Frontend | `ng build` correcto y sin avisos; 120 tests unitarios; `ng lint` correcto |
+| E2E | 22 tests en Chrome, 1 nuevo: crear el presupuesto, excederlo con un gasto, ajustar el límite y verlo en el Inicio |
+| Revisión visual | Presupuestos en escritorio y móvil, tema oscuro |
+
+No verificado: lo que depende de Docker; tablet y tema claro de la pantalla nueva; el span del cálculo, que no se añadió.
+
+Diferencias respecto al diseño de la fase:
+
+| Tema | Diseño | Implementación |
+|---|---|---|
+| Reembolso | Resta del consumo | No hay todavía forma de registrar un reembolso en el ledger, así que nada resta. Se añade con él |
+| Evaluación de umbrales y eventos del ledger | En la fase, salvo la notificación | Fase 6: su único efecto es el aviso, y sin Notifications no hay nada que hacer con ellos. El umbral elegido ya se guarda. Tampoco existe `budget_alerts` |
+| Vigencia del ajuste | Desde el mes indicado | Siempre desde el mes actual. Crear también empieza en el mes actual |
+| Quitar un presupuesto | Fija `ends_on` | Igual, salvo el que empezó este mes: no gobernó ningún mes cerrado y su fila se borra, con la traza en la auditoría. Un presupuesto es un plan, no un hecho financiero |
+| Acumular lo no gastado | En el formulario del mock | Fuera de alcance de la fase; el formulario no lo ofrece |
+| Sugerencia con el promedio de 3 meses | Inferido del mock | No está |
+| "Ver movimientos" | Va a Transacciones filtrado por la categoría | Va a Transacciones sin filtro; el panel ya lista los movimientos del presupuesto |
+| `ETag` / `If-Match` | `Budget` en la lista de agregados con concurrencia | `xmin` configurado; la API no lo expone (fase 8) |
+| Span del cálculo | En la fase | No se añadió |
+| Presupuesto en el Inicio | Pendiente de la fase 4 | Hecho: una quinta cifra con el porcentaje usado, solo para quien tiene presupuestos |
+| `ILedgerQueries.GetExpensesAsync` | No previsto | Da al detalle los gastos de la categoría y el gasto por día |
+
 #### Fase 6 — Notifications y tiempo real
 
 | | |

@@ -319,6 +319,79 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                     b.ToTable("outgoing_emails", "platform");
                 });
 
+            modelBuilder.Entity("PersonalFinance.Modules.Budgets.Domain.Budget", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AlertThresholdPercent")
+                        .HasColumnType("integer")
+                        .HasColumnName("alert_threshold_percent");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character(3)")
+                        .HasColumnName("currency")
+                        .IsFixedLength();
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateOnly?>("EndsOn")
+                        .HasColumnType("date")
+                        .HasColumnName("ends_on");
+
+                    b.Property<bool>("IsFixed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_fixed");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_budgets");
+
+                    b.HasIndex("WorkspaceId", "OwnerUserId", "CategoryId", "EffectiveFrom")
+                        .IsUnique()
+                        .HasDatabaseName("ix_budgets_owner_category_effective_from");
+
+                    b.ToTable("budgets", "budgets", t =>
+                        {
+                            t.HasCheckConstraint("ck_budgets_alert_threshold", "alert_threshold_percent IN (75, 90, 100)");
+
+                            t.HasCheckConstraint("ck_budgets_amount", "amount > 0");
+
+                            t.HasCheckConstraint("ck_budgets_validity", "ends_on IS NULL OR ends_on >= effective_from");
+                        });
+                });
+
             modelBuilder.Entity("PersonalFinance.Modules.Categories.Domain.Category", b =>
                 {
                     b.Property<Guid>("Id")

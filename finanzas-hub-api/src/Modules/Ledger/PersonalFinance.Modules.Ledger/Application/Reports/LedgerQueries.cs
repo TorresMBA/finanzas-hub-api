@@ -93,6 +93,30 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
         return new LedgerCategoryTotals(categories, [.. missing]);
     }
 
+    public async Task<IReadOnlyList<LedgerExpense>> GetExpensesAsync(
+        IReadOnlyCollection<Guid> categoryIds, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    {
+        var rows = await Transactions(from, to)
+            .Where(operation => operation.Kind == OperationKind.Expense && operation.CategoryId != null && categoryIds.Contains(operation.CategoryId.Value))
+            .SelectMany(operation => operation.Entries, (operation, entry) => new
+            {
+                operation.Id, operation.OccurredOn, operation.Description, entry.AccountId, entry.Amount, entry.Currency, entry.BaseAmount
+            })
+            .ToListAsync(cancellationToken);
+        var accountIds = rows.Select(row => row.AccountId).Distinct().ToList();
+        var names = await db.Accounts.AsNoTracking()
+            .Where(account => accountIds.Contains(account.Id))
+            .ToDictionaryAsync(account => account.Id, account => account.Name, cancellationToken);
+        var table = await rates.LoadAsync(cancellationToken);
+        return rows
+            .OrderByDescending(row => row.OccurredOn)
+            .ThenByDescending(row => row.Id)
+            .Select(row => new LedgerExpense(
+                row.Id, row.OccurredOn, row.Description, names.GetValueOrDefault(row.AccountId, string.Empty), row.Amount, row.Currency,
+                row.BaseAmount ?? table.ToBase(row.Currency, row.Amount)))
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<LedgerAccountBalance>> GetAccountBalancesAsync(CancellationToken cancellationToken)
     {
         var accounts = await db.Accounts.AsNoTracking().Where(account => account.ArchivedAt == null).OrderBy(account => account.CreatedAt).ToListAsync(cancellationToken);

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Identity;
 using PersonalFinance.Infrastructure.Audit;
 using PersonalFinance.Infrastructure.Email;
 using PersonalFinance.Infrastructure.Messaging;
+using PersonalFinance.Modules.Budgets.Application.Abstractions;
 using PersonalFinance.Modules.Categories.Application.Abstractions;
 using PersonalFinance.Modules.Identity.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
@@ -88,6 +89,9 @@ public static class DependencyInjection
 
         services.AddModule(typeof(ILedgerDb).Assembly);
         services.AddScoped<ILedgerDb>(provider => provider.GetRequiredService<AppDbContext>());
+
+        services.AddModule(typeof(IBudgetsDb).Assembly);
+        services.AddScoped<IBudgetsDb>(provider => provider.GetRequiredService<AppDbContext>());
 
         // Reporting has no tables: it reads the other modules through their contracts.
         services.AddModule(typeof(GetDashboardQuery).Assembly);

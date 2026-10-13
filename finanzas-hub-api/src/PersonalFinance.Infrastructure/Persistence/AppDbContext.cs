@@ -5,7 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Infrastructure.Platform;
+using PersonalFinance.Modules.Budgets.Application.Abstractions;
 using PersonalFinance.Modules.Categories.Application.Abstractions;
+using PersonalFinance.Modules.Budgets.Domain;
 using PersonalFinance.Modules.Categories.Domain;
 using PersonalFinance.Modules.Identity.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
@@ -24,6 +26,7 @@ internal static class Schemas
     public const string Workspaces = "workspaces";
     public const string Categories = "categories";
     public const string Ledger = "ledger";
+    public const string Budgets = "budgets";
 }
 
 /// <summary>
@@ -32,7 +35,7 @@ internal static class Schemas
 /// and workspace. It derives from ASP.NET Core Identity's context so the framework's own user store works on it.
 /// </summary>
 internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUser currentUser, IWorkspaceContext workspaceContext)
-    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ILedgerDb
+    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ILedgerDb, IBudgetsDb
 {
     private static readonly MethodInfo ApplyOwnerFilterMethod =
         typeof(AppDbContext).GetMethod(nameof(ApplyOwnerFilter), BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -64,6 +67,8 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurr
     public DbSet<Entry> Entries => Set<Entry>();
 
     public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
+
+    public DbSet<Budget> Budgets => Set<Budget>();
 
     // Read by the global query filters. With no user or workspace they match nothing.
     private Guid CurrentUserId => currentUser.UserId ?? Guid.Empty;

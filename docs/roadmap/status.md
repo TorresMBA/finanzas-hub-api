@@ -11,8 +11,8 @@ Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance d
 | 2 | Categories | ✅ Completada | 13-oct-2026 |
 | 3 | Ledger I: cuentas y transacciones | ✅ Completada | 13-oct-2026 |
 | 4 | Ledger II: transferencias, tarjetas básicas, patrimonio e Inicio | ✅ Completada | 13-oct-2026 |
-| 5 | Budgets | ⏳ Pendiente (siguiente) | — |
-| 6 | Notifications y tiempo real | ⏳ Pendiente | — |
+| 5 | Budgets | ✅ Completada | 13-oct-2026 |
+| 6 | Notifications y tiempo real | ⏳ Pendiente (siguiente) | — |
 | 7 | Scheduling y Calendario | ⏳ Pendiente | — |
 | 8 | Goals | ⏳ Pendiente | — |
 | 9 | SharedExpenses | ⏳ Pendiente | — |
@@ -26,14 +26,14 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-13-oct-2026, al cerrar la fase 4.
+13-oct-2026, al cerrar la fase 5.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 217 en verde (119 unitarios, 19 de arquitectura, 79 de integración) |
-| Frontend: build, tests y lint | Build correcto y sin avisos, 118 tests, lint limpio |
-| E2E en Chrome | 21 en verde, tres veces seguidas |
+| Backend: tests | 229 en verde (129 unitarios, 19 de arquitectura, 81 de integración) |
+| Frontend: build, tests y lint | Build correcto y sin avisos, 120 tests, lint limpio |
+| E2E en Chrome | 22 en verde |
 
 ## Pendientes que dejaron las fases cerradas
 
@@ -68,7 +68,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Pendiente | Se retoma |
 |---|---|
 | `ILedgerPosting` para otros módulos | Con su primer consumidor: Scheduling (fase 7) o Goals (fase 8) |
-| Eventos `OperationPosted`, `OperationChanged`, `OperationVoided`, `AccountArchived` | Fase 5: Budgets es el primero que reacciona |
+| Eventos `OperationPosted`, `OperationChanged`, `OperationVoided`, `AccountArchived` | Fase 6: Budgets los necesita para avisar del umbral, y el aviso llega con Notifications |
 | `ETag` / `If-Match` en la API | Fase 8, con el primer agregado que editan varias personas |
 | "Repetir cada mes" en el formulario de transacción | Fase 7 |
 | "Dividir gasto" en el detalle del movimiento | Fase 9 |
@@ -82,9 +82,22 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Editar una transferencia | Sin fecha. Se anula y se registra de nuevo |
 | Aviso de vencimiento de tarjeta | Fase 6, con Notifications. La fecha del próximo pago ya se calcula y se muestra |
 | Marca de "cuenta favorita" para las cuentas del Inicio (OQ-24) | Sin fecha. El Inicio muestra las cuatro de mayor saldo |
-| Presupuesto, metas y próximos pagos en el Inicio | Fases 5, 8 y 7, cada una con su módulo |
+| Metas y próximos pagos en el Inicio | Fases 8 y 7, cada una con su módulo |
 | Historial de tipos de cambio en pantalla | Fase 14. Se guarda una fila por día; la pantalla solo muestra y cambia el vigente |
 | Cuentas de meta (`GoalFund`) fuera del patrimonio por defecto | Fase 8. La casilla "Incluir en mi patrimonio" ya existe en toda cuenta; Goals abrirá las suyas con ella desmarcada |
+
+### Fase 5
+
+| Pendiente | Se retoma |
+|---|---|
+| Aviso al llegar al umbral, con `budget_alerts` y los eventos del ledger | Fase 6, con Notifications. El umbral elegido ya se guarda |
+| El reembolso resta del consumo | Cuando el ledger permita registrar un reembolso |
+| Elegir desde qué mes vale un ajuste | Sin fecha. Hoy vale desde el mes actual |
+| Presupuesto semanal y acumular lo no gastado | Sin fecha (OQ-17) |
+| Sugerir el límite con el promedio de 3 meses | Sin fecha |
+| "Ver movimientos" abre Transacciones ya filtrado por la categoría | Sin fecha. Transacciones no lee filtros de la URL todavía |
+| Span del cálculo del presupuesto | Sin fecha |
+| Tablet y tema claro de la pantalla de Presupuestos | Sin revisar a ojo; se revisó escritorio y móvil en tema oscuro |
 
 ## Resuelto de fases anteriores
 
@@ -95,5 +108,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Crear un tag sin pasar por una categoría | Fase 2 | Fase 3: se crea al nombrarlo en una transacción |
 | Selección de categoría y de tags en un formulario | Fase 2 | Fase 3, dentro del formulario de transacción |
 | Monto por categoría en la pantalla de Categorías | Fase 2 | Fase 4: cada categoría dice lo que movió en el mes de la barra superior |
+| Presupuesto en el Inicio | Fase 4 | Fase 5: una cifra con el porcentaje usado |
 | `ILedgerQueries` para otros módulos | Fase 3 | Fase 4: lo usa Reporting para el Inicio |
 | Totales convertidos a la moneda base | Fase 3 | Fase 4, con el tipo de cambio de referencia |

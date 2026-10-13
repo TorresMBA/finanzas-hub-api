@@ -35,7 +35,7 @@ Implementado: abrir, cambiar, archivar y restaurar cuentas de banco, efectivo, b
 
 Expone `ILedgerQueries` (patrimonio a una fecha, flujo por mes, totales por categoría, saldos de las cuentas y últimos movimientos), que usa Reporting. Todo lo que responde es de la persona de la petición: no acepta un dueño como parámetro.
 
-Diferido: `ILedgerPosting` para otros módulos (con su primer consumidor); los eventos del módulo (fase 5, con Budgets); el aviso de vencimiento de tarjeta (fase 6); `ETag` (fase 8); la comisión de una transferencia; estado de cuenta, cuotas y tipo de cambio automático (fase 14).
+Diferido: `ILedgerPosting` para otros módulos (con su primer consumidor); los eventos del módulo (fase 6, cuando Budgets avise del umbral); el aviso de vencimiento de tarjeta (fase 6); `ETag` (fase 8); la comisión de una transferencia; estado de cuenta, cuotas y tipo de cambio automático (fase 14).
 
 - **No existe una columna de saldo.** El saldo de una cuenta es la suma de `signed_amount` de sus asientos efectivos, calculada en cada respuesta (`AccountBalances`). Un test falla si `Account` gana una propiedad con "Balance" en el nombre.
 - El saldo inicial es una operación `OpeningBalance` y corregir un saldo es una operación `Adjustment` por la diferencia. Ninguna de las dos es ingreso ni gasto, y ninguna se edita: se anula y se registra de nuevo.

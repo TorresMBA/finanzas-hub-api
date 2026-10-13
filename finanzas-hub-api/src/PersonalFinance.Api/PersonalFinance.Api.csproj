@@ -19,6 +19,7 @@
     <ProjectReference Include="..\Modules\Workspaces\PersonalFinance.Modules.Workspaces\PersonalFinance.Modules.Workspaces.csproj" />
     <ProjectReference Include="..\Modules\Categories\PersonalFinance.Modules.Categories\PersonalFinance.Modules.Categories.csproj" />
     <ProjectReference Include="..\Modules\Ledger\PersonalFinance.Modules.Ledger\PersonalFinance.Modules.Ledger.csproj" />
+    <ProjectReference Include="..\Modules\Budgets\PersonalFinance.Modules.Budgets\PersonalFinance.Modules.Budgets.csproj" />
     <ProjectReference Include="..\Modules\Reporting\PersonalFinance.Modules.Reporting\PersonalFinance.Modules.Reporting.csproj" />
   </ItemGroup>
 

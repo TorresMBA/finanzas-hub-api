@@ -13,6 +13,7 @@
     <Project Path="src/Modules/Workspaces/PersonalFinance.Modules.Workspaces/PersonalFinance.Modules.Workspaces.csproj" />
     <Project Path="src/Modules/Categories/PersonalFinance.Modules.Categories/PersonalFinance.Modules.Categories.csproj" />
     <Project Path="src/Modules/Ledger/PersonalFinance.Modules.Ledger/PersonalFinance.Modules.Ledger.csproj" />
+    <Project Path="src/Modules/Budgets/PersonalFinance.Modules.Budgets/PersonalFinance.Modules.Budgets.csproj" />
     <Project Path="src/Modules/Reporting/PersonalFinance.Modules.Reporting/PersonalFinance.Modules.Reporting.csproj" />
   </Folder>
   <Folder Name="/tests/">
