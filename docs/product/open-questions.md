@@ -8,8 +8,8 @@ Cada pregunta tiene opción por defecto. Se ejecuta la recomendada salvo indicac
 |---|---|---|---|---|---|
 | 01 | Alcance de los datos privados | Por `(workspace, usuario)`: cada workspace es un juego de libros separado | Global por usuario: las cuentas del usuario se ven igual desde cualquier workspace | **A**. Coincide con el encargo (§16) y con las URLs. Relajar a B después es quitar un filtro; lo contrario exige migrar datos. Riesgo de A: quien esté en dos workspaces duplica cuentas | Alto |
 | 02 | Roles del workspace | Owner, Admin, Member | Añadir "Solo lectura" como en el mock | **A**. Bajo D2 "Solo lectura" no tiene nada que leer | Bajo |
-| 03 | Alcance de categorías y tags | Privadas por usuario, sembradas desde un catálogo con `system_key` | Compartidas por workspace y gestionadas por Admin | **A**. Los nombres de categoría revelan hábitos; `system_key` permite mapear entre usuarios | Medio |
-| 04 | Modelo de tags | Entidad `Tag` única; la categoría sugiere tags por defecto y la transacción guarda los suyos | Tags solo en categorías | **A**. El formulario de transacción ya tiene etiquetas propias | Medio |
+| 03 | Alcance de categorías y tags | Privadas por usuario, sembradas desde un catálogo con `system_key` | Compartidas por workspace y gestionadas por Admin | **A**, aplicada en la fase 2 (13-oct-2026). Los nombres de categoría revelan hábitos; `system_key` permite mapear entre usuarios | Medio |
+| 04 | Modelo de tags | Entidad `Tag` única; la categoría sugiere tags por defecto y la transacción guarda los suyos | Tags solo en categorías | **A**, aplicada en la fase 2 (13-oct-2026). El formulario de transacción ya tiene etiquetas propias | Medio |
 | 05 | Movimiento Pendiente | Cuenta en saldos y presupuestos; es una marca de "por revisar" | Excluido hasta confirmarse (regla de V1) | **A**. Es lo que muestran los datos del mock | Medio |
 | 06 | Moneda de la transacción | Se deriva de la cuenta | Libre, con conversión | **A**. Sin FX automático en MVP | Bajo |
 | 07 | Unidad de autorización en compartidos | El grupo | Cada gasto | **A**. Coincide con el mock y simplifica balances | Medio |

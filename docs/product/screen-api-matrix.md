@@ -26,8 +26,10 @@ Permisos: **D** dueño, **P** participante, **M** miembro del workspace, **A** A
 | Cuentas | PayCreditCard | `POST W/accounts/{id}/payments` | Ledger | Operation | OperationPosted | D | — |
 | Categorías | ListCategories, ListTags | `GET W/categories`, `GET W/tags` | Categories | Category, Tag | — | D | — |
 | Categorías | CreateCategory, UpdateCategory | `POST W/categories`, `PATCH W/categories/{id}` | Categories | Category | — | D | — |
-| Categorías | ArchiveCategory | `POST W/categories/{id}/archive` | Categories | Category | CategoryArchived | D | — |
-| Categorías | CreateTag, SetCategoryTags | `POST W/tags`, `PUT W/categories/{id}/tags` | Categories | Tag | — | D | — |
+| Categorías | ArchiveCategory, RestoreCategory | `POST W/categories/{id}/archive`, `POST W/categories/{id}/restore` | Categories | Category | CategoryArchived (desde la fase 7) | D | — |
+| Categorías | SetCategoryTags, ArchiveTag | `PUT W/categories/{id}/tags`, `POST W/tags/{id}/archive` | Categories | Tag | — | D | — |
+| Categorías | SeedDefaultCategories | `POST W/categories/defaults` | Categories | Category | — | D | — |
+| Transacciones (fase 3) | CreateTag | `POST W/tags` | Categories | Tag | — | D | — |
 | Presupuestos | GetBudgets, GetBudgetDetail | `GET W/budgets`, `GET W/budgets/{id}` | Budgets | Budget | — | D | — |
 | Presupuestos | CreateBudget, AdjustBudgetLimit, EndBudget | `POST`, `PATCH`, `DELETE W/budgets[/{id}]` | Budgets | Budget | — | D | — |
 | Metas | GetGoals, GetGoalDetail | `GET W/goals`, `GET W/goals/{id}` | Goals | Goal, Participant, Contribution | — | P | Señal |

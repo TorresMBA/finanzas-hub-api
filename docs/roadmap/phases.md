@@ -174,6 +174,43 @@ Diferencias respecto al diseño de la fase:
 | Risks | OQ-03 cambia claves y siembra si se elige compartir por workspace |
 | Out of scope | Fusionar categorías; montos por categoría (llegan con Ledger) |
 
+**Estado: implementada el 13-oct-2026**, con OQ-03 y OQ-04 en su opción A (categorías y tags privados por usuario; un único `Tag`).
+
+Verificado:
+
+| Comprobación | Resultado |
+|---|---|
+| `dotnet build PersonalFinance.slnx` | Sin errores ni advertencias |
+| `dotnet test PersonalFinance.slnx` | 151 tests: 73 unitarios, 19 de arquitectura, 59 de integración contra PostgreSQL 18 |
+| Criterio de aceptación | Tras el onboarding existen las 12 categorías por defecto con sus subcategorías y tags; se crea una categoría con tags y una subcategoría; al archivarla deja de listarse y de contar en sus tags. Probado por API y en el navegador |
+| Privacidad | Dos miembros del mismo workspace tienen cada uno sus categorías. Los de uno responden 404 al otro en renombrar, archivar, restaurar, asignar tags y crear subcategoría, y tampoco al Owner. Lo mismo entre dos workspaces del mismo usuario |
+| Siembra | Quien se registra desde una invitación recibe su copia sin haber iniciado sesión. Repetirla no añade nada, no recupera lo renombrado ni lo archivado y respeta una categoría propia con el nombre de una por defecto |
+| Dos niveles y unicidad | Un tercer nivel se rechaza. El nombre es único entre hermanas activas sin distinguir mayúsculas; el de una archivada queda libre y restaurarla entonces da conflicto |
+| Archivar y restaurar | Archivar una categoría archiva sus subcategorías; restaurarla recupera solo las que se archivaron con ella |
+| Tags | Se crean al nombrarlos, normalizados; archivar uno lo quita de todas las categorías; volver a nombrarlo recupera el mismo |
+| Rechazos | Una petición rechazada no deja nada escrito, tampoco el tag que habría creado |
+| Arquitectura | `Categories` solo depende de `Workspaces`; `IgnoreQueryFilters` solo en la siembra, declarada en la lista de excepciones |
+| Frontend | `ng build` correcto y sin avisos de presupuesto; 58 tests unitarios; `ng lint` correcto |
+| E2E | 13 tests en Chrome, 3 nuevos: sembrar, crear categoría y subcategoría, nombre repetido, filtrar por tag, archivar y restaurar, y que persiste al recargar; tag rápido y archivarlo; móvil sin desbordes y formulario como hoja |
+| Revisión visual | Lista, filtros, formulario y etiquetas en escritorio, tablet y móvil, tema claro y oscuro |
+
+No verificado: lo que depende de Docker, igual que en las fases anteriores.
+
+Diferencias respecto al diseño de la fase:
+
+| Tema | Diseño | Implementación |
+|---|---|---|
+| Tags de una subcategoría | No especificado; en el mock los tags escritos al crear una subcategoría van a su categoría | Solo la categoría de primer nivel sugiere tags. Una subcategoría usa el tipo, el icono, el color y los tags de su categoría, y no guarda ninguno |
+| Mover una categoría (`UpdateCategory` con padre) | En H.4 | Diferido: el mock no tiene esa acción. `UpdateCategory` cambia nombre, icono y color |
+| `RenameTag`, `CreateTag` (`POST W/tags`) | En H.4 y P.4 | Diferidos a la fase 3. Un tag se crea al nombrarlo en una categoría; el formulario de transacción traerá su creación directa. Renombrar llega cuando haya transacciones que lo referencien |
+| `ICategoryLookup`, `ITagLookup` | Contratos del módulo | Llegan con su primer consumidor, el ledger (fase 3) |
+| Evento `CategoryArchived` | Se publica | No se levanta todavía: nadie reacciona. Lo declarará la fase 7, cuando Scheduling avise de reglas con una categoría archivada |
+| Siembra | Al `OnboardingCompleted` y al `MemberJoined` | Igual, más `POST W/categories/defaults` para pedirla a mano. Lo usa el estado vacío de la pantalla y sirve a las cuentas creadas antes de esta fase |
+| Unicidad del nombre | Índice sobre `lower(name)` | Columna `name_key` con el nombre en minúsculas e índice único parcial con `NULLS NOT DISTINCT`; EF Core lo modela sin SQL a mano |
+| Montos y movimientos por categoría, conteo de uso de tags en transacciones | En la pantalla del mock | Llegan con el ledger. El contador de cada tag muestra cuántas categorías lo sugieren |
+| `category-select` y `tag-chips` en `shared/forms` | En la fase | Llegan con el formulario de transacción (fase 3), que es quien los usa. Esta fase deja en `shared/ui` el diálogo modal, la tarjeta de KPI y el icono con color |
+| Archivar un tag | No especificado | Pide confirmación en dos pasos, porque quita el tag de todas las categorías y restaurarlo no las recupera |
+
 #### Fase 3 — Ledger I: cuentas y transacciones
 
 | | |

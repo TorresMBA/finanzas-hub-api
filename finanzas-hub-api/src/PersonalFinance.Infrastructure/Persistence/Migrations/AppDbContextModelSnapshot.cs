@@ -319,6 +319,131 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                     b.ToTable("outgoing_emails", "platform");
                 });
 
+            modelBuilder.Entity("PersonalFinance.Modules.Categories.Domain.Category", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("color");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("icon");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NameKey")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name_key");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<string>("SystemKey")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("system_key");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_categories");
+
+                    b.HasIndex("ParentId")
+                        .HasDatabaseName("ix_categories_parent_id");
+
+                    b.HasIndex("WorkspaceId", "OwnerUserId", "SystemKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_categories_workspace_id_owner_user_id_system_key")
+                        .HasFilter("system_key IS NOT NULL");
+
+                    b.HasIndex("WorkspaceId", "OwnerUserId", "ParentId", "NameKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_categories_workspace_id_owner_user_id_parent_id_name_key")
+                        .HasFilter("archived_at IS NULL");
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("WorkspaceId", "OwnerUserId", "ParentId", "NameKey"), false);
+
+                    b.ToTable("categories", "categories", t =>
+                        {
+                            t.HasCheckConstraint("ck_categories_color", "color IN ('Green', 'Blue', 'Violet', 'Amber', 'Red')");
+
+                            t.HasCheckConstraint("ck_categories_kind", "kind IN ('Income', 'Expense')");
+
+                            t.HasCheckConstraint("ck_categories_look", "(parent_id IS NULL) = (icon IS NOT NULL) AND (parent_id IS NULL) = (color IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Categories.Domain.Tag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tags");
+
+                    b.HasIndex("WorkspaceId", "OwnerUserId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tags_workspace_id_owner_user_id_name");
+
+                    b.ToTable("tags", "categories");
+                });
+
             modelBuilder.Entity("PersonalFinance.Modules.Identity.Domain.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -716,6 +841,47 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_user_tokens_users_user_id");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Categories.Domain.Category", b =>
+                {
+                    b.HasOne("PersonalFinance.Modules.Categories.Domain.Category", null)
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_categories_categories_parent_id");
+
+                    b.OwnsMany("PersonalFinance.Modules.Categories.Domain.CategoryTag", "Tags", b1 =>
+                        {
+                            b1.Property<Guid>("CategoryId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("category_id");
+
+                            b1.Property<Guid>("TagId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("tag_id");
+
+                            b1.HasKey("CategoryId", "TagId")
+                                .HasName("pk_category_tags");
+
+                            b1.HasIndex("TagId")
+                                .HasDatabaseName("ix_category_tags_tag_id");
+
+                            b1.ToTable("category_tags", "categories");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CategoryId")
+                                .HasConstraintName("fk_category_tags_categories_category_id");
+
+                            b1.HasOne("PersonalFinance.Modules.Categories.Domain.Tag", null)
+                                .WithMany()
+                                .HasForeignKey("TagId")
+                                .OnDelete(DeleteBehavior.Restrict)
+                                .IsRequired()
+                                .HasConstraintName("fk_category_tags_tags_tag_id");
+                        });
+
+                    b.Navigation("Tags");
                 });
 
             modelBuilder.Entity("PersonalFinance.Modules.Identity.Domain.UserPreferences", b =>

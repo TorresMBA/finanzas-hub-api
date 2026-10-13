@@ -8,6 +8,7 @@ PersonalHub es una plataforma de finanzas personales y colaborativas: API en .NE
 |---|---|
 | Entender el sistema | [architecture/overview.md](architecture/overview.md) |
 | Levantar el entorno | [development/local-development.md](development/local-development.md) |
+| Saber qué fases están hechas y qué falta | [roadmap/status.md](roadmap/status.md) |
 | Implementar una fase | [roadmap/phases.md](roadmap/phases.md) y el documento del módulo en [modules/](modules/) |
 | Saber por qué la plataforma es así de simple | [adr/ADR-019](adr/ADR-019-simplificacion-de-la-plataforma.md) |
 | Añadir un módulo o un caso de uso | [architecture/backend-structure.md](architecture/backend-structure.md) y [architecture/module-communication.md](architecture/module-communication.md) |
@@ -59,4 +60,4 @@ Los documentos nacieron de un único análisis y conservan sus letras de secció
 
 ## Estado
 
-Fases 0 y 1 terminadas. La fase 0 se rediseñó tras su revisión ([ADR-019](adr/ADR-019-simplificacion-de-la-plataforma.md)). El detalle de lo verificado y de lo que no está en [roadmap/phases.md](roadmap/phases.md).
+Fases 0, 1 y 2 terminadas; el tablero con el estado de cada fase y lo que quedó pendiente está en [roadmap/status.md](roadmap/status.md). La fase 0 se rediseñó tras su revisión ([ADR-019](adr/ADR-019-simplificacion-de-la-plataforma.md)). El detalle de lo verificado y de lo que no está en [roadmap/phases.md](roadmap/phases.md).

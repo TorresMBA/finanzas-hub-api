@@ -92,7 +92,7 @@ Regla de dependencias: `features` → `shared`, `core`; `layout` → `shared`, `
 | `dashboard` | `/` | kpi-row, cashflow-chart, top-categories, recent-list, accounts-card, goals-card, upcoming-card | `DashboardStore` con recurso por mes |
 | `transactions` | `/transactions`, `?id=` para el detalle | tx-filters, tx-summary, tx-list, tx-detail, tx-form | `TransactionsStore`: filtros como signals, lista con cursor |
 | `accounts` | `/accounts` | account-stats, account-group, account-card, account-detail, account-form, card-payment-form | `AccountsStore` |
-| `categories` | `/categories` | category-tree, tag-cloud, quick-tag, category-form | `CategoriesStore`, reutilizado por los selectores |
+| `categories` | `/categories` | `categories` (lista, filtros, etiqueta rápida y nube en una sola página) y `category-form` | `CategoriesApi` para los cambios y dos `httpResource` en la página. Los selectores de categoría y de tags llegan con el formulario de transacción |
 | `budgets` | `/budgets` | budget-summary, budget-list, budget-detail, daily-chart, budget-form | `BudgetsStore` con recurso por mes |
 | `goals` | `/goals` | goal-stats, goal-card, goal-detail, contribution-form, participants-panel, goal-form | `GoalsStore`; se invalida con la señal de tiempo real |
 | `calendar` | `/calendar` | month-grid, day-detail, upcoming-list, schedule-form | `CalendarStore` con recurso por mes |

@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Infrastructure.Platform;
+using PersonalFinance.Modules.Categories.Application.Abstractions;
+using PersonalFinance.Modules.Categories.Domain;
 using PersonalFinance.Modules.Identity.Application.Abstractions;
 using PersonalFinance.Modules.Identity.Domain;
 using PersonalFinance.Modules.Sample.Application.Abstractions;
@@ -20,6 +22,7 @@ internal static class Schemas
     public const string Platform = "platform";
     public const string Identity = "identity";
     public const string Workspaces = "workspaces";
+    public const string Categories = "categories";
     public const string Sample = "sample";
 }
 
@@ -29,7 +32,7 @@ internal static class Schemas
 /// and workspace. It derives from ASP.NET Core Identity's context so the framework's own user store works on it.
 /// </summary>
 internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUser currentUser, IWorkspaceContext workspaceContext)
-    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ISampleDb
+    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ISampleDb
 {
     private static readonly MethodInfo ApplyOwnerFilterMethod =
         typeof(AppDbContext).GetMethod(nameof(ApplyOwnerFilter), BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -49,6 +52,10 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurr
     public DbSet<Membership> Memberships => Set<Membership>();
 
     public DbSet<Invitation> Invitations => Set<Invitation>();
+
+    public DbSet<Category> Categories => Set<Category>();
+
+    public DbSet<Tag> Tags => Set<Tag>();
 
     public DbSet<Note> Notes => Set<Note>();
 

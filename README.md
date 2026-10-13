@@ -28,4 +28,4 @@ Detalle y alternativa sin Docker en [docs/development/local-development.md](docs
 
 ## Estado
 
-Fases 0 y 1 terminadas: la plataforma común y el shell del frontend, y sobre ellos las cuentas (registro, sesión, recuperación de contraseña) y los workspaces con miembros, roles e invitaciones. La funcionalidad financiera empieza en la fase 2. Ver [docs/roadmap/phases.md](docs/roadmap/phases.md).
+Fases 0, 1 y 2 terminadas: la plataforma común y el shell del frontend; las cuentas (registro, sesión, recuperación de contraseña) y los workspaces con miembros, roles e invitaciones; y las categorías y etiquetas, privadas de cada persona. Lo siguiente es la fase 3: cuentas y transacciones. El estado de cada fase está en [docs/roadmap/status.md](docs/roadmap/status.md) y su detalle en [docs/roadmap/phases.md](docs/roadmap/phases.md).

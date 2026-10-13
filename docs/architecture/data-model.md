@@ -58,9 +58,9 @@ Columnas de acceso: **P** privado `(workspace_id, owner_user_id)`, **C** colabor
 
 | Tabla | Clave y relaciones | Únicos, índices y checks | Acceso |
 |---|---|---|---|
-| `categories` | PK `id`; FK `parent_id` → `categories` | Único parcial `(workspace_id, owner_user_id, coalesce(parent_id, zero), lower(name)) WHERE archived_at IS NULL`; único parcial `(workspace_id, owner_user_id, system_key) WHERE system_key IS NOT NULL`; `kind IN (Income, Expense)` | P |
+| `categories` | PK `id`; FK `parent_id` → `categories` | Único parcial `(workspace_id, owner_user_id, parent_id, name_key) NULLS NOT DISTINCT WHERE archived_at IS NULL`, donde `name_key` es el nombre en minúsculas; único parcial `(workspace_id, owner_user_id, system_key) WHERE system_key IS NOT NULL`; `kind IN (Income, Expense)`; `icon` y `color` solo en las de primer nivel | P |
 | `tags` | PK `id` | UNIQUE `(workspace_id, owner_user_id, name)` | P |
-| `category_tags` | PK `(category_id, tag_id)`; FK a ambas | — | P por raíz |
+| `category_tags` | PK `(category_id, tag_id)`; FK a ambas | Solo categorías de primer nivel (regla del dominio) | P por raíz |
 
 **`ledger`**
 

@@ -33,7 +33,12 @@ public class LayeringTests
     private static readonly string[] PlatformJobFolders = ["Platform"];
 
     /// <summary>Types allowed to bypass the ownership filters. Only system code that acts for every user belongs here.</summary>
-    private static readonly string[] MayIgnoreQueryFilters = [];
+    private static readonly string[] MayIgnoreQueryFilters =
+    [
+        // Seeds the categories of someone who just joined and may not be the one signed in. It filters by that
+        // person's workspace and user explicitly.
+        "PersonalFinance.Modules.Categories.Application.Defaults.DefaultCategoriesSeeder"
+    ];
 
     [Fact]
     public void Domain_depends_only_on_the_domain_building_block_and_its_own_contracts()

@@ -16,6 +16,7 @@ public class ModuleBoundaryTests
     {
         ["Identity"] = [],
         ["Workspaces"] = ["Identity"],
+        ["Categories"] = ["Workspaces"],
         ["Sample"] = []
     };
 

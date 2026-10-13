@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Identity;
 using PersonalFinance.Infrastructure.Audit;
 using PersonalFinance.Infrastructure.Email;
 using PersonalFinance.Infrastructure.Messaging;
+using PersonalFinance.Modules.Categories.Application.Abstractions;
 using PersonalFinance.Modules.Identity.Application.Abstractions;
 using PersonalFinance.Modules.Identity.Domain;
 using PersonalFinance.Modules.Workspaces.Application.Abstractions;
@@ -80,6 +81,9 @@ public static class DependencyInjection
 
         services.AddModule(typeof(IWorkspacesDb).Assembly);
         services.AddScoped<IWorkspacesDb>(provider => provider.GetRequiredService<AppDbContext>());
+
+        services.AddModule(typeof(ICategoriesDb).Assembly);
+        services.AddScoped<ICategoriesDb>(provider => provider.GetRequiredService<AppDbContext>());
 
         services.AddModule(typeof(ISampleDb).Assembly);
         services.AddScoped<ISampleDb>(provider => provider.GetRequiredService<AppDbContext>());

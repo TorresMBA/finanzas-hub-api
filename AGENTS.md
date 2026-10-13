@@ -50,6 +50,8 @@ Por porciones verticales, en el orden de [docs/roadmap/implementation-order.md](
 
 Una feature está terminada cuando cumple [docs/development/definition-of-done.md](docs/development/definition-of-done.md).
 
+Al empezar y al cerrar una fase se actualiza [docs/roadmap/status.md](docs/roadmap/status.md): el estado de cada fase y lo que cada una dejó pendiente.
+
 ## Comandos
 
 ```powershell
@@ -79,4 +81,4 @@ npm run e2e                                      # requiere la API en marcha
 
 ## Estado
 
-Fases 0 y 1 terminadas: plataforma, cuentas y sesión (Identity) y workspaces con miembros, roles e invitaciones. Lo siguiente es la fase 2 (Categories). El módulo `Sample` es un ejemplo de la plataforma y se elimina en la fase 3, cuando el ledger aporte lo que los tests de la plataforma toman hoy de él.
+Fases 0, 1 y 2 terminadas: plataforma, cuentas y sesión (Identity), workspaces con miembros, roles e invitaciones, y categorías y tags privados por usuario (Categories). Lo siguiente es la fase 3 (Ledger I). El tablero está en [docs/roadmap/status.md](docs/roadmap/status.md). El módulo `Sample` es un ejemplo de la plataforma y se elimina en la fase 3, cuando el ledger aporte lo que los tests de la plataforma toman hoy de él.

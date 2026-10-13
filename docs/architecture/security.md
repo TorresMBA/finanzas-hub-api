@@ -27,7 +27,7 @@ Reglas:
 1. Toda entidad privada implementa `IOwned` y `AppDbContext` le aplica un filtro global ligado al `ICurrentUser` e `IWorkspaceContext` de la petición. Olvidar un `WHERE` no filtra datos ajenos, porque el filtro ya está.
 2. Las filas hijas de un agregado heredan el acceso de su raíz. `ledger.entries` repite `workspace_id` y `owner_user_id` porque las sumas de saldo consultan esa tabla directamente.
 3. Un test recorre el modelo EF y falla si una entidad `IOwned` o colaborativa no tiene filtro.
-4. `IgnoreQueryFilters()` solo se permite en código de sistema enumerado en una lista blanca que el test de arquitectura comprueba.
+4. `IgnoreQueryFilters()` solo se permite en código de sistema enumerado en una lista blanca que el test de arquitectura comprueba. Hoy tiene una entrada: la siembra de categorías, que escribe para quien acaba de unirse y filtra por su workspace y su usuario de forma explícita.
 5. Los contratos entre módulos no aceptan un `ownerUserId` arbitrario: operan sobre el actor del contexto. Un módulo no puede pedir a Ledger los movimientos de otro usuario.
 6. **Ningún rol concede acceso a datos privados ajenos.** Tampoco Owner. No hay puerta de soporte dentro de la aplicación.
 
