@@ -136,6 +136,79 @@ public sealed class Operation : AggregateRoot, IOwned
         return operation;
     }
 
+    /// <summary>
+    /// Money moving between two accounts of the same person: one operation, one entry out and one in. It is
+    /// neither an income nor an expense. Between two currencies the person states both amounts; nothing is converted.
+    /// </summary>
+    /// <param name="amountIn">What arrives. Required when the currencies differ; otherwise it is the amount that left.</param>
+    public static Result<Operation> PostTransfer(
+        Account from, Account to, decimal amountOut, decimal? amountIn, DateOnly occurredOn, string? description, string? note, DateTimeOffset now)
+    {
+        if (from.Id == to.Id)
+        {
+            return Error.Validation("ledger.transfer.same_account", "A transfer needs two different accounts.");
+        }
+
+        if (from.OwnerUserId != to.OwnerUserId || from.WorkspaceId != to.WorkspaceId)
+        {
+            return Error.BusinessRule("ledger.transfer.different_owners", "Both accounts of a transfer belong to the same person.");
+        }
+
+        foreach (var account in new[] { from, to })
+        {
+            var open = account.EnsureOpen();
+            if (open.IsFailure)
+            {
+                return open.Error;
+            }
+        }
+
+        if (from.Currency == to.Currency)
+        {
+            if (amountIn is { } stated && stated != amountOut)
+            {
+                return Error.Validation("ledger.transfer.amount_mismatch", "Between two accounts of the same currency, what arrives is what left.");
+            }
+        }
+        else if (amountIn is null)
+        {
+            return Error.Validation("ledger.transfer.destination_amount_required", "Between two currencies, state how much arrives in the destination account.");
+        }
+
+        var text = Texts.Validate(string.IsNullOrWhiteSpace(description) ? "Transferencia" : description, null, note);
+        if (text.IsFailure)
+        {
+            return text.Error;
+        }
+
+        var operation = new Operation(NewId())
+        {
+            WorkspaceId = from.WorkspaceId,
+            OwnerUserId = from.OwnerUserId,
+            Kind = OperationKind.Transfer,
+            Status = OperationStatus.Confirmed,
+            OccurredOn = occurredOn,
+            Description = text.Value.Description,
+            Note = text.Value.Note,
+            CreatedAt = now
+        };
+        var leaving = Entry.Create(operation, from, EntryDirection.Out, amountOut);
+        if (leaving.IsFailure)
+        {
+            return leaving.Error;
+        }
+
+        var arriving = Entry.Create(operation, to, EntryDirection.In, amountIn ?? amountOut);
+        if (arriving.IsFailure)
+        {
+            return arriving.Error;
+        }
+
+        operation._entries.Add(leaving.Value);
+        operation._entries.Add(arriving.Value);
+        return operation;
+    }
+
     /// <summary>The balance an account starts with. It is an entry like any other, so the balance is still only a sum.</summary>
     public static Result<Operation> OpenBalance(Account account, decimal balance, DateOnly occurredOn, DateTimeOffset now) =>
         Single(OperationKind.OpeningBalance, account, balance, occurredOn, "Saldo inicial", now);
@@ -283,7 +356,7 @@ public sealed class Operation : AggregateRoot, IOwned
     {
         if (!IsTransaction)
         {
-            return Error.BusinessRule("ledger.transaction.not_editable", $"Opening balances and adjustments cannot be {verb}. Void it and register it again.");
+            return Error.BusinessRule("ledger.transaction.not_editable", $"Only an income or an expense can be {verb}. Void this movement and register it again.");
         }
 
         if (SourceModule is not null)
@@ -359,8 +432,9 @@ public sealed class Entry : Entity, IOwned
 
     public bool IsEffective { get; private set; }
 
-    // Filled when the account's currency differs from the workspace's base currency. Present from the first
-    // migration so automatic exchange rates can arrive without migrating data; nothing writes them yet.
+    // What the entry was worth in the workspace's base currency when it was registered, so a report of a past
+    // month does not change when the rate does. Empty for an entry already in the base currency, and for one
+    // registered when the person had no rate for its date: reports value that one at the latest rate.
     public decimal? BaseAmount { get; private set; }
 
     public decimal? FxRate { get; private set; }
@@ -399,6 +473,15 @@ public sealed class Entry : Entity, IOwned
     }
 
     internal void Exclude() => IsEffective = false;
+
+    /// <summary>Records what the entry is worth in the base currency, at the rate that applied on its date.</summary>
+    /// <param name="rate">Null when there is nothing to record: the entry is in the base currency, or no rate applies.</param>
+    internal void ValueWith(ExchangeRate? rate)
+    {
+        BaseAmount = rate?.Convert(Amount);
+        FxRate = rate?.Rate;
+        FxRateDate = rate?.AsOf;
+    }
 
     internal static Result Validate(Account account, decimal amount)
     {

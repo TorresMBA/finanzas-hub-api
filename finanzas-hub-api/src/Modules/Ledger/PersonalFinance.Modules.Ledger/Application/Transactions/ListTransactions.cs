@@ -6,6 +6,7 @@ using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Categories.Contracts;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
+using PersonalFinance.Modules.Ledger.Application.ExchangeRates;
 using PersonalFinance.Modules.Ledger.Domain;
 
 namespace PersonalFinance.Modules.Ledger.Application.Transactions;
@@ -13,19 +14,29 @@ namespace PersonalFinance.Modules.Ledger.Application.Transactions;
 /// <summary>Income and expenses of one currency among what the filter matches. Currencies are never added together.</summary>
 public sealed record CurrencyTotalsResponse(string Currency, decimal Income, decimal Expense, decimal Net, int Count);
 
+/// <summary>
+/// The same income and expenses, every currency brought to the base currency of the workspace. An amount in
+/// another currency counts for what it was worth when it was registered, or at the latest rate when it had none.
+/// </summary>
+/// <param name="MissingRates">Currencies that could not be converted and are left out of the amounts.</param>
+public sealed record BaseTotalsResponse(string Currency, decimal Income, decimal Expense, decimal Net, IReadOnlyList<string> MissingRates);
+
 /// <param name="NextCursor">Send it back to get the following page; null on the last one.</param>
 /// <param name="Totals">Over everything the filter matches, not only this page.</param>
-public sealed record TransactionPageResponse(IReadOnlyList<TransactionResponse> Items, string? NextCursor, IReadOnlyList<CurrencyTotalsResponse> Totals);
+/// <param name="BaseTotals">Null while the workspace has no base currency.</param>
+public sealed record TransactionPageResponse(
+    IReadOnlyList<TransactionResponse> Items, string? NextCursor, IReadOnlyList<CurrencyTotalsResponse> Totals, BaseTotalsResponse? BaseTotals);
 
+/// <param name="Kind">Income, Expense or Transfer; or the movements the application makes on an account.</param>
 /// <param name="Status">Voided transactions are left out unless this asks for them.</param>
 /// <param name="CategoryId">Matches the category and its subcategories.</param>
 /// <param name="Tag">A tag name.</param>
 /// <param name="Text">Searched in the description, the merchant and the note.</param>
 public sealed record ListTransactionsQuery(
-    TransactionType? Type, OperationStatus? Status, Guid? AccountId, Guid? CategoryId, string? Tag, string? Text, DateOnly? From, DateOnly? To, string? Cursor, int? Limit)
+    OperationKind? Kind, OperationStatus? Status, Guid? AccountId, Guid? CategoryId, string? Tag, string? Text, DateOnly? From, DateOnly? To, string? Cursor, int? Limit)
     : IQuery<TransactionPageResponse>;
 
-internal sealed class ListTransactionsHandler(ILedgerDb db, TransactionReader reader, ICategoryLookup categories, ITagLookup tags)
+internal sealed class ListTransactionsHandler(ILedgerDb db, TransactionReader reader, ICategoryLookup categories, ITagLookup tags, ExchangeRateBook rates)
     : IQueryHandler<ListTransactionsQuery, TransactionPageResponse>
 {
     private const int DefaultLimit = 50;
@@ -46,9 +57,8 @@ internal sealed class ListTransactionsHandler(ILedgerDb db, TransactionReader re
             ? operations.Where(operation => operation.Status == status)
             : operations.Where(operation => operation.Status != OperationStatus.Voided);
 
-        if (query.Type is { } type)
+        if (query.Kind is { } kind)
         {
-            var kind = type.ToKind();
             operations = operations.Where(operation => operation.Kind == kind);
         }
 
@@ -89,7 +99,7 @@ internal sealed class ListTransactionsHandler(ILedgerDb db, TransactionReader re
             operations = operations.Where(operation => operation.OccurredOn <= to);
         }
 
-        var totals = await TotalsAsync(operations, cancellationToken);
+        var (totals, baseTotals) = await TotalsAsync(operations, cancellationToken);
 
         if (after is not null)
         {
@@ -107,21 +117,44 @@ internal sealed class ListTransactionsHandler(ILedgerDb db, TransactionReader re
         var hasMore = page.Count > limit;
         var items = page.Take(limit).ToList();
         return new TransactionPageResponse(
-            await reader.DescribeAsync(items, cancellationToken),
+            await reader.DescribeAsync(items, query.AccountId, cancellationToken),
             hasMore ? new PageCursor(items[^1].OccurredOn, items[^1].Id).ToString() : null,
-            totals);
+            totals,
+            baseTotals);
     }
 
-    /// <summary>Only income and expenses: an opening balance or an adjustment is neither.</summary>
-    private static async Task<IReadOnlyList<CurrencyTotalsResponse>> TotalsAsync(IQueryable<Operation> operations, CancellationToken cancellationToken)
+    /// <summary>Only income and expenses: a transfer, an opening balance or an adjustment is neither.</summary>
+    private async Task<(IReadOnlyList<CurrencyTotalsResponse> ByCurrency, BaseTotalsResponse? InBase)> TotalsAsync(
+        IQueryable<Operation> operations, CancellationToken cancellationToken)
     {
         var rows = await operations
             .Where(operation => operation.Kind == OperationKind.Income || operation.Kind == OperationKind.Expense)
-            .SelectMany(operation => operation.Entries, (operation, entry) => new { entry.Currency, operation.Kind, entry.Amount })
+            .SelectMany(operation => operation.Entries, (operation, entry) => new { entry.Currency, operation.Kind, entry.Amount, entry.BaseAmount })
             .GroupBy(row => new { row.Currency, row.Kind })
-            .Select(group => new { group.Key.Currency, group.Key.Kind, Total = group.Sum(row => row.Amount), Count = group.Count() })
+            .Select(group => new
+            {
+                group.Key.Currency,
+                group.Key.Kind,
+                Total = group.Sum(row => row.Amount),
+                Count = group.Count(),
+                Valued = group.Sum(row => row.BaseAmount ?? 0m),
+                Unvalued = group.Sum(row => row.BaseAmount == null ? row.Amount : 0m)
+            })
             .ToListAsync(cancellationToken);
-        return rows.GroupBy(row => row.Currency)
+
+        var table = await rates.LoadAsync(cancellationToken);
+        var (baseIncome, baseExpense) = (new BaseSum(table), new BaseSum(table));
+        foreach (var row in rows)
+        {
+            (row.Kind == OperationKind.Income ? baseIncome : baseExpense).Add(row.Currency, row.Unvalued, row.Valued);
+        }
+
+        var inBase = table.BaseCurrency is { } baseCurrency
+            ? new BaseTotalsResponse(
+                baseCurrency, baseIncome.Total, baseExpense.Total, baseIncome.Total - baseExpense.Total,
+                baseIncome.Missing.Union(baseExpense.Missing).Order(StringComparer.Ordinal).ToList())
+            : null;
+        var byCurrency = rows.GroupBy(row => row.Currency)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .Select(group =>
             {
@@ -130,6 +163,7 @@ internal sealed class ListTransactionsHandler(ILedgerDb db, TransactionReader re
                 return new CurrencyTotalsResponse(group.Key, income, expense, income - expense, group.Sum(row => row.Count));
             })
             .ToList();
+        return (byCurrency, inBase);
     }
 
     /// <summary>Where a page ended: the date and id of its last row. Opaque to the client.</summary>

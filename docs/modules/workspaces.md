@@ -30,7 +30,7 @@ Relación confirmada: `User 1:N WorkspaceMembership N:1 Workspace`. Clave única
 
 Implementado: crear, completar el onboarding, renombrar y cambiar zona horaria; invitar, revocar, aceptar; cambiar rol, quitar miembro, salir y transferir la propiedad; y sus consultas. Endpoints: `GET /me/workspaces`; `POST /workspaces`; `GET` y `PATCH W`; `POST W/onboarding/complete`; `POST W/ownership-transfer`; `GET W/members`; `PATCH` y `DELETE W/members/{userId}` (con el id propio, salir); `GET` y `POST W/invitations`; `DELETE W/invitations/{id}`; `GET /invitations/{token}` (anónimo) y `POST /invitations/{token}/accept`.
 
-Diferido: `ChangeBaseCurrency` (necesita saber si hay asientos: fase 3), archivar un workspace, e `IWorkspaceDirectory` (llega con Goals, fase 8). El evento `MemberInvited` no existe: el correo de invitación se encola directamente en el caso de uso.
+Diferido: `ChangeBaseCurrency` (sin fecha: desde la fase 4 cada asiento en otra moneda guarda su valor en la moneda base, y cambiarla obligaría a revalorar los de todos los miembros), archivar un workspace, e `IWorkspaceDirectory` (llega con Goals, fase 8). El evento `MemberInvited` no existe: el correo de invitación se encola directamente en el caso de uso.
 
 - Quien se registra desde una invitación recibe su workspace personal y además se une al que le invitó, que queda como el que abre por defecto (OQ-21).
 - Una invitación caducada sigue en estado pendiente; invitar de nuevo al mismo correo la revoca y crea otra.

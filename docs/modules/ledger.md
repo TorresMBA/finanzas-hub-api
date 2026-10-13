@@ -10,6 +10,7 @@
 | Consulta de otros | `Categories.Contracts` (validar categoría y tags), `Notifications.Contracts` (aviso de movimiento grande y de vencimiento de tarjeta) |
 | Expone | `ILedgerPosting` (registrar ingreso, gasto, reembolso y transferencia; anular; asegurar cuenta de sistema), `ILedgerQueries` (cuenta, saldos, patrimonio, gasto por categoría, flujo, movimientos, comercios, vencimientos de tarjeta) |
 | Eventos | `OperationPosted` (I), `OperationChanged` (I), `OperationVoided` (I), `AccountArchived` (I), `AccountOpened` (D) |
+| Estado | Fases 3 y 4 implementadas; ver abajo |
 
 Diseño completo en la sección K.
 
@@ -28,11 +29,13 @@ Diseño completo en la sección K.
 | SetTransactionTags | Dueño | tags | Máximo 10 | — |
 | GetAccounts, GetAccountSummary, GetTransactions, GetTransaction (queries) | Dueño | filtros, cursor | — | Saldos derivados |
 
-## Estado tras la fase 3
+## Estado tras la fase 4
 
-Implementado: abrir, renombrar, archivar y restaurar cuentas de banco, efectivo y billetera; ajustar el saldo; registrar, editar, confirmar y anular ingresos y gastos, con sus etiquetas; y las consultas de cuentas, de un movimiento y del listado con filtros, totales por moneda y cursor. Endpoints: `GET` y `POST W/accounts`; `GET` y `PATCH W/accounts/{id}`; `POST W/accounts/{id}/archive`, `/restore` y `/adjust-balance`; `GET` y `POST W/transactions`; `GET` y `PATCH W/transactions/{id}`; `POST W/transactions/{id}/confirm` y `/void`.
+Implementado: abrir, cambiar, archivar y restaurar cuentas de banco, efectivo, billetera y tarjeta de crédito; ajustar el saldo; registrar, editar, confirmar y anular ingresos y gastos, con sus etiquetas; transferir entre cuentas, también de monedas distintas; pagar una tarjeta; el patrimonio; el tipo de cambio de referencia; y las consultas de cuentas, de un movimiento, del listado con filtros, totales y cursor, y de lo que movió cada categoría. Endpoints: `GET` y `POST W/accounts`; `GET W/accounts/summary`; `GET` y `PATCH W/accounts/{id}`; `POST W/accounts/{id}/archive`, `/restore`, `/adjust-balance` y `/payments`; `GET` y `POST W/transactions`; `GET W/transactions/category-totals`; `GET` y `PATCH W/transactions/{id}`; `POST W/transactions/{id}/confirm` y `/void`; `POST W/transfers`; `GET W/exchange-rates` y `PUT W/exchange-rates/{moneda}`.
 
-Diferido: transferencias, tarjetas, tipo de cambio, `GetAccountSummary` e `ILedgerQueries` (fase 4); `ILedgerPosting` para otros módulos (fase 4 en adelante); los eventos del módulo (fase 5, con Budgets); `ETag` (fase 8).
+Expone `ILedgerQueries` (patrimonio a una fecha, flujo por mes, totales por categoría, saldos de las cuentas y últimos movimientos), que usa Reporting. Todo lo que responde es de la persona de la petición: no acepta un dueño como parámetro.
+
+Diferido: `ILedgerPosting` para otros módulos (con su primer consumidor); los eventos del módulo (fase 5, con Budgets); el aviso de vencimiento de tarjeta (fase 6); `ETag` (fase 8); la comisión de una transferencia; estado de cuenta, cuotas y tipo de cambio automático (fase 14).
 
 - **No existe una columna de saldo.** El saldo de una cuenta es la suma de `signed_amount` de sus asientos efectivos, calculada en cada respuesta (`AccountBalances`). Un test falla si `Account` gana una propiedad con "Balance" en el nombre.
 - El saldo inicial es una operación `OpeningBalance` y corregir un saldo es una operación `Adjustment` por la diferencia. Ninguna de las dos es ingreso ni gasto, y ninguna se edita: se anula y se registra de nuevo.
@@ -44,4 +47,11 @@ Diferido: transferencias, tarjetas, tipo de cambio, `GetAccountSummary` e `ILedg
 - La categoría y las etiquetas son de Categories: el ledger guarda sus ids y las valida y describe a través de `ICategoryLookup` e `ITagLookup`, que ya aplican el filtro de dueño. Una categoría ajena responde como si no existiera.
 - Cuentas, operaciones y asientos son `IOwned`. El asiento repite el workspace, el dueño, la fecha y si es efectivo de su operación, para que el saldo sea una suma indexada sobre una sola tabla.
 - Abrir cuenta, ajustar saldo y registrar transacción exigen `Idempotency-Key`. El frontend crea la clave al abrir el formulario, no al enviarlo.
-- Las columnas `base_amount`, `fx_rate` y `fx_rate_date` de `entries` existen desde esta migración y nadie las escribe todavía.
+- **Transferencia.** Una operación `Transfer` con un asiento de salida y uno de entrada, entre dos cuentas de la misma persona. No es ingreso ni gasto: no entra en ningún total ni tiene categoría. Se lista como una fila; si el listado está filtrado por una cuenta, se cuenta desde ella (entrada o salida). Anularla saca los dos asientos. No se edita.
+- Entre dos monedas la persona indica los dos montos; nada se convierte solo. Entre cuentas de la misma moneda, lo que llega es lo que sale.
+- **Tarjeta de crédito.** Una cuenta de tipo `CreditCard` con un `CreditCardProfile` (línea, día de pago, día de cierre opcional) en `credit_card_profiles`. La deuda es su saldo, negativo; el disponible es la línea más el saldo. La línea no bloquea una compra. La fecha del próximo pago se calcula del día de pago; en un mes más corto cae en su último día.
+- Pagar una tarjeta es una transferencia hacia ella desde una cuenta que no sea otra tarjeta. No lleva `source`: se reconoce por su destino, y así se puede anular como cualquier movimiento.
+- **Patrimonio (OQ-26).** Lo que tienen menos lo que deben las cuentas que cuentan: las que no están archivadas y conservan `include_in_net_worth`. Un saldo positivo es algo que se tiene y uno negativo algo que se debe, sea cual sea el tipo de cuenta. Lo calcula un solo lugar, `NetWorthReader`.
+- **Tipo de cambio.** Cada persona lleva los suyos hacia la moneda base del workspace: una fila por moneda y día en `exchange_rates`, que vale desde ese día. Sirve para valorar; no mueve dinero.
+- **Valor en moneda base.** Al registrar o editar una operación, cada asiento en otra moneda guarda `base_amount`, `fx_rate` y `fx_rate_date` con el tipo de cambio que regía en su fecha, para que el total de un mes pasado no cambie cuando cambia el tipo. Un asiento sin tipo de cambio para su fecha queda sin valor propio y se valora al vigente. Los saldos y el patrimonio se valoran siempre al vigente.
+- Una moneda sin tipo de cambio queda fuera de todo total en moneda base, y la respuesta dice cuál es (`missingRates`): un total nunca finge estar completo.

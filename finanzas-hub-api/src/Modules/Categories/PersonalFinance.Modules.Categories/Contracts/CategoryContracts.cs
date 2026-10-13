@@ -12,10 +12,11 @@ public enum CategoryUse
 /// <summary>
 /// What another module may know about a category of the current person.
 /// </summary>
+/// <param name="RootId">Its parent for a subcategory; itself otherwise. What a report groups by to show a category with everything under it.</param>
 /// <param name="ParentName">Set for a subcategory.</param>
 /// <param name="Icon">Its own, or its parent's for a subcategory.</param>
 /// <param name="Color">Its own, or its parent's for a subcategory; in lower camel case as the API writes it.</param>
-public sealed record CategoryInfo(Guid Id, CategoryUse Use, string Name, string? ParentName, string Icon, string Color, bool IsArchived);
+public sealed record CategoryInfo(Guid Id, Guid RootId, CategoryUse Use, string Name, string? ParentName, string Icon, string Color, bool IsArchived);
 
 /// <summary>
 /// Read access to the categories of the current person in the current workspace. A category of someone else

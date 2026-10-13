@@ -3,6 +3,7 @@ using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
+using PersonalFinance.Modules.Ledger.Application.ExchangeRates;
 using PersonalFinance.Modules.Ledger.Domain;
 
 namespace PersonalFinance.Modules.Ledger.Application.Transactions;
@@ -15,7 +16,7 @@ public sealed record PostTransactionCommand(
     IReadOnlyList<string>? Tags, bool Pending, string IdempotencyKey)
     : ICommand<TransactionResponse>, IIdempotentCommand;
 
-internal sealed class PostTransactionHandler(ILedgerDb db, TransactionReader reader, IAuditLog audit, IClock clock)
+internal sealed class PostTransactionHandler(ILedgerDb db, TransactionReader reader, ExchangeRateBook rates, IAuditLog audit, IClock clock)
     : ICommandHandler<PostTransactionCommand, TransactionResponse>
 {
     public async Task<Result<TransactionResponse>> HandleAsync(PostTransactionCommand command, CancellationToken cancellationToken)
@@ -47,6 +48,7 @@ internal sealed class PostTransactionHandler(ILedgerDb db, TransactionReader rea
             return tagged.Error;
         }
 
+        await rates.ValueAsync(operation, cancellationToken);
         db.Operations.Add(operation);
         LedgerMetrics.OperationsPosted.Add(1, new KeyValuePair<string, object?>("kind", operation.Kind.ToString()));
         audit.Record(new AuditEntry("ledger", "ledger.transaction.posted", "operation", operation.Id)
@@ -64,7 +66,8 @@ public sealed record EditTransactionCommand(
     string? Note, IReadOnlyList<string>? Tags)
     : ICommand<TransactionResponse>;
 
-internal sealed class EditTransactionHandler(ILedgerDb db, TransactionReader reader, IAuditLog audit) : ICommandHandler<EditTransactionCommand, TransactionResponse>
+internal sealed class EditTransactionHandler(ILedgerDb db, TransactionReader reader, ExchangeRateBook rates, IAuditLog audit)
+    : ICommandHandler<EditTransactionCommand, TransactionResponse>
 {
     public async Task<Result<TransactionResponse>> HandleAsync(EditTransactionCommand command, CancellationToken cancellationToken)
     {
@@ -98,6 +101,8 @@ internal sealed class EditTransactionHandler(ILedgerDb db, TransactionReader rea
             return tagged.Error;
         }
 
+        // The amount, the account or the date may have changed, and with them what it is worth in the base currency.
+        await rates.ValueAsync(operation, cancellationToken);
         audit.Record(new AuditEntry("ledger", "ledger.transaction.edited", "operation", operation.Id)
         {
             OwnerUserId = operation.OwnerUserId,
@@ -180,6 +185,26 @@ internal static class Snapshot
     /// <summary>What the audit trail keeps of an operation: every field a person can change.</summary>
     public static object Of(Operation operation)
     {
+        if (operation.Kind == OperationKind.Transfer)
+        {
+            var leaving = operation.Entries.First(candidate => candidate.Direction == EntryDirection.Out);
+            var arriving = operation.Entries.First(candidate => candidate.Direction == EntryDirection.In);
+            return new
+            {
+                Kind = operation.Kind.ToString(),
+                Status = operation.Status.ToString(),
+                FromAccountId = leaving.AccountId,
+                AmountOut = leaving.Amount,
+                CurrencyOut = leaving.Currency,
+                ToAccountId = arriving.AccountId,
+                AmountIn = arriving.Amount,
+                CurrencyIn = arriving.Currency,
+                operation.OccurredOn,
+                operation.Description,
+                operation.Note
+            };
+        }
+
         var entry = operation.Entries.First();
         return new
         {

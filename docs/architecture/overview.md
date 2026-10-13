@@ -19,7 +19,7 @@
 |---|---|
 | D1 | V2 es una solución nueva en `PersonalHubV2`; de V1 se porta selectivamente dominio y tests, no persistencia ni esquema |
 | D2 | Privacidad estricta: lo financiero es siempre del usuario; el workspace es directorio de personas y contenedor de lo compartido; los roles solo gobiernan administración |
-| D3 | El aporte a una meta es un apartado: −500 en la cuenta origen y +500 en una cuenta de ahorro vinculada o en un fondo de la meta a nombre del participante. No es gasto y el patrimonio no baja |
+| D3 | El aporte a una meta es un apartado: −500 en la cuenta origen y +500 en una cuenta de ahorro vinculada o en un fondo de la meta a nombre del participante. No es gasto. El patrimonio mostrado no baja si la cuenta que recibe cuenta en él; la de una meta nace fuera y la persona puede incluirla (OQ-26, 13-oct-2026) |
 | D4 | La primera versión usable incluye importación de archivos con reglas y WhatsApp (avisos y comandos). Quedan diferidos: conexión bancaria automática, planes y facturación, 2FA y gestión de sesiones |
 
 **Revisión tras la fase 0 (12-oct-2026).** La primera plataforma resultó más compleja de lo necesario para ~10 usuarios y se simplificó. Qué cambió y por qué está en el [ADR-019](../adr/ADR-019-simplificacion-de-la-plataforma.md); este documento ya describe el resultado.

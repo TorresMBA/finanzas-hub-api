@@ -24,7 +24,9 @@ Permisos: **D** dueño, **P** participante, **M** miembro del workspace, **A** A
 | Cuentas | UpdateAccount, ArchiveAccount | `PATCH W/accounts/{id}`, `POST .../archive`, `POST .../restore` | Ledger | Account | AccountArchived | D | — |
 | Cuentas | AdjustAccountBalance | `POST W/accounts/{id}/adjust-balance` | Ledger | Operation | OperationPosted | D | — |
 | Cuentas | PayCreditCard | `POST W/accounts/{id}/payments` | Ledger | Operation | OperationPosted | D | — |
+| Cuentas | ListExchangeRates, SetExchangeRate | `GET W/exchange-rates`, `PUT W/exchange-rates/{moneda}` | Ledger | ExchangeRate | — | D | — |
 | Categorías | ListCategories, ListTags | `GET W/categories`, `GET W/tags` | Categories | Category, Tag | — | D | — |
+| Categorías | GetCategoryTotals | `GET W/transactions/category-totals` | Ledger | Operation, Entry | — | D | — |
 | Categorías | CreateCategory, UpdateCategory | `POST W/categories`, `PATCH W/categories/{id}` | Categories | Category | — | D | — |
 | Categorías | ArchiveCategory, RestoreCategory | `POST W/categories/{id}/archive`, `POST W/categories/{id}/restore` | Categories | Category | CategoryArchived (desde la fase 7) | D | — |
 | Categorías | SetCategoryTags, ArchiveTag | `PUT W/categories/{id}/tags`, `POST W/tags/{id}/archive` | Categories | Tag | — | D | — |

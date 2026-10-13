@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using PersonalFinance.Api.Http;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
+using PersonalFinance.Modules.Ledger.Application.Reports;
 using PersonalFinance.Modules.Ledger.Application.Transactions;
 using PersonalFinance.Modules.Ledger.Domain;
 
@@ -54,22 +55,31 @@ public sealed class VoidTransactionRequest
     public string? Reason { get; init; }
 }
 
-/// <summary>The income and expenses of the signed-in person in this workspace.</summary>
+/// <summary>The movements of the signed-in person in this workspace: income, expenses, transfers and what the application registers on an account.</summary>
 [Tags("Ledger")]
 [Route("api/v1/workspaces/{workspaceId:guid}/transactions")]
 [Problem(StatusCodes.Status401Unauthorized)]
 [Problem(StatusCodes.Status404NotFound)]
 public sealed class TransactionsController : ApiControllerBase
 {
-    /// <summary>Newest first, by pages. The totals cover everything the filter matches, per currency.</summary>
+    /// <summary>Newest first, by pages. The totals cover everything the filter matches, per currency and in the base currency.</summary>
     [HttpGet(Name = "ListTransactions")]
     [ProducesResponseType<TransactionPageResponse>(StatusCodes.Status200OK)]
     [Problem(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> List(
-        Guid workspaceId, [FromQuery] TransactionType? type, [FromQuery] OperationStatus? status, [FromQuery] Guid? accountId, [FromQuery] Guid? categoryId,
+        Guid workspaceId, [FromQuery] OperationKind? type, [FromQuery] OperationStatus? status, [FromQuery] Guid? accountId, [FromQuery] Guid? categoryId,
         [FromQuery] string? tag, [FromQuery(Name = "q")] string? text, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] string? cursor,
         [FromQuery] int? limit, [FromServices] IQueryHandler<ListTransactionsQuery, TransactionPageResponse> handler, CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new ListTransactionsQuery(type, status, accountId, categoryId, tag, text, from, to, cursor, limit), cancellationToken), Ok);
+
+    /// <summary>What each category moved in a period, in the base currency. Transfers count for no category.</summary>
+    [HttpGet("category-totals", Name = "GetCategoryTotals")]
+    [ProducesResponseType<CategoryTotalsResponse>(StatusCodes.Status200OK)]
+    [Problem(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CategoryTotals(
+        Guid workspaceId, [FromQuery, Required] DateOnly? from, [FromQuery, Required] DateOnly? to,
+        [FromServices] IQueryHandler<GetCategoryTotalsQuery, CategoryTotalsResponse> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new GetCategoryTotalsQuery(from!.Value, to!.Value), cancellationToken), Ok);
 
     [HttpGet("{transactionId:guid}", Name = "GetTransaction")]
     [ProducesResponseType<TransactionResponse>(StatusCodes.Status200OK)]

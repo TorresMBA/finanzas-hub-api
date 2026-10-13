@@ -10,8 +10,8 @@ Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance d
 | 1 | Identity y Workspaces | ✅ Completada | 13-oct-2026 |
 | 2 | Categories | ✅ Completada | 13-oct-2026 |
 | 3 | Ledger I: cuentas y transacciones | ✅ Completada | 13-oct-2026 |
-| 4 | Ledger II: transferencias, tarjetas básicas, patrimonio e Inicio | ⏳ Pendiente (siguiente) | — |
-| 5 | Budgets | ⏳ Pendiente | — |
+| 4 | Ledger II: transferencias, tarjetas básicas, patrimonio e Inicio | ✅ Completada | 13-oct-2026 |
+| 5 | Budgets | ⏳ Pendiente (siguiente) | — |
 | 6 | Notifications y tiempo real | ⏳ Pendiente | — |
 | 7 | Scheduling y Calendario | ⏳ Pendiente | — |
 | 8 | Goals | ⏳ Pendiente | — |
@@ -26,14 +26,14 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-13-oct-2026, al cerrar la fase 3.
+13-oct-2026, al cerrar la fase 4.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 177 en verde (89 unitarios, 19 de arquitectura, 69 de integración) |
-| Frontend: build, tests y lint | Build correcto, 101 tests, lint limpio |
-| E2E en Chrome | 17 en verde |
+| Backend: tests | 217 en verde (119 unitarios, 19 de arquitectura, 79 de integración) |
+| Frontend: build, tests y lint | Build correcto y sin avisos, 118 tests, lint limpio |
+| E2E en Chrome | 21 en verde, tres veces seguidas |
 
 ## Pendientes que dejaron las fases cerradas
 
@@ -49,7 +49,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 
 | Pendiente | Se retoma |
 |---|---|
-| Cambiar la moneda base de un workspace | Fase 4: ya existe el ledger para saber si hay asientos; va con el tipo de cambio |
+| Cambiar la moneda base de un workspace | Sin fecha. Con el ledger en marcha ya no es solo un dato: cada movimiento en otra moneda guarda lo que valía en la moneda base, y cambiarla obligaría a revalorarlos todos, los de cada miembro |
 | Archivar un workspace | Sin fecha |
 | Foto de perfil | Sin fecha |
 | Inicio de sesión con Google o Microsoft (OQ-25) | Backlog diferido |
@@ -59,7 +59,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 
 | Pendiente | Se retoma |
 |---|---|
-| Monto y número de movimientos por categoría en la pantalla de Categorías | Fase 4, con la consulta de gasto por categoría del Inicio |
 | Renombrar un tag | Sin fecha |
 | Mover una categoría a otro padre | Sin fecha: el mock no lo pide |
 | Evento `CategoryArchived` | Fase 7: lo usa Scheduling |
@@ -68,13 +67,24 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 
 | Pendiente | Se retoma |
 |---|---|
-| `ILedgerQueries` e `ILedgerPosting` para otros módulos | Fase 4 en adelante, con su primer consumidor |
+| `ILedgerPosting` para otros módulos | Con su primer consumidor: Scheduling (fase 7) o Goals (fase 8) |
 | Eventos `OperationPosted`, `OperationChanged`, `OperationVoided`, `AccountArchived` | Fase 5: Budgets es el primero que reacciona |
 | `ETag` / `If-Match` en la API | Fase 8, con el primer agregado que editan varias personas |
-| Totales convertidos a la moneda base | Fase 4, con el tipo de cambio de referencia |
 | "Repetir cada mes" en el formulario de transacción | Fase 7 |
 | "Dividir gasto" en el detalle del movimiento | Fase 9 |
 | Concurrencia por `xmin` en cuentas y operaciones | Configurada; ningún test la provoca todavía |
+
+### Fase 4
+
+| Pendiente | Se retoma |
+|---|---|
+| Comisión de una transferencia como gasto vinculado | Sin fecha. Hoy se registra aparte, como un gasto más |
+| Editar una transferencia | Sin fecha. Se anula y se registra de nuevo |
+| Aviso de vencimiento de tarjeta | Fase 6, con Notifications. La fecha del próximo pago ya se calcula y se muestra |
+| Marca de "cuenta favorita" para las cuentas del Inicio (OQ-24) | Sin fecha. El Inicio muestra las cuatro de mayor saldo |
+| Presupuesto, metas y próximos pagos en el Inicio | Fases 5, 8 y 7, cada una con su módulo |
+| Historial de tipos de cambio en pantalla | Fase 14. Se guarda una fila por día; la pantalla solo muestra y cambia el vigente |
+| Cuentas de meta (`GoalFund`) fuera del patrimonio por defecto | Fase 8. La casilla "Incluir en mi patrimonio" ya existe en toda cuenta; Goals abrirá las suyas con ella desmarcada |
 
 ## Resuelto de fases anteriores
 
@@ -84,3 +94,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | `ICategoryLookup` e `ITagLookup` | Fase 2 | Fase 3 |
 | Crear un tag sin pasar por una categoría | Fase 2 | Fase 3: se crea al nombrarlo en una transacción |
 | Selección de categoría y de tags en un formulario | Fase 2 | Fase 3, dentro del formulario de transacción |
+| Monto por categoría en la pantalla de Categorías | Fase 2 | Fase 4: cada categoría dice lo que movió en el mes de la barra superior |
+| `ILedgerQueries` para otros módulos | Fase 3 | Fase 4: lo usa Reporting para el Inicio |
+| Totales convertidos a la moneda base | Fase 3 | Fase 4, con el tipo de cambio de referencia |

@@ -63,6 +63,8 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurr
 
     public DbSet<Entry> Entries => Set<Entry>();
 
+    public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
+
     // Read by the global query filters. With no user or workspace they match nothing.
     private Guid CurrentUserId => currentUser.UserId ?? Guid.Empty;
 

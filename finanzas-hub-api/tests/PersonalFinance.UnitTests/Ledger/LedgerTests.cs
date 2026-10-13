@@ -53,7 +53,7 @@ public class LedgerTests
         var account = Bank();
         account.Archive(Now);
 
-        Assert.Equal("ledger.account.archived", account.Update("Otro", null).Error.Code);
+        Assert.Equal("ledger.account.archived", account.Update("Otro", null, true).Error.Code);
         Assert.Equal("ledger.account.archived", Operation.PostTransaction(OperationKind.Expense, account, 10m, Groceries, Today, "Pan", null, null, false, Now).Error.Code);
         Assert.Equal("ledger.account.archived", Operation.Adjust(account, 10m, Today, Now).Error.Code);
     }

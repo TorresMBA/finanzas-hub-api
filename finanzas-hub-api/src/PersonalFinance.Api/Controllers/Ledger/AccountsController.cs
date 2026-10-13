@@ -3,9 +3,29 @@ using Microsoft.AspNetCore.Mvc;
 using PersonalFinance.Api.Http;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.Modules.Ledger.Application.Accounts;
+using PersonalFinance.Modules.Ledger.Application.Transactions;
+using PersonalFinance.Modules.Ledger.Application.Transfers;
 using PersonalFinance.Modules.Ledger.Domain;
 
 namespace PersonalFinance.Api.Controllers.Ledger;
+
+/// <summary>What makes an account a credit card.</summary>
+public sealed class CreditCardRequest
+{
+    /// <summary>The credit line, in the currency of the account.</summary>
+    [Required]
+    public decimal? CreditLimit { get; init; }
+
+    /// <summary>Day of the month the payment is due.</summary>
+    [Required, Range(1, 31)]
+    public int? PaymentDay { get; init; }
+
+    /// <summary>Day of the month the statement closes, when known.</summary>
+    [Range(1, 31)]
+    public int? ClosingDay { get; init; }
+
+    internal CreditCardTerms ToTerms() => new(CreditLimit!.Value, PaymentDay!.Value, ClosingDay);
+}
 
 public sealed class OpenAccountRequest
 {
@@ -21,8 +41,14 @@ public sealed class OpenAccountRequest
     [StringLength(Account.MaxInstitutionLength)]
     public string? Institution { get; init; }
 
-    /// <summary>What the account holds today. Leave it out to open it empty.</summary>
+    /// <summary>What the account holds today. Leave it out to open it empty. Negative for money owed, as the debt a credit card already carries.</summary>
     public decimal OpeningBalance { get; init; }
+
+    /// <summary>Whether the account counts in the net worth. It does unless this says otherwise.</summary>
+    public bool IncludeInNetWorth { get; init; } = true;
+
+    /// <summary>Required for a credit card, and only allowed for one.</summary>
+    public CreditCardRequest? CreditCard { get; init; }
 }
 
 public sealed class UpdateAccountRequest
@@ -32,11 +58,37 @@ public sealed class UpdateAccountRequest
 
     [StringLength(Account.MaxInstitutionLength)]
     public string? Institution { get; init; }
+
+    /// <summary>Left out, the account keeps what it has.</summary>
+    public bool? IncludeInNetWorth { get; init; }
+
+    /// <summary>The line and the days of a credit card. Left out, the card keeps the ones it has.</summary>
+    public CreditCardRequest? CreditCard { get; init; }
+}
+
+public sealed class PayCreditCardRequest
+{
+    /// <summary>The account the money comes from. Not another credit card.</summary>
+    [Required]
+    public Guid? FromAccountId { get; init; }
+
+    /// <summary>What the card is paid, in the currency of the card.</summary>
+    [Required]
+    public decimal? Amount { get; init; }
+
+    /// <summary>What leaves the paying account, in its currency. Required when that currency is not the one of the card.</summary>
+    public decimal? SourceAmount { get; init; }
+
+    [Required]
+    public DateOnly? OccurredOn { get; init; }
+
+    [StringLength(Operation.MaxNoteLength)]
+    public string? Note { get; init; }
 }
 
 public sealed class AdjustAccountBalanceRequest
 {
-    /// <summary>What the account really holds. The ledger records the difference.</summary>
+    /// <summary>What the account really holds; negative for money owed. The ledger records the difference.</summary>
     [Required]
     public decimal? ActualBalance { get; init; }
 
@@ -57,6 +109,13 @@ public sealed class AccountsController : ApiControllerBase
         Guid workspaceId, [FromQuery] bool includeArchived, [FromServices] IQueryHandler<ListAccountsQuery, IReadOnlyList<AccountResponse>> handler,
         CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new ListAccountsQuery(includeArchived), cancellationToken), Ok);
+
+    /// <summary>Net worth: what the accounts that count hold and owe, in the base currency and currency by currency.</summary>
+    [HttpGet("summary", Name = "GetAccountSummary")]
+    [ProducesResponseType<AccountSummaryResponse>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Summary(
+        Guid workspaceId, [FromServices] IQueryHandler<GetAccountSummaryQuery, AccountSummaryResponse> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new GetAccountSummaryQuery(), cancellationToken), Ok);
 
     [HttpGet("{accountId:guid}", Name = "GetAccount")]
     [ProducesResponseType<AccountResponse>(StatusCodes.Status200OK)]
@@ -79,11 +138,13 @@ public sealed class AccountsController : ApiControllerBase
             return problem;
         }
 
-        var command = new OpenAccountCommand(request.Name, request.Type!.Value, request.Currency, request.Institution, request.OpeningBalance, key);
+        var command = new OpenAccountCommand(
+            request.Name, request.Type!.Value, request.Currency, request.Institution, request.OpeningBalance, request.IncludeInNetWorth,
+            request.CreditCard?.ToTerms(), key);
         return ToActionResult(await handler.HandleAsync(command, cancellationToken), account => Created($"/api/v1/workspaces/{workspaceId}/accounts/{account.Id}", account));
     }
 
-    /// <summary>Renames the account. Its type and its currency never change.</summary>
+    /// <summary>Changes the name, whether it counts in the net worth and, for a card, its line and days. Type and currency never change.</summary>
     [HttpPatch("{accountId:guid}", Name = "UpdateAccount")]
     [ProducesResponseType<AccountResponse>(StatusCodes.Status200OK)]
     [Problem(StatusCodes.Status400BadRequest)]
@@ -92,7 +153,10 @@ public sealed class AccountsController : ApiControllerBase
     public async Task<IActionResult> Update(
         Guid workspaceId, Guid accountId, UpdateAccountRequest request, [FromServices] ICommandHandler<UpdateAccountCommand, AccountResponse> handler,
         CancellationToken cancellationToken) =>
-        ToActionResult(await handler.HandleAsync(new UpdateAccountCommand(accountId, request.Name, request.Institution), cancellationToken), Ok);
+        ToActionResult(
+            await handler.HandleAsync(
+                new UpdateAccountCommand(accountId, request.Name, request.Institution, request.IncludeInNetWorth, request.CreditCard?.ToTerms()), cancellationToken),
+            Ok);
 
     /// <summary>The account stops being offered. Its movements and its balance stay.</summary>
     [HttpPost("{accountId:guid}/archive", Name = "ArchiveAccount")]
@@ -125,5 +189,27 @@ public sealed class AccountsController : ApiControllerBase
 
         var command = new AdjustAccountBalanceCommand(accountId, request.ActualBalance!.Value, request.OccurredOn, key);
         return ToActionResult(await handler.HandleAsync(command, cancellationToken), Ok);
+    }
+
+    /// <summary>Pays a credit card from another account. It is a transfer: neither an income nor an expense.</summary>
+    [HttpPost("{accountId:guid}/payments", Name = "PayCreditCard")]
+    [ProducesResponseType<TransactionResponse>(StatusCodes.Status201Created)]
+    [Problem(StatusCodes.Status400BadRequest)]
+    [Problem(StatusCodes.Status409Conflict)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Pay(
+        Guid workspaceId, Guid accountId, PayCreditCardRequest request, [FromHeader(Name = IdempotencyKeyHeader)] string? idempotencyKey,
+        [FromServices] ICommandHandler<PayCreditCardCommand, TransactionResponse> handler, CancellationToken cancellationToken)
+    {
+        if (!TryReadIdempotencyKey(idempotencyKey, out var key, out var problem))
+        {
+            return problem;
+        }
+
+        var command = new PayCreditCardCommand(
+            accountId, request.FromAccountId!.Value, request.Amount!.Value, request.SourceAmount, request.OccurredOn!.Value, request.Note, key);
+        return ToActionResult(
+            await handler.HandleAsync(command, cancellationToken),
+            payment => Created($"/api/v1/workspaces/{workspaceId}/transactions/{payment.Id}", payment));
     }
 }

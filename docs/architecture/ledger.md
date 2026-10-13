@@ -10,7 +10,7 @@
 | Deuda y crédito disponible de tarjeta | `ledger.entries` y `credit_card_profiles` | Saldo; disponible = línea + saldo |
 | Ingresos y gastos de un periodo | `ledger.operations` y `ledger.entries` | Suma por `kind` |
 | Consumo de un presupuesto | Ledger | Consulta por categoría y periodo; nunca almacenado |
-| Patrimonio | Ledger e Investments | Saldos convertidos a moneda base más valor de mercado de posiciones |
+| Patrimonio | Ledger e Investments | Saldos de las cuentas que cuentan (K.13), convertidos a moneda base, más valor de mercado de posiciones |
 | Progreso de una meta | `goals.goal_contributions` | Suma de aportes menos retiros no anulados |
 | Deuda entre dos personas | `shared_expenses` | Partes menos asignaciones de liquidaciones |
 
@@ -107,7 +107,7 @@ No se trata como cuenta bancaria normal: tiene línea, día de pago y de cierre,
 | Estado de cuenta | Proyección por ciclo, no almacenada (Fase 14, se porta `CreditCardStatementBuilder`) |
 | Cuotas | `InstallmentPlan` sobre la compra; la compra se reconoce entera; el interés se registra por ciclo y una sola vez (Fase 14, ADR-0013 de V1) |
 
-En MVP (Fase 4) entra el perfil básico, el disponible, el pago y el aviso de vencimiento.
+En la fase 4 entraron el perfil básico, el disponible y el pago. El pago no lleva `source`: una operación con `source` solo la anula el módulo que la creó, y un pago de tarjeta debe poder anularse como cualquier movimiento; se reconoce porque su destino es una tarjeta. El aviso de vencimiento llega con Notifications (fase 6).
 
 ### K.8 Moneda
 
@@ -118,8 +118,8 @@ En MVP (Fase 4) entra el perfil básico, el disponible, el pago y el aviso de ve
 | Moneda base | Por workspace; es la moneda de reportes y presupuestos |
 | Cuenta | Moneda fija desde el primer asiento |
 | Asiento | En la moneda de su cuenta. Columnas opcionales `base_amount`, `fx_rate`, `fx_rate_date` rellenadas al registrar cuando la moneda difiere de la base |
-| `ExchangeRate` | Tabla de referencia `(base, quote, rate, as_of, source)`. En MVP se mantiene a mano; una fuente automática se añade tras `IExchangeRateSource` |
-| Reportes | Saldos y patrimonio: tipo de cambio más reciente. Ingresos y gastos: `base_amount` capturado al registrar |
+| `ExchangeRate` | `(base, moneda, rate, as_of)`, privada de cada persona (OQ-27): una fila por moneda y día, que vale desde ese día. Se mantiene a mano; una fuente automática se añade tras `IExchangeRateSource` (fase 14) |
+| Reportes | Saldos y patrimonio: tipo de cambio más reciente. Ingresos y gastos: `base_amount` capturado al registrar o editar; un asiento sin tipo de cambio para su fecha se valora al más reciente. Una moneda sin ningún tipo de cambio queda fuera del total y la respuesta la nombra |
 | Transferencia multimoneda | Dos montos explícitos |
 | Metas | Totales por moneda, sin convertir (como el mock) |
 
@@ -159,7 +159,7 @@ Resultado frente a los seis puntos del encargo:
 | Reflejar el progreso | Suma de aportes; lo ven Brian y Juan |
 | Trazabilidad | Aporte ↔ operación por id; `audit_log` con actor y `correlationId` |
 
-El dinero sigue siendo de Brian (D3): su patrimonio no cambia y no consume presupuesto. La entrada va a su cuenta de ahorro vinculada si el dinero se mueve a una cuenta suya, o a un fondo de sistema a su nombre si sale hacia un lugar que la aplicación no registra.
+El dinero sigue siendo de Brian (D3) y no consume presupuesto. Que su patrimonio mostrado cambie o no depende de si la cuenta que recibe cuenta en él (K.13): la cuenta de una meta nace fuera, así que el aporte lo baja hasta que Brian la incluya. La entrada va a su cuenta de ahorro vinculada si el dinero se mueve a una cuenta suya, o a un fondo de sistema a su nombre si sale hacia un lugar que la aplicación no registra.
 
 ### K.12 Flujo de pago de un gasto compartido
 
@@ -168,3 +168,15 @@ Caso del encargo: cena de S/ 300 entre Brian, Juan y Pedro, a partes iguales, pa
 Diagrama: [Flujo de pago de un gasto compartido](../diagrams/flow-shared-expense.md).
 
 Cuando también pague Pedro, el gasto pasa a `Settled`. En los libros de Brian quedan un gasto de 300 y dos reembolsos de 100 en la misma categoría: gasto neto de 100, que es su parte. Cada asiento vive en el ledger de quien lo registra; nadie escribe en los libros de otro.
+
+### K.13 Qué cuentas entran en el patrimonio
+
+Decisión del dueño del 13-oct-2026 (OQ-26).
+
+| Cuenta | ¿Cuenta en el patrimonio? |
+|---|---|
+| En uso (banco, efectivo, billetera, tarjeta) | Sí, salvo que la persona desmarque "Incluir en mi patrimonio" |
+| Archivada | Nunca, tenga o no saldo, diga lo que diga su casilla |
+| De una meta (`GoalFund`, fase 8) | No, salvo que la persona marque la casilla |
+
+Nada financiero se borra, así que no existe la cuenta eliminada. La casilla es la columna `include_in_net_worth` de `accounts`: no cambia el saldo ni lo que se puede hacer con la cuenta, solo si suma en el total. Una tarjeta cuenta como deuda. Mover dinero a una cuenta que no cuenta baja el patrimonio mostrado; el dinero sigue en la cuenta.

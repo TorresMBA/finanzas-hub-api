@@ -609,6 +609,10 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         .HasColumnType("char(3)")
                         .HasColumnName("currency");
 
+                    b.Property<bool>("IncludeInNetWorth")
+                        .HasColumnType("boolean")
+                        .HasColumnName("include_in_net_worth");
+
                     b.Property<string>("Institution")
                         .HasMaxLength(60)
                         .HasColumnType("character varying(60)")
@@ -656,7 +660,7 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
 
                     b.ToTable("accounts", "ledger", t =>
                         {
-                            t.HasCheckConstraint("ck_accounts_type", "type IN ('Bank', 'Cash', 'Wallet')");
+                            t.HasCheckConstraint("ck_accounts_type", "type IN ('Bank', 'Cash', 'Wallet', 'CreditCard')");
                         });
                 });
 
@@ -740,6 +744,55 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_entries_amount", "amount > 0");
 
                             t.HasCheckConstraint("ck_entries_direction", "direction IN ('In', 'Out')");
+                        });
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Ledger.Domain.ExchangeRate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("AsOf")
+                        .HasColumnType("date")
+                        .HasColumnName("as_of");
+
+                    b.Property<string>("BaseCurrency")
+                        .IsRequired()
+                        .HasColumnType("char(3)")
+                        .HasColumnName("base_currency");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("char(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<decimal>("Rate")
+                        .HasColumnType("numeric(18,8)")
+                        .HasColumnName("rate");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_exchange_rates");
+
+                    b.HasIndex("WorkspaceId", "OwnerUserId", "BaseCurrency", "Currency", "AsOf")
+                        .IsUnique()
+                        .HasDatabaseName("ix_exchange_rates_owner_currency_as_of");
+
+                    b.ToTable("exchange_rates", "ledger", t =>
+                        {
+                            t.HasCheckConstraint("ck_exchange_rates_rate", "rate > 0 AND currency <> base_currency");
                         });
                 });
 
@@ -1104,6 +1157,44 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_user_preferences_users_user_id");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Ledger.Domain.Account", b =>
+                {
+                    b.OwnsOne("PersonalFinance.Modules.Ledger.Domain.CreditCardProfile", "CreditCard", b1 =>
+                        {
+                            b1.Property<Guid>("AccountId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("account_id");
+
+                            b1.Property<int?>("ClosingDay")
+                                .HasColumnType("integer")
+                                .HasColumnName("closing_day");
+
+                            b1.Property<decimal>("CreditLimit")
+                                .HasColumnType("numeric(19,4)")
+                                .HasColumnName("credit_limit");
+
+                            b1.Property<int>("PaymentDay")
+                                .HasColumnType("integer")
+                                .HasColumnName("payment_day");
+
+                            b1.HasKey("AccountId")
+                                .HasName("pk_credit_card_profiles");
+
+                            b1.ToTable("credit_card_profiles", "ledger", t =>
+                                {
+                                    t.HasCheckConstraint("ck_credit_card_profiles_days", "payment_day BETWEEN 1 AND 31 AND (closing_day IS NULL OR closing_day BETWEEN 1 AND 31)");
+
+                                    t.HasCheckConstraint("ck_credit_card_profiles_limit", "credit_limit > 0");
+                                });
+
+                            b1.WithOwner()
+                                .HasForeignKey("AccountId")
+                                .HasConstraintName("fk_credit_card_profiles_accounts_id");
+                        });
+
+                    b.Navigation("CreditCard");
                 });
 
             modelBuilder.Entity("PersonalFinance.Modules.Ledger.Domain.Entry", b =>

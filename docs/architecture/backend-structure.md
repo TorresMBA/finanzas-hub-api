@@ -2,7 +2,7 @@
 
 ## N. Backend folder/project structure
 
-Raíz: `finanzas-hub-api/`. El árbol muestra lo que existe tras la fase 3; cada módulo de negocio que se añada repite la forma de `Ledger`.
+Raíz: `finanzas-hub-api/`. El árbol muestra lo que existe tras la fase 4; cada módulo de negocio que se añada repite la forma de `Ledger`.
 
 ```text
 finanzas-hub-api/
@@ -33,14 +33,19 @@ finanzas-hub-api/
       Categories/                  categorías, subcategorías y tags, privados por usuario
       Ledger/                      cuentas, operaciones y asientos: la única fuente de los saldos
         PersonalFinance.Modules.Ledger/
-          Domain/                  Account, Operation, Entry, OperationTag
+          Domain/                  Account, CreditCardProfile, Operation, Entry, OperationTag, ExchangeRate
           Application/
             Abstractions/          ILedgerDb: las tablas que el módulo puede ver
-            Accounts/              comandos, consultas, respuestas y handlers de cuentas
+            Accounts/              comandos, consultas, respuestas y handlers de cuentas; NetWorthReader
             Transactions/          lo mismo para transacciones; TransactionReader arma las respuestas
+            Transfers/             transferencia y pago de tarjeta
+            ExchangeRates/         tipo de cambio; RateTable y BaseSum convierten a la moneda base
+            Reports/               LedgerQueries: lo que el ledger responde a otros módulos
             LedgerScope.cs         dueño y fecha de hoy de la petición; AccountBalances
-          Contracts/               lo que otro módulo puede usar (aparece cuando hace falta;
-                                   ver Categories/Contracts, que usa el ledger)
+          Contracts/               ILedgerQueries y sus tipos: lo que otro módulo puede usar
+      Reporting/                   el Inicio. Sin tablas ni dominio: lee los contratos de Ledger y de Categories
+        PersonalFinance.Modules.Reporting/
+          Application/Dashboard/   GetDashboard
     PersonalFinance.Infrastructure/
       DependencyInjection.cs       AddInfrastructure, MigrateDatabaseAsync; la lista de módulos
       Persistence/
@@ -61,8 +66,9 @@ finanzas-hub-api/
         Identity/                  AuthController, MeController
         Workspaces/                WorkspacesController, MembersController, invitaciones
         Categories/                CategoriesController, TagsController
-        Ledger/                    AccountsController, TransactionsController: un controller por recurso,
-                                   en la carpeta de su módulo
+        Ledger/                    AccountsController, TransactionsController, TransfersController,
+                                   ExchangeRatesController: un controller por recurso, en la carpeta de su módulo
+        Reporting/                 DashboardController
       Http/                        correlación, contexto de actor, WorkspaceScopeFilter, Result a ProblemDetails,
                                    manejador global de excepciones, cookie de sesión, CORS, origen y límite de peticiones
     PersonalFinance.Worker/

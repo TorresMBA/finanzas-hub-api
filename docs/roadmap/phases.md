@@ -293,6 +293,48 @@ Diferencias respecto al diseño de la fase:
 | Risks | Definir qué cuentas entran en patrimonio |
 | Out of scope | Estado de cuenta, cuotas, conciliación (Fase 14); próximos pagos y metas en Inicio (se completan en las fases 7 y 8) |
 
+**Estado: implementada el 13-oct-2026.** El riesgo de la fase quedó decidido por el dueño ese día (OQ-26): entran en el patrimonio todas las cuentas en uso, nunca las archivadas, y cada cuenta lleva una casilla "Incluir en mi patrimonio" con la que la persona la saca o la vuelve a meter. Las cuentas de una meta nacerán fuera (fase 8).
+
+Verificado:
+
+| Comprobación | Resultado |
+|---|---|
+| `dotnet build PersonalFinance.slnx` | Sin errores ni advertencias |
+| `dotnet test PersonalFinance.slnx` | 217 tests: 119 unitarios, 19 de arquitectura, 79 de integración contra PostgreSQL 18 |
+| Criterio de aceptación | Transferir 500 de BCP a Interbank deja −500 y +500 y el patrimonio igual; una compra de 200 con tarjeta baja el disponible de 5 000 a 4 800 y el pago lo repone. Probado por API y en el navegador |
+| Transferencia | Una operación con dos asientos y una sola fila en el listado. No es ingreso ni gasto: no aparece en ningún total. Anularla saca los dos asientos a la vez. Reenviar el mismo POST no la duplica. No se edita |
+| Multimoneda | Entre dos monedas se indican los dos montos y cada asiento queda en la moneda de su cuenta; sin el monto de destino se rechaza. Entre cuentas de la misma moneda, un monto de destino distinto se rechaza |
+| Tarjeta | Es una cuenta con línea, día de pago y día de cierre opcional. La deuda es su saldo negativo y el disponible, la línea más el saldo. El pago es una transferencia hacia la tarjeta desde una cuenta que no sea otra tarjeta, también desde otra moneda |
+| Patrimonio | Suma lo que tienen y resta lo que deben las cuentas en uso que la persona no ha sacado. Una archivada no cuenta; una con la casilla desmarcada tampoco, y mover dinero a ella baja el total |
+| Conversión a moneda base | Cada asiento en otra moneda guarda lo que valía al registrarse, así un mes pasado no cambia cuando cambia el tipo de cambio. Los saldos se valoran al tipo vigente. Una moneda sin tipo de cambio queda fuera del total y la respuesta dice cuál es |
+| Tipo de cambio | Lo lleva cada persona, por moneda y por día; darlo otra vez el mismo día lo reemplaza. No mueve dinero |
+| Inicio | Patrimonio y su variación, ingresos, gastos y tasa de ahorro del mes; flujo de seis meses; categorías con más gasto, sumando sus subcategorías; últimos movimientos; cuentas de mayor saldo |
+| Matriz de seguridad | Un miembro no puede transferir desde ni hacia la cuenta de otro, ni pagar su tarjeta, ni anular su transferencia: todo responde 404. Patrimonio, Inicio, tipos de cambio y totales por categoría solo hablan del dinero propio, también para el Owner |
+| Arquitectura | `Reporting` es un módulo sin tablas que solo usa los contratos de `Ledger` y de `Categories`; los 19 tests de arquitectura lo cubren |
+| Frontend | `ng build` correcto y sin avisos; 118 tests unitarios; `ng lint` correcto |
+| E2E | 21 tests en Chrome, 4 nuevos: la transferencia de punta a punta, compra y pago de tarjeta, otra moneda con su tipo de cambio más la casilla del patrimonio y el Inicio, y móvil sin desbordes. Repetidos tres veces seguidas sin fallos |
+| Revisión visual | Inicio, Cuentas con tarjetas, Transacciones y los formularios de transferencia, pago y tarjeta, en escritorio, tablet y móvil, tema claro y oscuro |
+
+No verificado: lo que depende de Docker; y la métrica `reporting.dashboard.duration`, que se registra pero nadie la ha leído en un colector.
+
+Diferencias respecto al diseño de la fase:
+
+| Tema | Diseño | Implementación |
+|---|---|---|
+| Qué cuentas entran en el patrimonio | Riesgo abierto | OQ-26, decidido por el dueño: todas las cuentas en uso, con una casilla por cuenta para sacarla. Cambia la consecuencia de D3 y del ADR-013: aportar a una meta sí bajará el patrimonio mostrado mientras la cuenta de la meta esté fuera |
+| `ExchangeRate` | Tabla de referencia común `(base, quote, rate, as_of, source)` | Privada de cada persona, como todo en el ledger: sin un rol nuevo que decida el tipo de cambio de los demás. Sin columna `source`: solo se mantiene a mano |
+| `ILedgerPosting` completo | En la fase | Sigue sin existir: ningún módulo registra todavía en el ledger. Llega con su primer consumidor |
+| Pago de tarjeta | Transferencia con `source = cards/payment` | Transferencia sin `source`: marcarla como de otro módulo impediría anularla. Se reconoce porque su destino es una tarjeta |
+| Comisión de la transferencia | Gasto vinculado | No está. Se registra como un gasto aparte |
+| Edición de una transferencia | No especificada | No se edita: se anula y se registra de nuevo |
+| Filtro `type` del listado | Ingreso o gasto | Cualquier tipo de operación, para poder pedir solo transferencias |
+| Línea de la tarjeta | No especificado | No bloquea: una compra puede dejar el disponible en negativo, y pagar de más deja saldo a favor |
+| Cuentas del Inicio (OQ-24) | Marca de favorita | Las cuatro de mayor saldo. La marca no existe todavía |
+| `GET W/exchange-rates` y `PUT W/exchange-rates/{moneda}` | No previstos | Hacen falta para mantener el tipo de cambio desde la pantalla de Cuentas |
+| `GET W/transactions/category-totals` | No previsto | Da a la pantalla de Categorías lo que movió cada una en el mes; cierra el pendiente de la fase 2 |
+| Aviso de vencimiento de tarjeta | En el MVP de tarjetas | Fase 6, con Notifications. La fecha del próximo pago ya se calcula |
+| Cambiar la moneda base | Pendiente de la fase 1 para esta | Sin fecha: obligaría a revalorar los asientos de todos los miembros |
+
 #### Fase 5 — Budgets
 
 | | |

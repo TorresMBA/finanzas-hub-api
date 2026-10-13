@@ -2,12 +2,13 @@ using PersonalFinance.BuildingBlocks.Domain;
 
 namespace PersonalFinance.Modules.Ledger.Domain;
 
-/// <summary>Where the money is. Credit cards and the accounts other modules open for themselves come in later phases.</summary>
+/// <summary>Where the money is. The accounts other modules open for themselves (a goal's fund, an investment) come with those modules.</summary>
 public enum AccountType
 {
     Bank,
     Cash,
-    Wallet
+    Wallet,
+    CreditCard
 }
 
 /// <summary>
@@ -44,6 +45,17 @@ public sealed class Account : AggregateRoot, IOwned
     /// <summary>The bank or the wallet provider, as the person calls it.</summary>
     public string? Institution { get; private set; }
 
+    /// <summary>
+    /// Whether what the account holds counts in the person's net worth. An archived account never counts,
+    /// whatever this says.
+    /// </summary>
+    public bool IncludeInNetWorth { get; private set; }
+
+    /// <summary>Present exactly when the account is a credit card.</summary>
+    public CreditCardProfile? CreditCard { get; private set; }
+
+    public bool IsCreditCard => Type == AccountType.CreditCard;
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset? ArchivedAt { get; private set; }
@@ -51,7 +63,8 @@ public sealed class Account : AggregateRoot, IOwned
     public bool IsArchived => ArchivedAt is not null;
 
     public static Result<Account> Open(
-        Guid workspaceId, Guid ownerUserId, string? name, AccountType type, string? currency, string? institution, DateTimeOffset now)
+        Guid workspaceId, Guid ownerUserId, string? name, AccountType type, string? currency, string? institution, DateTimeOffset now,
+        CreditCardTerms? card = null, bool includeInNetWorth = true)
     {
         var validName = ValidateName(name);
         if (validName.IsFailure)
@@ -71,6 +84,12 @@ public sealed class Account : AggregateRoot, IOwned
             return validInstitution.Error;
         }
 
+        var profile = ProfileFor(type, card, validCurrency.Value.Code);
+        if (profile.IsFailure)
+        {
+            return profile.Error;
+        }
+
         return new Account(NewId())
         {
             WorkspaceId = workspaceId,
@@ -80,12 +99,15 @@ public sealed class Account : AggregateRoot, IOwned
             Type = type,
             Currency = validCurrency.Value.Code,
             Institution = validInstitution.Value,
+            IncludeInNetWorth = includeInNetWorth,
+            CreditCard = profile.Value,
             CreatedAt = now
         };
     }
 
     /// <summary>Type and currency are not here on purpose: changing them would change what its entries mean.</summary>
-    public Result Update(string? name, string? institution)
+    /// <param name="card">The line and the days of a credit card. Left out, a card keeps the ones it has.</param>
+    public Result Update(string? name, string? institution, bool includeInNetWorth, CreditCardTerms? card = null)
     {
         if (IsArchived)
         {
@@ -104,9 +126,24 @@ public sealed class Account : AggregateRoot, IOwned
             return validInstitution.Error;
         }
 
+        if (card is not null)
+        {
+            if (CreditCard is null)
+            {
+                return NotACard;
+            }
+
+            var changed = CreditCard.Change(card, Currency);
+            if (changed.IsFailure)
+            {
+                return changed;
+            }
+        }
+
         Name = validName.Value;
         NameKey = validName.Value.ToLowerInvariant();
         Institution = validInstitution.Value;
+        IncludeInNetWorth = includeInNetWorth;
         return Result.Success();
     }
 
@@ -119,6 +156,24 @@ public sealed class Account : AggregateRoot, IOwned
     public Result EnsureOpen() => IsArchived ? Archived : Result.Success();
 
     private static Error Archived => Error.BusinessRule("ledger.account.archived", "The account is archived. Restore it first.");
+
+    private static Error NotACard => Error.Validation("ledger.card.not_a_card", "Only a credit card has a credit line and a payment day.");
+
+    private static Result<CreditCardProfile?> ProfileFor(AccountType type, CreditCardTerms? card, string currency)
+    {
+        if (type != AccountType.CreditCard)
+        {
+            return card is null ? Result.Success<CreditCardProfile?>(null) : NotACard;
+        }
+
+        if (card is null)
+        {
+            return Error.Validation("ledger.card.terms_required", "A credit card needs its credit line and its payment day.");
+        }
+
+        var profile = CreditCardProfile.Create(card, currency);
+        return profile.IsFailure ? profile.Error : profile.Value;
+    }
 
     private static Result<string> ValidateName(string? name)
     {

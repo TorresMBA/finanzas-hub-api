@@ -50,9 +50,10 @@ internal sealed class LedgerScope(ICurrentUser currentUser, IWorkspaceContext wo
 /// <summary>The only place a balance comes from: the sum of the effective entries of an account.</summary>
 internal sealed class AccountBalances(ILedgerDb db)
 {
-    public async Task<IReadOnlyDictionary<Guid, decimal>> AllAsync(CancellationToken cancellationToken) =>
+    /// <param name="asOf">Leaves out what happened after that day. Null counts everything.</param>
+    public async Task<IReadOnlyDictionary<Guid, decimal>> AllAsync(CancellationToken cancellationToken, DateOnly? asOf = null) =>
         await db.Entries.AsNoTracking()
-            .Where(entry => entry.IsEffective)
+            .Where(entry => entry.IsEffective && (asOf == null || entry.OccurredOn <= asOf))
             .GroupBy(entry => entry.AccountId)
             .Select(group => new { AccountId = group.Key, Balance = group.Sum(entry => entry.SignedAmount) })
             .ToDictionaryAsync(row => row.AccountId, row => row.Balance, cancellationToken);

@@ -28,6 +28,7 @@ internal sealed class CategoryLookup(ICategoriesDb db) : ICategoryLookup
             var root = category.ParentId is { } parentId ? parents[parentId] : category;
             return new CategoryInfo(
                 category.Id,
+                root.Id,
                 category.Kind == CategoryKind.Income ? CategoryUse.Income : CategoryUse.Expense,
                 category.Name,
                 category.IsRoot ? null : root.Name,

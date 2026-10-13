@@ -3,21 +3,34 @@ using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
+using PersonalFinance.Modules.Ledger.Application.ExchangeRates;
 using PersonalFinance.Modules.Ledger.Domain;
 
 namespace PersonalFinance.Modules.Ledger.Application.Accounts;
 
-/// <param name="Balance">Derived from the ledger at the moment of the answer; it is stored nowhere.</param>
+/// <param name="Used">What is owed on the card: never negative.</param>
+/// <param name="Available">The line minus what is owed. Negative when the card is over its line.</param>
+/// <param name="NextPaymentDate">The next day a payment is due, today included.</param>
+public sealed record CreditCardResponse(decimal CreditLimit, decimal Used, decimal Available, int PaymentDay, int? ClosingDay, DateOnly NextPaymentDate);
+
+/// <param name="Balance">Derived from the ledger at the moment of the answer; it is stored nowhere. Negative on a credit card with debt.</param>
+/// <param name="IncludeInNetWorth">Whether the account counts in the net worth while it is not archived.</param>
+/// <param name="CreditCard">Present exactly when the account is a credit card.</param>
 public sealed record AccountResponse(
-    Guid Id, string Name, AccountType Type, string Currency, string? Institution, decimal Balance, bool IsArchived, DateTimeOffset CreatedAt)
+    Guid Id, string Name, AccountType Type, string Currency, string? Institution, decimal Balance, bool IncludeInNetWorth, CreditCardResponse? CreditCard,
+    bool IsArchived, DateTimeOffset CreatedAt)
 {
-    internal static AccountResponse From(Account account, decimal balance) =>
-        new(account.Id, account.Name, account.Type, account.Currency, account.Institution, balance, account.IsArchived, account.CreatedAt);
+    internal static AccountResponse From(Account account, decimal balance, DateOnly today) =>
+        new(account.Id, account.Name, account.Type, account.Currency, account.Institution, balance, account.IncludeInNetWorth,
+            account.CreditCard is { } card
+                ? new CreditCardResponse(card.CreditLimit, Math.Max(0, -balance), card.AvailableWith(balance), card.PaymentDay, card.ClosingDay, card.NextPaymentDate(today))
+                : null,
+            account.IsArchived, account.CreatedAt);
 }
 
 public sealed record ListAccountsQuery(bool IncludeArchived) : IQuery<IReadOnlyList<AccountResponse>>;
 
-internal sealed class ListAccountsHandler(ILedgerDb db, AccountBalances balances) : IQueryHandler<ListAccountsQuery, IReadOnlyList<AccountResponse>>
+internal sealed class ListAccountsHandler(ILedgerDb db, AccountBalances balances, LedgerScope scope) : IQueryHandler<ListAccountsQuery, IReadOnlyList<AccountResponse>>
 {
     public async Task<Result<IReadOnlyList<AccountResponse>>> HandleAsync(ListAccountsQuery query, CancellationToken cancellationToken)
     {
@@ -27,25 +40,33 @@ internal sealed class ListAccountsHandler(ILedgerDb db, AccountBalances balances
             .OrderBy(account => account.CreatedAt)
             .ToListAsync(cancellationToken);
         var byAccount = await balances.AllAsync(cancellationToken);
-        return accounts.Select(account => AccountResponse.From(account, byAccount.GetValueOrDefault(account.Id))).ToList();
+        var today = scope.Today;
+        return accounts.Select(account => AccountResponse.From(account, byAccount.GetValueOrDefault(account.Id), today)).ToList();
     }
 }
 
 public sealed record GetAccountQuery(Guid AccountId) : IQuery<AccountResponse>;
 
-internal sealed class GetAccountHandler(ILedgerDb db, AccountBalances balances) : IQueryHandler<GetAccountQuery, AccountResponse>
+internal sealed class GetAccountHandler(ILedgerDb db, AccountBalances balances, LedgerScope scope) : IQueryHandler<GetAccountQuery, AccountResponse>
 {
     public async Task<Result<AccountResponse>> HandleAsync(GetAccountQuery query, CancellationToken cancellationToken) =>
         await db.Accounts.AsNoTracking().SingleOrDefaultAsync(account => account.Id == query.AccountId, cancellationToken) is { } account
-            ? AccountResponse.From(account, await balances.OfAsync(account.Id, cancellationToken))
+            ? AccountResponse.From(account, await balances.OfAsync(account.Id, cancellationToken), scope.Today)
             : LedgerErrors.AccountNotFound;
 }
 
-/// <param name="OpeningBalance">What the account holds today. Zero opens it empty; a negative amount is an overdraft.</param>
-public sealed record OpenAccountCommand(string Name, AccountType Type, string Currency, string? Institution, decimal OpeningBalance, string IdempotencyKey)
+/// <param name="OpeningBalance">
+/// What the account holds today. Zero opens it empty; a negative amount is money owed: an overdraft, or the debt a
+/// credit card already carries.
+/// </param>
+/// <param name="CreditCard">Required for a credit card, and only allowed for one.</param>
+public sealed record OpenAccountCommand(
+    string Name, AccountType Type, string Currency, string? Institution, decimal OpeningBalance, bool IncludeInNetWorth, CreditCardTerms? CreditCard,
+    string IdempotencyKey)
     : ICommand<AccountResponse>, IIdempotentCommand;
 
-internal sealed class OpenAccountHandler(ILedgerDb db, LedgerScope scope, IAuditLog audit, IClock clock) : ICommandHandler<OpenAccountCommand, AccountResponse>
+internal sealed class OpenAccountHandler(ILedgerDb db, LedgerScope scope, ExchangeRateBook rates, IAuditLog audit, IClock clock)
+    : ICommandHandler<OpenAccountCommand, AccountResponse>
 {
     public async Task<Result<AccountResponse>> HandleAsync(OpenAccountCommand command, CancellationToken cancellationToken)
     {
@@ -54,7 +75,8 @@ internal sealed class OpenAccountHandler(ILedgerDb db, LedgerScope scope, IAudit
             return LedgerErrors.Unauthenticated;
         }
 
-        var opened = Account.Open(workspaceId, userId, command.Name, command.Type, command.Currency, command.Institution, clock.UtcNow);
+        var opened = Account.Open(
+            workspaceId, userId, command.Name, command.Type, command.Currency, command.Institution, clock.UtcNow, command.CreditCard, command.IncludeInNetWorth);
         if (opened.IsFailure)
         {
             return opened.Error;
@@ -76,6 +98,7 @@ internal sealed class OpenAccountHandler(ILedgerDb db, LedgerScope scope, IAudit
                 return opening.Error;
             }
 
+            await rates.ValueAsync(opening.Value, cancellationToken);
             db.Operations.Add(opening.Value);
             LedgerMetrics.OperationsPosted.Add(1, new KeyValuePair<string, object?>("kind", nameof(OperationKind.OpeningBalance)));
         }
@@ -83,15 +106,19 @@ internal sealed class OpenAccountHandler(ILedgerDb db, LedgerScope scope, IAudit
         audit.Record(new AuditEntry("ledger", "ledger.account.opened", "account", account.Id)
         {
             OwnerUserId = userId,
-            After = new { account.Name, Type = account.Type.ToString(), account.Currency, command.OpeningBalance }
+            After = new { account.Name, Type = account.Type.ToString(), account.Currency, command.OpeningBalance, account.IncludeInNetWorth, command.CreditCard }
         });
-        return AccountResponse.From(account, command.OpeningBalance);
+        return AccountResponse.From(account, command.OpeningBalance, scope.Today);
     }
 }
 
-public sealed record UpdateAccountCommand(Guid AccountId, string Name, string? Institution) : ICommand<AccountResponse>;
+/// <param name="IncludeInNetWorth">Left out, the account keeps what it has.</param>
+/// <param name="CreditCard">The line and the days of a credit card. Left out, the card keeps the ones it has.</param>
+public sealed record UpdateAccountCommand(Guid AccountId, string Name, string? Institution, bool? IncludeInNetWorth, CreditCardTerms? CreditCard)
+    : ICommand<AccountResponse>;
 
-internal sealed class UpdateAccountHandler(ILedgerDb db, AccountBalances balances, IAuditLog audit) : ICommandHandler<UpdateAccountCommand, AccountResponse>
+internal sealed class UpdateAccountHandler(ILedgerDb db, AccountBalances balances, LedgerScope scope, IAuditLog audit)
+    : ICommandHandler<UpdateAccountCommand, AccountResponse>
 {
     public async Task<Result<AccountResponse>> HandleAsync(UpdateAccountCommand command, CancellationToken cancellationToken)
     {
@@ -100,8 +127,8 @@ internal sealed class UpdateAccountHandler(ILedgerDb db, AccountBalances balance
             return LedgerErrors.AccountNotFound;
         }
 
-        var before = new { account.Name, account.Institution };
-        var updated = account.Update(command.Name, command.Institution);
+        var before = Describe(account);
+        var updated = account.Update(command.Name, command.Institution, command.IncludeInNetWorth ?? account.IncludeInNetWorth, command.CreditCard);
         if (updated.IsFailure)
         {
             return updated.Error;
@@ -116,15 +143,26 @@ internal sealed class UpdateAccountHandler(ILedgerDb db, AccountBalances balance
         {
             OwnerUserId = account.OwnerUserId,
             Before = before,
-            After = new { account.Name, account.Institution }
+            After = Describe(account)
         });
-        return AccountResponse.From(account, await balances.OfAsync(account.Id, cancellationToken));
+        return AccountResponse.From(account, await balances.OfAsync(account.Id, cancellationToken), scope.Today);
     }
+
+    private static object Describe(Account account) => new
+    {
+        account.Name,
+        account.Institution,
+        account.IncludeInNetWorth,
+        account.CreditCard?.CreditLimit,
+        account.CreditCard?.PaymentDay,
+        account.CreditCard?.ClosingDay
+    };
 }
 
 public sealed record ArchiveAccountCommand(Guid AccountId) : ICommand<AccountResponse>;
 
-internal sealed class ArchiveAccountHandler(ILedgerDb db, AccountBalances balances, IAuditLog audit, IClock clock) : ICommandHandler<ArchiveAccountCommand, AccountResponse>
+internal sealed class ArchiveAccountHandler(ILedgerDb db, AccountBalances balances, LedgerScope scope, IAuditLog audit, IClock clock)
+    : ICommandHandler<ArchiveAccountCommand, AccountResponse>
 {
     public async Task<Result<AccountResponse>> HandleAsync(ArchiveAccountCommand command, CancellationToken cancellationToken)
     {
@@ -139,13 +177,14 @@ internal sealed class ArchiveAccountHandler(ILedgerDb db, AccountBalances balanc
             audit.Record(new AuditEntry("ledger", "ledger.account.archived", "account", account.Id) { OwnerUserId = account.OwnerUserId });
         }
 
-        return AccountResponse.From(account, await balances.OfAsync(account.Id, cancellationToken));
+        return AccountResponse.From(account, await balances.OfAsync(account.Id, cancellationToken), scope.Today);
     }
 }
 
 public sealed record RestoreAccountCommand(Guid AccountId) : ICommand<AccountResponse>;
 
-internal sealed class RestoreAccountHandler(ILedgerDb db, AccountBalances balances, IAuditLog audit) : ICommandHandler<RestoreAccountCommand, AccountResponse>
+internal sealed class RestoreAccountHandler(ILedgerDb db, AccountBalances balances, LedgerScope scope, IAuditLog audit)
+    : ICommandHandler<RestoreAccountCommand, AccountResponse>
 {
     public async Task<Result<AccountResponse>> HandleAsync(RestoreAccountCommand command, CancellationToken cancellationToken)
     {
@@ -165,16 +204,17 @@ internal sealed class RestoreAccountHandler(ILedgerDb db, AccountBalances balanc
             audit.Record(new AuditEntry("ledger", "ledger.account.restored", "account", account.Id) { OwnerUserId = account.OwnerUserId });
         }
 
-        return AccountResponse.From(account, await balances.OfAsync(account.Id, cancellationToken));
+        return AccountResponse.From(account, await balances.OfAsync(account.Id, cancellationToken), scope.Today);
     }
 }
 
 /// <summary>States what the account really holds. The ledger records the difference; nothing is overwritten.</summary>
+/// <param name="ActualBalance">Negative for money owed, as the debt of a credit card.</param>
 /// <param name="OccurredOn">The day the balance was checked. Today when left out.</param>
 public sealed record AdjustAccountBalanceCommand(Guid AccountId, decimal ActualBalance, DateOnly? OccurredOn, string IdempotencyKey)
     : ICommand<AccountResponse>, IIdempotentCommand;
 
-internal sealed class AdjustAccountBalanceHandler(ILedgerDb db, AccountBalances balances, LedgerScope scope, IAuditLog audit, IClock clock)
+internal sealed class AdjustAccountBalanceHandler(ILedgerDb db, AccountBalances balances, LedgerScope scope, ExchangeRateBook rates, IAuditLog audit, IClock clock)
     : ICommandHandler<AdjustAccountBalanceCommand, AccountResponse>
 {
     public async Task<Result<AccountResponse>> HandleAsync(AdjustAccountBalanceCommand command, CancellationToken cancellationToken)
@@ -188,7 +228,7 @@ internal sealed class AdjustAccountBalanceHandler(ILedgerDb db, AccountBalances 
         var difference = command.ActualBalance - current;
         if (difference == 0)
         {
-            return AccountResponse.From(account, current);
+            return AccountResponse.From(account, current, scope.Today);
         }
 
         var adjustment = Operation.Adjust(account, difference, command.OccurredOn ?? scope.Today, clock.UtcNow);
@@ -197,6 +237,7 @@ internal sealed class AdjustAccountBalanceHandler(ILedgerDb db, AccountBalances 
             return adjustment.Error;
         }
 
+        await rates.ValueAsync(adjustment.Value, cancellationToken);
         db.Operations.Add(adjustment.Value);
         LedgerMetrics.OperationsPosted.Add(1, new KeyValuePair<string, object?>("kind", nameof(OperationKind.Adjustment)));
         audit.Record(new AuditEntry("ledger", "ledger.account.balance_adjusted", "account", account.Id)
@@ -205,7 +246,7 @@ internal sealed class AdjustAccountBalanceHandler(ILedgerDb db, AccountBalances 
             Before = new { Balance = current },
             After = new { Balance = command.ActualBalance, OperationId = adjustment.Value.Id }
         });
-        return AccountResponse.From(account, command.ActualBalance);
+        return AccountResponse.From(account, command.ActualBalance, scope.Today);
     }
 }
 

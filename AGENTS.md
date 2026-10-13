@@ -81,4 +81,4 @@ npm run e2e                                      # requiere la API en marcha
 
 ## Estado
 
-Fases 0 a 3 terminadas: plataforma, cuentas y sesión (Identity), workspaces con miembros, roles e invitaciones, categorías y tags privados por usuario (Categories), y cuentas con ingresos y gastos (Ledger I). Lo siguiente es la fase 4 (Ledger II: transferencias, tarjetas, patrimonio e Inicio). El tablero está en [docs/roadmap/status.md](docs/roadmap/status.md).
+Fases 0 a 4 terminadas: plataforma, cuentas y sesión (Identity), workspaces con miembros, roles e invitaciones, categorías y tags privados por usuario (Categories), cuentas con ingresos y gastos (Ledger I), y transferencias, tarjetas de crédito, patrimonio, tipo de cambio e Inicio (Ledger II y Reporting). Lo siguiente es la fase 5 (Budgets). El tablero está en [docs/roadmap/status.md](docs/roadmap/status.md).

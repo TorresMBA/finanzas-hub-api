@@ -68,6 +68,58 @@ public static class Books
         return await response.Content.ReadFromJsonAsync<JsonElement>();
     }
 
+    public static string TransfersUrl(Guid workspaceId) => $"/api/v1/workspaces/{workspaceId}/transfers";
+
+    /// <param name="debt">What the card already owes, as a positive amount.</param>
+    public static async Task<JsonElement> OpenCardAsync(
+        this TestAccount person, string name, decimal creditLimit, decimal debt = 0, string currency = "PEN", int paymentDay = 5, Guid? workspaceId = null)
+    {
+        var response = await person.Client.PostWithKeyAsync(AccountsUrl(workspaceId ?? person.PersonalWorkspaceId), new
+        {
+            name, type = "creditCard", currency, openingBalance = -debt, creditCard = new { creditLimit, paymentDay }
+        });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return await response.Content.ReadFromJsonAsync<JsonElement>();
+    }
+
+    public static Task<HttpResponseMessage> PostTransferAsync(
+        this TestAccount person, Guid fromAccountId, Guid toAccountId, decimal amount, decimal? destinationAmount = null, string occurredOn = "2026-10-12",
+        string? description = null, string? key = null, Guid? workspaceId = null) =>
+        person.Client.PostWithKeyAsync(
+            TransfersUrl(workspaceId ?? person.PersonalWorkspaceId), new { fromAccountId, toAccountId, amount, destinationAmount, occurredOn, description }, key);
+
+    public static async Task<JsonElement> TransferAsync(
+        this TestAccount person, Guid fromAccountId, Guid toAccountId, decimal amount, decimal? destinationAmount = null, string occurredOn = "2026-10-12")
+    {
+        var response = await person.PostTransferAsync(fromAccountId, toAccountId, amount, destinationAmount, occurredOn);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return await response.Content.ReadFromJsonAsync<JsonElement>();
+    }
+
+    public static Task<HttpResponseMessage> PayCardAsync(
+        this TestAccount person, Guid cardId, Guid fromAccountId, decimal amount, decimal? sourceAmount = null, string occurredOn = "2026-10-12", Guid? workspaceId = null) =>
+        person.Client.PostWithKeyAsync(
+            $"{AccountsUrl(workspaceId ?? person.PersonalWorkspaceId)}/{cardId}/payments", new { fromAccountId, amount, sourceAmount, occurredOn });
+
+    /// <summary>How much of the base currency one unit of a currency is worth, from a day that is long past.</summary>
+    public static async Task SetRateAsync(this TestAccount person, string currency, decimal rate, string asOf = "2026-01-01", Guid? workspaceId = null)
+    {
+        var response = await person.Client.PutAsJsonAsync(
+            $"/api/v1/workspaces/{workspaceId ?? person.PersonalWorkspaceId}/exchange-rates/{currency}", new { rate, asOf });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    public static async Task<JsonElement> AccountAsync(this TestAccount person, Guid accountId, Guid? workspaceId = null) =>
+        await person.Client.GetFromJsonAsync<JsonElement>($"{AccountsUrl(workspaceId ?? person.PersonalWorkspaceId)}/{accountId}");
+
+    public static async Task<JsonElement> SummaryAsync(this TestAccount person, Guid? workspaceId = null) =>
+        await person.Client.GetFromJsonAsync<JsonElement>($"{AccountsUrl(workspaceId ?? person.PersonalWorkspaceId)}/summary");
+
+    public static async Task<JsonElement> DashboardAsync(this TestAccount person, string month, Guid? workspaceId = null) =>
+        await person.Client.GetFromJsonAsync<JsonElement>($"/api/v1/workspaces/{workspaceId ?? person.PersonalWorkspaceId}/dashboard?month={month}");
+
+    public static decimal Money(this JsonElement element, string property) => element.GetProperty(property).GetDecimal();
+
     public static async Task<decimal> BalanceAsync(this TestAccount person, Guid accountId, Guid? workspaceId = null) =>
         (await person.Client.GetFromJsonAsync<JsonElement>($"{AccountsUrl(workspaceId ?? person.PersonalWorkspaceId)}/{accountId}")).GetProperty("balance").GetDecimal();
 

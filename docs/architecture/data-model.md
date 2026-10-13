@@ -66,14 +66,14 @@ Columnas de acceso: **P** privado `(workspace_id, owner_user_id)`, **C** colabor
 
 | Tabla | Clave y relaciones | Únicos, índices y checks | Acceso |
 |---|---|---|---|
-| `accounts` | PK `id` | Único parcial `(workspace_id, owner_user_id, name_key) WHERE archived_at IS NULL`, donde `name_key` es el nombre en minúsculas; único parcial `(owner_user_id, linked_resource_type, linked_resource_id) WHERE is_system`; `type IN (...)`; `status IN (Active, Archived)` | P |
+| `accounts` | PK `id` | Único parcial `(workspace_id, owner_user_id, name_key) WHERE archived_at IS NULL`, donde `name_key` es el nombre en minúsculas; único parcial `(owner_user_id, linked_resource_type, linked_resource_id) WHERE is_system` (con las cuentas de sistema, fase 8); `type IN (Bank, Cash, Wallet, CreditCard)`; `include_in_net_worth`, verdadero salvo que la persona saque la cuenta del patrimonio; archivada si `archived_at` tiene valor | P |
 | `credit_card_profiles` | PK y FK `account_id` → `accounts` | `credit_limit > 0`; días entre 1 y 31 | P por raíz |
 | `operations` | PK `id`; ref `category_id` | Índice `(workspace_id, owner_user_id, occurred_on DESC, id DESC)`; índice `(owner_user_id, category_id, occurred_on)`; único parcial `(source_module, source_type, source_id) WHERE source_id IS NOT NULL`; `kind` y `status` con CHECK; categoría obligatoria si `kind IN (Income, Expense, Refund)` | P |
 | `entries` | PK `id`; FK `operation_id` → `operations` (cascada); FK `account_id` → `accounts` | `amount > 0`; `direction IN (In, Out)`; `signed_amount` generada; índice `(account_id, occurred_on) INCLUDE (signed_amount) WHERE is_effective`; repite `workspace_id` y `owner_user_id` de su operación para tener su propio filtro de dueño | P |
 | `operation_tags` | PK `(operation_id, tag_id)`; FK `operation_id`; ref `tag_id` | Índice `(tag_id)` | P por raíz |
 | `installment_plans` (Fase 14) | PK `id`; FK `purchase_operation_id`, `account_id` | `months` entre 2 y 48; índice `(account_id, status)` | P |
 | `installment_charges` (Fase 14) | PK `(plan_id, number)`; FK `plan_id`, `operation_id` | UNIQUE `operation_id` | P por raíz |
-| `exchange_rates` | PK `id` | UNIQUE `(base_currency, quote_currency, as_of, source)`; `rate > 0` | R |
+| `exchange_rates` | PK `id` | UNIQUE `(workspace_id, owner_user_id, base_currency, currency, as_of)`; `rate > 0`; `currency <> base_currency` | P |
 
 **`scheduling`**
 
