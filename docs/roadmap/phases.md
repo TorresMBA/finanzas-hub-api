@@ -748,3 +748,14 @@ Verificado: 254 tests de backend, 126 de frontend, 27 E2E. El E2E paga, anula y 
 - En pantallas estrechas la lista y el detalle se turnan, con «Grupos» para volver.
 
 Verificado: 254 tests de backend, 126 de frontend, 27 E2E (el de gastos compartidos recorre la lista, el detalle del gasto y el paso lista-detalle a 390 px). No verificado: el tema claro de esta pantalla y la lista con seis o más grupos en el navegador.
+
+**Estado de la fase 10 (13-oct-2026): completada.**
+
+- **Formatos.** CSV de banco (separador, fechas y montos reconocidos solos; monto con signo o cargo y abono), OFX y la exportación de Bluecoins, pedida por el dueño: trae sus cuentas, categorías con su grupo, etiquetas, transferencias en dos líneas y el saldo inicial de cada cuenta. El formato se reconoce por el contenido.
+- **Revisión.** Cada cuenta y categoría del archivo se empareja con las de la persona por su nombre; lo que falta se elige o se crea (cuentas de banco, efectivo o billetera; categorías bajo su grupo). Cada línea dice si está lista, por resolver, ya registrada, excluida o ilegible.
+- **Duplicados.** Contra el ledger: misma cuenta, mismo día, mismo monto. Cada movimiento del ledger cubre una sola línea, así dos cafés iguales del mismo día no se confunden con uno. Lo ya registrado queda fuera, y se puede incluir.
+- **Confirmación.** Todo o nada, idempotente y una sola vez. Los movimientos entran por `ILedgerImport`, en bloque y sin avisos de movimiento grande ni alertas de presupuesto, y son de la persona como cualquier otro: se editan y se anulan.
+- **Reglas** «si la descripción contiene…», la más específica gana.
+- **Decisión.** El archivo se lee en la misma petición y no se guarda: no hay `ParseImportsJob` ni `IFileStorage`. XLSX queda para la fase 12.
+
+Verificado: 259 tests de backend, 127 de frontend, 28 E2E (el nuevo importa una exportación de Bluecoins creando cuenta y categoría, y comprueba que repetirla no añade nada).

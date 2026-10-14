@@ -16,8 +16,8 @@ Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance d
 | 7 | Scheduling y Calendario | ✅ Completada | 13-oct-2026 |
 | 8 | Goals | ✅ Completada | 13-oct-2026 |
 | 9 | SharedExpenses | ✅ Completada | 13-oct-2026 |
-| 10 | Integrations: importación y reglas | ⏳ Pendiente (siguiente) | — |
-| 11 | WhatsApp | ⏳ Pendiente | — |
+| 10 | Integrations: importación y reglas | ✅ Completada | 13-oct-2026 |
+| 11 | WhatsApp | ⏳ Pendiente (siguiente) | — |
 | 12 | Reporting | ⏳ Pendiente | — |
 | 13 | Investments | ⏳ Pendiente | — |
 | 14 | Tarjetas avanzadas y FX | ⏳ Pendiente | — |
@@ -26,14 +26,14 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-13-oct-2026, al cerrar la fase 9.
+13-oct-2026, al cerrar la fase 10.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 254 en verde (148 unitarios, 19 de arquitectura, 87 de integración) |
-| Frontend: build, tests y lint | Build correcto y sin avisos, 126 tests, lint limpio |
-| E2E en Chrome | 27 en verde |
+| Backend: tests | 259 en verde (151 unitarios, 19 de arquitectura, 89 de integración) |
+| Frontend: build, tests y lint | Build correcto y sin avisos, 127 tests, lint limpio |
+| E2E en Chrome | 28 en verde |
 
 ## Pendientes que dejaron las fases cerradas
 
@@ -175,3 +175,15 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Presupuesto en el Inicio | Fase 4 | Fase 5: una cifra con el porcentaje usado |
 | `ILedgerQueries` para otros módulos | Fase 3 | Fase 4: lo usa Reporting para el Inicio |
 | Totales convertidos a la moneda base | Fase 3 | Fase 4, con el tipo de cambio de referencia |
+
+### Fase 10
+
+| Pendiente | Se retoma |
+|---|---|
+| Importar XLSX | Con la fase 12, que trae la librería de Excel para exportar. Hoy se guarda la hoja como CSV y se sube |
+| Mapear a mano las columnas de un CSV | Sin fecha. Las columnas se reconocen por su nombre (fecha, descripción, monto o cargo y abono, categoría, moneda, en español o inglés); un banco con otros nombres da `imports.format_not_recognized` |
+| Análisis en segundo plano (`ParseImportsJob`, `IFileStorage`) | No hizo falta: con 10 MB y 10 000 líneas como máximo el archivo se lee en la misma petición y no se guarda. Se retoma si un archivo tarda demasiado |
+| Movimientos en otra moneda que la de su cuenta (Bluecoins) | Sin fecha. Quedan como «Otra moneda» y se excluyen; no se convierten con el tipo de cambio del archivo |
+| Volver a aplicar las reglas a una importación en revisión | Sin fecha. Las reglas se aplican al leer el archivo; después se clasifica línea por línea |
+| Formato real de la exportación de Bluecoins | Probado con las dos cabeceras conocidas (la de exportar y la de la plantilla de importación, con columnas numeradas). Sin verificar con un archivo real del dueño |
+| Evento `ImportCommitted` y aviso al terminar | Sin fecha: la importación se confirma con la pantalla abierta |

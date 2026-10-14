@@ -16,10 +16,12 @@ using PersonalFinance.Modules.Ledger.Application.Abstractions;
 using PersonalFinance.Modules.Notifications.Application.Abstractions;
 using PersonalFinance.Modules.Scheduling.Application.Abstractions;
 using PersonalFinance.Modules.SharedExpenses.Application.Abstractions;
+using PersonalFinance.Modules.Integrations.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Domain;
 using PersonalFinance.Modules.Notifications.Domain;
 using PersonalFinance.Modules.Scheduling.Domain;
 using PersonalFinance.Modules.SharedExpenses.Domain;
+using PersonalFinance.Modules.Integrations.Domain;
 using PersonalFinance.Modules.Identity.Domain;
 using PersonalFinance.Modules.Workspaces.Application.Abstractions;
 using PersonalFinance.Modules.Workspaces.Domain;
@@ -39,6 +41,8 @@ internal static class Schemas
     public const string Scheduling = "scheduling";
     public const string Goals = "goals";
     public const string SharedExpenses = "shared_expenses";
+
+    public const string Integrations = "integrations";
 }
 
 /// <summary>
@@ -48,7 +52,7 @@ internal static class Schemas
 /// </summary>
 internal sealed class AppDbContext(
     DbContextOptions<AppDbContext> options, ICurrentUser currentUser, IWorkspaceContext workspaceContext, IPersonalSpace personalSpace)
-    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ILedgerDb, IBudgetsDb, INotificationsDb, ISchedulingDb, IGoalsDb, ISharedExpensesDb
+    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ILedgerDb, IBudgetsDb, INotificationsDb, ISchedulingDb, IGoalsDb, ISharedExpensesDb, IIntegrationsDb
 {
     private static readonly MethodInfo ApplyOwnerFilterMethod =
         typeof(AppDbContext).GetMethod(nameof(ApplyOwnerFilter), BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -92,6 +96,12 @@ internal sealed class AppDbContext(
     public DbSet<Goal> Goals => Set<Goal>();
 
     public DbSet<SharedGroup> SharedGroups => Set<SharedGroup>();
+
+    public DbSet<ImportSession> ImportSessions => Set<ImportSession>();
+
+    public DbSet<ImportRecord> ImportRecords => Set<ImportRecord>();
+
+    public DbSet<CategorizationRule> CategorizationRules => Set<CategorizationRule>();
 
     // Read by the global query filters. With no user or workspace they match nothing.
     private Guid CurrentUserId => currentUser.UserId ?? Guid.Empty;

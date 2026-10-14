@@ -44,3 +44,19 @@ public interface ITagLookup
 
     Task<TagInfo?> FindByNameAsync(string name, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// The categories of the current person as a list to choose from, and a way to add the ones a file brings.
+/// </summary>
+public interface ICategoryDirectory
+{
+    /// <summary>The categories and subcategories in use.</summary>
+    Task<IReadOnlyList<CategoryInfo>> ListAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The category with that name, created when the person does not have it. With a parent name it is a
+    /// subcategory of that category, which is created too when missing.
+    /// </summary>
+    /// <returns>The id of the category.</returns>
+    Task<Result<Guid>> EnsureAsync(CategoryUse use, string name, string? parentName, CancellationToken cancellationToken);
+}

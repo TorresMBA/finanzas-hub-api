@@ -23,6 +23,7 @@ public class ModuleBoundaryTests
         ["Scheduling"] = ["Ledger", "Categories", "Notifications", "Workspaces"],
         ["Goals"] = ["Ledger", "Workspaces", "Notifications"],
         ["SharedExpenses"] = ["Ledger", "Workspaces", "Notifications"],
+        ["Integrations"] = ["Ledger", "Categories"],
         ["Reporting"] = ["Ledger", "Categories", "Budgets", "Scheduling", "Goals"]
     };
 

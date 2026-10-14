@@ -733,6 +733,255 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PersonalFinance.Modules.Integrations.Domain.CategorizationRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<string>("Pattern")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("pattern");
+
+                    b.Property<string>("PatternKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("pattern_key");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_categorization_rules");
+
+                    b.HasIndex("WorkspaceId", "OwnerUserId", "PatternKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_categorization_rules_owner_pattern");
+
+                    b.ToTable("categorization_rules", "integrations");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Integrations.Domain.ImportRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<decimal?>("CounterAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("counter_amount");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character(3)")
+                        .HasColumnName("currency")
+                        .IsFixedLength();
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("error");
+
+                    b.Property<bool?>("Excluded")
+                        .HasColumnType("boolean")
+                        .HasColumnName("excluded");
+
+                    b.Property<bool>("IsDuplicate")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_duplicate");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Labels")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("labels");
+
+                    b.Property<int>("Line")
+                        .HasColumnType("integer")
+                        .HasColumnName("line");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<DateOnly?>("OccurredOn")
+                        .HasColumnType("date")
+                        .HasColumnName("occurred_on");
+
+                    b.Property<Guid?>("OperationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("operation_id");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("session_id");
+
+                    b.Property<string>("SourceAccount")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("source_account");
+
+                    b.Property<string>("SourceCategory")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("source_category");
+
+                    b.Property<string>("SourceCategoryGroup")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("source_category_group");
+
+                    b.Property<string>("SourceCounterAccount")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("source_counter_account");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_import_records");
+
+                    b.HasIndex("SessionId", "Line")
+                        .HasDatabaseName("ix_import_records_session_id_line");
+
+                    b.ToTable("import_records", "integrations", t =>
+                        {
+                            t.HasCheckConstraint("ck_import_records_kind", "kind IN ('Income', 'Expense', 'Transfer', 'OpeningBalance')");
+                        });
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Integrations.Domain.ImportSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CommittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("committed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FileHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("file_hash")
+                        .IsFixedLength();
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("format");
+
+                    b.Property<int>("ImportedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("imported_count");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<int>("RecordCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("record_count");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_import_sessions");
+
+                    b.HasIndex("WorkspaceId", "OwnerUserId", "CreatedAt")
+                        .HasDatabaseName("ix_import_sessions_workspace_id_owner_user_id_created_at");
+
+                    b.ToTable("import_sessions", "integrations", t =>
+                        {
+                            t.HasCheckConstraint("ck_import_sessions_format", "format IN ('Csv', 'Bluecoins', 'Ofx')");
+
+                            t.HasCheckConstraint("ck_import_sessions_status", "status IN ('Review', 'Committed')");
+                        });
+                });
+
             modelBuilder.Entity("PersonalFinance.Modules.Ledger.Domain.Account", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1702,6 +1951,115 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_user_preferences_users_user_id");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Integrations.Domain.ImportRecord", b =>
+                {
+                    b.HasOne("PersonalFinance.Modules.Integrations.Domain.ImportSession", null)
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_import_records_import_sessions_session_id");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Integrations.Domain.ImportSession", b =>
+                {
+                    b.OwnsMany("PersonalFinance.Modules.Integrations.Domain.ImportAccount", "Accounts", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<Guid?>("AccountId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("account_id");
+
+                            b1.Property<string>("CreateAs")
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)")
+                                .HasColumnName("create_as");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .HasColumnType("character(3)")
+                                .HasColumnName("currency")
+                                .IsFixedLength();
+
+                            b1.Property<Guid>("SessionId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("session_id");
+
+                            b1.Property<string>("SourceName")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("source_name");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_import_accounts");
+
+                            b1.HasIndex("SessionId")
+                                .HasDatabaseName("ix_import_accounts_session_id");
+
+                            b1.ToTable("import_accounts", "integrations");
+
+                            b1.WithOwner()
+                                .HasForeignKey("SessionId")
+                                .HasConstraintName("fk_import_accounts_import_sessions_session_id");
+                        });
+
+                    b.OwnsMany("PersonalFinance.Modules.Integrations.Domain.ImportCategory", "Categories", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<Guid?>("CategoryId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("category_id");
+
+                            b1.Property<bool>("Create")
+                                .HasColumnType("boolean")
+                                .HasColumnName("create");
+
+                            b1.Property<bool>("IsIncome")
+                                .HasColumnType("boolean")
+                                .HasColumnName("is_income");
+
+                            b1.Property<Guid>("SessionId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("session_id");
+
+                            b1.Property<string>("SourceGroup")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("source_group");
+
+                            b1.Property<string>("SourceName")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("source_name");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_import_categories");
+
+                            b1.HasIndex("SessionId")
+                                .HasDatabaseName("ix_import_categories_session_id");
+
+                            b1.ToTable("import_categories", "integrations");
+
+                            b1.WithOwner()
+                                .HasForeignKey("SessionId")
+                                .HasConstraintName("fk_import_categories_import_sessions_session_id");
+                        });
+
+                    b.Navigation("Accounts");
+
+                    b.Navigation("Categories");
                 });
 
             modelBuilder.Entity("PersonalFinance.Modules.Ledger.Domain.Account", b =>
