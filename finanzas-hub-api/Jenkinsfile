@@ -1,0 +1,169 @@
+// CI del backend de PersonalHub en el servidor Mercury (plantilla apps/_templates/dotnet).
+// Job en la carpeta `dotnet` de Jenkins, repo finanzas-hub-api, Script Path: finanzas-hub-api/Jenkinsfile.
+//
+// Despliega dos apps con la misma imagen base y la misma configuración de base de datos:
+//   finanzas-hub-api     API HTTP (contenedor finanzas-hub-api-<env>, puerto 8080)
+//   finanzas-hub-worker  jobs en segundo plano (contenedor finanzas-hub-worker-<env>, sin HTTP)
+// Antes de cambiar los contenedores aplica las migraciones con la imagen nueva: si fallan,
+// no se despliega nada y siguen en marcha las versiones anteriores.
+//
+// Configuración por ambiente (no versionada), legible por el agente:
+//   /srv/mercury/apps/<env>/finanzas-hub-api.env
+//   /srv/mercury/apps/<env>/finanzas-hub-worker.env
+// Ver docs/development/deployment.md.
+
+// Migra y despliega API y Worker en un ambiente. Necesita REGISTRY (credentials('registry')).
+def deployAll(String targetEnv) {
+  withEnv(["TARGET_ENV=${targetEnv}"]) {
+    sh '''
+      export APPS_DIR="${APPS_DIR:-/srv/mercury/apps}"
+      for app in "$APP" "$WORKER_APP"; do
+        [ -r "$APPS_DIR/$TARGET_ENV/$app.env" ] || { echo "Falta $APPS_DIR/$TARGET_ENV/$app.env (ver docs/development/deployment.md)"; exit 1; }
+      done
+
+      # Contenedor de un solo uso con el compose de despliegue del servidor: mismo .env (con
+      # comillas incluidas, que `docker run --env-file` no quitaría) y misma red de base de datos.
+      # No toca el contenedor del API en marcha.
+      api_image="$(mercury-ci image-ref "$APP" "$TAG")"
+      docker pull "$api_image"
+      echo "Migraciones en $TARGET_ENV con $api_image"
+      APP="$APP" APP_ENV="$TARGET_ENV" IMAGE="$api_image" \
+        docker compose -f "${MERCURY_TEMPLATES:-/opt/mercury/templates}/compose.deploy.yaml" run --rm -T app migrate
+
+      mercury-ci deploy "$APP" "$TARGET_ENV" "$TAG"
+      APP_MEM_LIMIT=256m mercury-ci deploy "$WORKER_APP" "$TARGET_ENV" "$TAG"
+    '''
+  }
+}
+
+pipeline {
+  agent none
+
+  options {
+    timestamps()
+    // Un push nuevo cancela el build anterior de este job, aunque esté esperando en "Aprobar prod"
+    disableConcurrentBuilds(abortPrevious: true)
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+  }
+
+  environment {
+    APP = 'finanzas-hub-api'                // imagen, contenedor y proyecto de SonarQube
+    WORKER_APP = 'finanzas-hub-worker'
+    SOLUTION = 'PersonalFinance.slnx'
+    API_PROJECT = 'src/PersonalFinance.Api/PersonalFinance.Api.csproj'
+    WORKER_PROJECT = 'src/PersonalFinance.Worker/PersonalFinance.Worker.csproj'
+    // Sin Docker propio en el agente no corren los tests de integración (Testcontainers);
+    // los unitarios y los de arquitectura sí.
+    TEST_PROJECTS = 'tests/PersonalFinance.UnitTests/PersonalFinance.UnitTests.csproj tests/PersonalFinance.ArchitectureTests/PersonalFinance.ArchitectureTests.csproj'
+    TAG = "${BUILD_NUMBER}"
+  }
+
+  stages {
+    stage('CI') {
+      // net10.0: agente dotnet-10.0 (la versión por defecto, etiqueta 'dotnet')
+      agent { label 'dotnet-10.0' }
+      options {
+        timeout(time: 45, unit: 'MINUTES')
+      }
+      environment {
+        REGISTRY = credentials('registry')
+      }
+      stages {
+        stage('Build, test y SonarQube') {
+          steps {
+            dir('finanzas-hub-api') {
+              withSonarQubeEnv('sonarqube') {
+                sh '''
+                  dotnet sonarscanner begin /k:"$APP" /d:sonar.host.url="$SONAR_HOST_URL" /d:sonar.token="$SONAR_AUTH_TOKEN" \
+                    /d:sonar.exclusions="**/Migrations/**"
+                  dotnet restore "$SOLUTION"
+                  dotnet build "$SOLUTION" -c Release --no-restore
+                  for project in $TEST_PROJECTS; do
+                    dotnet test "$project" -c Release --no-build
+                  done
+                  dotnet sonarscanner end /d:sonar.token="$SONAR_AUTH_TOKEN"
+                '''
+              }
+            }
+          }
+        }
+
+        stage('Análisis') {
+          failFast true
+          parallel {
+            stage('Quality gate') {
+              steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                  waitForQualityGate abortPipeline: true
+                }
+              }
+            }
+
+            stage('Seguridad') {
+              steps {
+                dir('finanzas-hub-api') {
+                  sh '''
+                    mercury-ci semgrep
+                    mercury-ci trivy-fs
+                  '''
+                }
+              }
+            }
+          }
+        }
+
+        stage('Imágenes') {
+          steps {
+            dir('finanzas-hub-api') {
+              // --no-build: reutiliza lo compilado arriba. El Dockerfile de esta carpeta gana a la plantilla.
+              sh '''
+                rm -rf publish
+                dotnet publish "$API_PROJECT" -c Release --no-build -o publish/api
+                dotnet publish "$WORKER_PROJECT" -c Release --no-build -o publish/worker
+                mercury-ci login
+                mercury-ci package dotnet publish/api "$APP" "$TAG"
+                mercury-ci package dotnet publish/worker "$WORKER_APP" "$TAG"
+                mercury-ci trivy-image "$(mercury-ci image-ref "$APP" "$TAG")"
+              '''
+            }
+          }
+        }
+
+        stage('Deploy dev') {
+          steps {
+            deployAll('dev')
+          }
+        }
+      }
+      post {
+        always {
+          archiveArtifacts artifacts: 'finanzas-hub-api/semgrep.json', allowEmptyArchive: true
+        }
+      }
+    }
+
+    // Sin agente: la espera no ocupa RAM ni un cupo de agente
+    stage('Aprobar prod') {
+      steps {
+        timeout(time: 1, unit: 'DAYS') {
+          input message: "¿Promover ${APP}:${TAG} y ${WORKER_APP}:${TAG} a prod?"
+        }
+      }
+    }
+
+    stage('Deploy prod') {
+      agent { label 'base' }
+      environment {
+        REGISTRY = credentials('registry')
+      }
+      options {
+        skipDefaultCheckout()
+        timeout(time: 10, unit: 'MINUTES')
+      }
+      steps {
+        sh 'mercury-ci login'
+        deployAll('prod')
+      }
+    }
+  }
+}
