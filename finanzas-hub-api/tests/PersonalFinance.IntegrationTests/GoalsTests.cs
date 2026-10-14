@@ -89,6 +89,9 @@ public class GoalsTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.Created, (await MoveAsync(juan, workspaceId, goalId, "withdrawals", 200m, juansBank.Id())).StatusCode);
         Assert.Equal((700m, 800m), (await juan.BalanceAsync(juansBank.Id(), workspaceId), (await GoalAsync(brian, workspaceId, goalId)).Money("saved")));
         Assert.Equal("goals.participant.has_balance", await Accounts.CodeOfAsync(await brian.Client.DeleteAsync(Url(workspaceId, $"/{goalId}/participants/{juan.UserId}"))));
+        // Pedro is brought in later: from then on the goal exists for him too.
+        Assert.Equal(HttpStatusCode.OK, (await brian.Client.PostAsJsonAsync(Url(workspaceId, $"/{goalId}/participants"), new { userId = pedro.UserId })).StatusCode);
+        Assert.Equal(800m, (await GoalAsync(pedro, workspaceId, goalId)).Money("saved"));
         Assert.Contains((await brian.DashboardAsync(DateTime.UtcNow.ToString("yyyy-MM"))).GetProperty("goals").EnumerateArray(), goal => goal.GetProperty("name").GetString() == "Viaje Japón");
     }
 }

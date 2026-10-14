@@ -586,6 +586,46 @@ Diferencias respecto al diseño de la fase:
 | Risks | OQ-07 a OQ-11 |
 | Out of scope | Invitados sin usuario; comentarios; compensación automática de deudas cruzadas; grupos multimoneda |
 
+**Estado: implementada el 13-oct-2026.** Con pocos tests, por pedido del dueño. Riesgos ya decididos: la unidad de autorización es el grupo (OQ-07); solo participan miembros del workspace (OQ-08); el reembolso es un `Refund` y no un ingreso (ADR-014); nadie confirma un pago ajeno (OQ-11).
+
+Verificado:
+
+| Comprobación | Resultado |
+|---|---|
+| `dotnet build PersonalFinance.slnx` | Sin errores ni advertencias |
+| `dotnet test PersonalFinance.slnx` | 254 tests: 148 unitarios, 19 de arquitectura, 87 de integración contra PostgreSQL 18 |
+| Criterio de aceptación | El caso del encargo, por API: una cena de 300 se divide a partes iguales (100/100/100), por porcentaje 50/30/20 (150/90/60) y por montos (150/100/50). Juan paga 100 desde su cuenta: su saldo baja y el gasto queda `PartiallyPaid`; al pagar Pedro queda `Settled`; el pago dice quién, a quién, cuánto y cuándo. En el navegador, con dos personas: dividir, pagar desde la cuenta y verlo liquidado en los dos |
+| Reparto | Las cuatro estrategias suman el total al céntimo; los céntimos que sobran van, de a uno, a quien más se recortó, en orden (100 entre tres: 33.34, 33.33, 33.33) |
+| Pagos | No superan lo adeudado. Lo registra quien paga o quien cobra. Cubre primero los gastos más antiguos. Solo lo anula quien lo registró, y entonces la deuda vuelve. Un gasto con pagos no se cancela |
+| Cada lado en su ledger (ADR-014) | Quien pagó registra el gasto completo en su cuenta. El deudor registra su pago como gasto propio. El acreedor registra el cobro como `Refund` de la categoría original: su gasto en esa categoría queda en 200 y su ingreso en 0. Cada lado lo hace una vez |
+| Matriz de seguridad | Ana, miembro del workspace y no del grupo, no lo ve en su lista y recibe 404 al leerlo, pagar o recordar. Juan no puede llevar a una cuenta un gasto que pagó Brian. La respuesta que ve Juan no contiene la cuenta de Brian |
+| Recordatorio | Solo quien cobra, a quien le debe, y una vez al día por pareja |
+| Arquitectura | `SharedExpenses` usa los contratos de `Ledger`, `Workspaces` y `Notifications`. Los 19 tests de arquitectura lo cubren |
+| Frontend | `ng build` correcto y sin avisos; 126 tests unitarios; `ng lint` correcto |
+| E2E | 27 tests en Chrome, 1 nuevo con dos personas |
+| Revisión visual | Gastos compartidos en escritorio, tema oscuro; en móvil solo que no desborda |
+
+No verificado: lo que depende de Docker; dos ediciones simultáneas; la señal en tiempo real entre navegadores; el cobro como reembolso en el navegador (por API sí); tablet y tema claro.
+
+Durante la fase apareció un defecto de la fase 8: sumar un participante a una meta ya creada respondía 409. EF tomaba la fila nueva por una ya guardada, porque la parte de la clave que identifica a la persona figuraba como generada. Se corrigió en las cuatro tablas con esa forma (`goal_participants`, `group_members`, `expense_shares`, `settlement_allocations`) y el test de metas lo cubre ahora.
+
+Diferencias respecto al diseño de la fase:
+
+| Tema | Diseño | Implementación |
+|---|---|---|
+| Agregados | `SharedGroup`, `SharedExpense` y `Settlement` como raíces | Uno: `SharedGroup` contiene miembros, gastos con sus partes y pagos con sus asignaciones, bajo un solo filtro de membresía |
+| Estado `Draft` y `PublishExpense` | Borrador y publicación | Un gasto se registra ya publicado |
+| `EditExpense` | Solo sin pagos | No está: se cancela y se registra de nuevo |
+| Estado del gasto | Lo mantiene el agregado | Se calcula de lo pagado de cada parte; no se guarda |
+| Asignación del pago | Partes a cubrir opcionales | Siempre del gasto más antiguo al más nuevo |
+| `VoidSettlement` y `CancelExpense` | Anulan los asientos vinculados | No tocan el ledger: el movimiento es uno normal de quien lo registró |
+| "Dividir gasto" desde una transacción | Acción en el detalle del movimiento | No está |
+| `W/shared-expenses/summary` | Endpoint aparte | Los totales por moneda van en `GET W/shared-groups` |
+| `PostRefund` en Ledger | En la fase | Hecho: `Operation.PostRefund` e `ILedgerPosting.PostRefundAsync`. Flujo, totales por categoría y totales del listado lo cuentan como gasto en negativo, así que también resta del presupuesto |
+| Eventos `SharedExpensePublished`, `SettlementRecorded`… | Eventos de integración | No existen: el caso de uso publica el aviso y la señal directamente |
+| `ETag` | Concurrencia en edición | `xmin` en el grupo; la API no lo expone |
+| Categoría de aviso | — | Nueva: `Shared`, solo bandeja por defecto |
+
 #### Fase 10 — Integrations: importación y reglas
 
 | | |
@@ -689,3 +729,22 @@ Diferencias respecto al diseño de la fase:
 ### Y.5 Backlog diferido
 
 Conexión bancaria automática; planes, facturación y límites; inicio de sesión con Google y Microsoft (OQ-25); 2FA, sesiones activas y biometría; reportes programados y resumen semanal; PDF; push; alertas personalizadas y detección de cargos duplicados; invitados sin usuario y comentarios en gastos compartidos; lectura de correo; Google Sheets; tokens de API y webhooks salientes; precios automáticos; perfil de riesgo; app móvil.
+
+**Ajustes del 13-oct-2026 a la fase 9**, pedidos por el dueño tras probarla:
+
+| Tema | Antes | Ahora |
+|---|---|---|
+| Qué ve un miembro del grupo | Todos los gastos, pagos y deudas del grupo | Solo lo suyo: los gastos que pagó, registró o en los que tiene parte; los pagos que hizo o recibió; lo que debe y le deben. Junto a cada miembro, solo lo que hay entre los dos. Lo filtra el servidor |
+| Sugerencia de liquidación | En el detalle del grupo | Retirada, con `DebtSimplifier`: se calculaba con las deudas de todos |
+| Anular un pago | No tocaba el ledger; pagar de nuevo dejaba dos movimientos | Anula también el movimiento que quien anula tenía en su cuenta (`ILedgerPosting.VoidAsync`). Al otro lado, si lo había registrado, se le avisa. Cancelar un gasto hace lo mismo con el de quien pagó |
+| Límite para anular | Ninguno | Hasta un día después de registrar el pago (`SharedGroup.VoidWindow`), una sola vez por pago, y tres pagos anulados por persona, grupo y día (`MaxVoidsPerDay`). El detalle dice cuántas quedan |
+
+Verificado: 254 tests de backend, 126 de frontend, 27 E2E. El E2E paga, anula y vuelve a pagar: el saldo de la cuenta vuelve y no quedan dos movimientos.
+
+**Rediseño de la pantalla de gastos compartidos (13-oct-2026)**, pedido por el dueño: con varios grupos costaba seguir quién debe qué.
+
+- **Lista de grupos** en tarjetas: lo que te deben y lo que debes en cada uno, cuántos gastos quedan por saldar, quiénes están y la última actividad. Filtros «Me deben», «Debo», «A mano» y «Archivados»; los grupos con más por saldar van arriba; desde seis grupos aparece un buscador. Los datos los da `SharedGroupSummaryResponse` (`owedToMe`, `iOwe`, `pendingExpenses`, `memberNames`, `lastActivityOn`), siempre sobre quien pregunta.
+- **Detalle del grupo**: primero «Por saldar» (una fila por persona, con Pagar, Registrar cobro o Recordar); luego los gastos, filtrables por estado, y cada gasto se abre para ver quién pagó su parte y quién sigue debiendo. Pagos y miembros quedan plegables.
+- En pantallas estrechas la lista y el detalle se turnan, con «Grupos» para volver.
+
+Verificado: 254 tests de backend, 126 de frontend, 27 E2E (el de gastos compartidos recorre la lista, el detalle del gasto y el paso lista-detalle a 390 px). No verificado: el tema claro de esta pantalla y la lista con seis o más grupos en el navegador.

@@ -118,12 +118,22 @@ public sealed class Operation : AggregateRoot, IOwned
     /// <summary>An income or an expense on one account, as a person registers it.</summary>
     public static Result<Operation> PostTransaction(
         OperationKind kind, Account account, decimal amount, Guid categoryId, DateOnly occurredOn, string? description, string? merchant, string? note,
+        bool pending, DateTimeOffset now) =>
+        kind is OperationKind.Income or OperationKind.Expense
+            ? Post(kind, account, amount, categoryId, occurredOn, description, merchant, note, pending, now)
+            : Error.Validation("ledger.transaction.kind_invalid", "A transaction is either an income or an expense.");
+
+    /// <summary>
+    /// Money that comes back for an expense of a category, like what someone repays of a shared dinner. It
+    /// enters the account and takes away from what the category spent: it is not an income.
+    /// </summary>
+    public static Result<Operation> PostRefund(Account account, decimal amount, Guid categoryId, DateOnly occurredOn, string? description, DateTimeOffset now) =>
+        Post(OperationKind.Refund, account, amount, categoryId, occurredOn, description, null, null, false, now);
+
+    private static Result<Operation> Post(
+        OperationKind kind, Account account, decimal amount, Guid categoryId, DateOnly occurredOn, string? description, string? merchant, string? note,
         bool pending, DateTimeOffset now)
     {
-        if (kind is not (OperationKind.Income or OperationKind.Expense))
-        {
-            return Error.Validation("ledger.transaction.kind_invalid", "A transaction is either an income or an expense.");
-        }
 
         var open = account.EnsureMovedByHand();
         if (open.IsFailure)
@@ -150,7 +160,7 @@ public sealed class Operation : AggregateRoot, IOwned
             CategoryId = categoryId,
             CreatedAt = now
         };
-        var entry = Entry.Create(operation, account, kind == OperationKind.Income ? EntryDirection.In : EntryDirection.Out, amount);
+        var entry = Entry.Create(operation, account, kind == OperationKind.Expense ? EntryDirection.Out : EntryDirection.In, amount);
         if (entry.IsFailure)
         {
             return entry.Error;

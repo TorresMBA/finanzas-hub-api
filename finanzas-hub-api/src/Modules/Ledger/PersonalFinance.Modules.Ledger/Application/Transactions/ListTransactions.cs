@@ -123,13 +123,19 @@ internal sealed class ListTransactionsHandler(ILedgerDb db, TransactionReader re
             baseTotals);
     }
 
-    /// <summary>Only income and expenses: a transfer, an opening balance or an adjustment is neither.</summary>
+    /// <summary>Only income and expenses: a transfer, an opening balance or an adjustment is neither. A refund takes away from the expenses.</summary>
     private async Task<(IReadOnlyList<CurrencyTotalsResponse> ByCurrency, BaseTotalsResponse? InBase)> TotalsAsync(
         IQueryable<Operation> operations, CancellationToken cancellationToken)
     {
         var rows = await operations
-            .Where(operation => operation.Kind == OperationKind.Income || operation.Kind == OperationKind.Expense)
-            .SelectMany(operation => operation.Entries, (operation, entry) => new { entry.Currency, operation.Kind, entry.Amount, entry.BaseAmount })
+            .Where(operation => operation.Kind == OperationKind.Income || operation.Kind == OperationKind.Expense || operation.Kind == OperationKind.Refund)
+            .SelectMany(operation => operation.Entries, (operation, entry) => new
+            {
+                entry.Currency,
+                Kind = operation.Kind == OperationKind.Refund ? OperationKind.Expense : operation.Kind,
+                Amount = operation.Kind == OperationKind.Refund ? -entry.Amount : entry.Amount,
+                BaseAmount = operation.Kind == OperationKind.Refund ? -entry.BaseAmount : entry.BaseAmount
+            })
             .GroupBy(row => new { row.Currency, row.Kind })
             .Select(group => new
             {

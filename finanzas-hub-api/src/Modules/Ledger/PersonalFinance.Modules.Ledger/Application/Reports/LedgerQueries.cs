@@ -29,7 +29,12 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
         var rows = await Transactions(from, to)
             .SelectMany(operation => operation.Entries, (operation, entry) => new
             {
-                operation.Kind, operation.OccurredOn.Year, operation.OccurredOn.Month, entry.Currency, entry.Amount, entry.BaseAmount
+                Kind = operation.Kind == OperationKind.Refund ? OperationKind.Expense : operation.Kind,
+                operation.OccurredOn.Year,
+                operation.OccurredOn.Month,
+                entry.Currency,
+                Amount = operation.Kind == OperationKind.Refund ? -entry.Amount : entry.Amount,
+                BaseAmount = operation.Kind == OperationKind.Refund ? -entry.BaseAmount : entry.BaseAmount
             })
             .GroupBy(row => new { row.Kind, row.Year, row.Month, row.Currency })
             .Select(group => new
@@ -65,7 +70,14 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
     public async Task<LedgerCategoryTotals> GetCategoryTotalsAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
         var rows = await Transactions(from, to)
-            .SelectMany(operation => operation.Entries, (operation, entry) => new { operation.Kind, operation.CategoryId, entry.Currency, entry.Amount, entry.BaseAmount })
+            .SelectMany(operation => operation.Entries, (operation, entry) => new
+            {
+                Kind = operation.Kind == OperationKind.Refund ? OperationKind.Expense : operation.Kind,
+                operation.CategoryId,
+                entry.Currency,
+                Amount = operation.Kind == OperationKind.Refund ? -entry.Amount : entry.Amount,
+                BaseAmount = operation.Kind == OperationKind.Refund ? -entry.BaseAmount : entry.BaseAmount
+            })
             .GroupBy(row => new { row.Kind, row.CategoryId, row.Currency })
             .Select(group => new
             {
@@ -183,11 +195,14 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
         }).ToList();
     }
 
-    /// <summary>The income and expenses that count in a period: what every report of money in and out is made of.</summary>
+    /// <summary>
+    /// The income and expenses that count in a period: what every report of money in and out is made of. A refund
+    /// comes along because it is an expense in reverse: the reports count it as one with its amount negated.
+    /// </summary>
     private IQueryable<Operation> Transactions(DateOnly from, DateOnly to) =>
         db.Operations.AsNoTracking().Where(operation =>
             operation.Status != OperationStatus.Voided
-            && (operation.Kind == OperationKind.Income || operation.Kind == OperationKind.Expense)
+            && (operation.Kind == OperationKind.Income || operation.Kind == OperationKind.Expense || operation.Kind == OperationKind.Refund)
             && operation.OccurredOn >= from && operation.OccurredOn <= to);
 }
 

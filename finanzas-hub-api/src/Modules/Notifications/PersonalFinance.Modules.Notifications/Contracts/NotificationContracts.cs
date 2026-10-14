@@ -10,7 +10,10 @@ public enum NotificationCategory
     Bills,
 
     /// <summary>What happens in a goal the person takes part in: someone contributed, it reached its target.</summary>
-    Goals
+    Goals,
+
+    /// <summary>What happens in a group the person splits expenses with: a new expense with their part, a payment, a reminder.</summary>
+    Shared
 }
 
 public enum NotificationSeverity

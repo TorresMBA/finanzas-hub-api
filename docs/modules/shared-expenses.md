@@ -28,3 +28,23 @@
 | VoidSettlement | Quien la registró | motivo | — | Revierte asignaciones y anula los asientos vinculados |
 | RemindMember | Acreedor | miembro | Un recordatorio por día y par | Publica notificación, con WhatsApp si el destinatario lo tiene activo |
 | GetGroups, GetGroupDetail, GetExpenses, GetSummary (queries) | Miembro del grupo / propio | — | — | Balances derivados y sugerencia de liquidación |
+
+## Estado tras la fase 9
+
+Implementado, todo bajo `W/shared-groups`: crear grupo, sumar y quitar miembros (o salir), archivar; registrar un gasto con cualquiera de los cuatro repartos y cancelarlo; registrar un pago, llevarlo a una cuenta propia (`link-account`) y anularlo; recordar a quien debe; listado con totales por moneda y detalle con saldos, deudas, sugerencia de liquidación, gastos y pagos.
+
+`SharedGroup` contiene miembros, gastos y pagos. El filtro global de `AppDbContext` solo deja cargar un grupo del workspace actual en el que la persona actual es miembro activo: para cualquier otro no existe (404). El grupo no guarda dinero ni saldos: guarda quién pagó qué por quién y quién devolvió, y todo saldo se calcula de ahí.
+
+Cada lado registra en su propio ledger, que desde el ADR-021 es el de su espacio personal: quien pagó, el gasto completo; el deudor, su pago como gasto; el acreedor, el cobro como `Refund` de la categoría original. Nadie escribe en el ledger de otro.
+
+Diferido: borrador y edición de un gasto, elegir a qué gastos va un pago, "Dividir gasto" desde una transacción, WhatsApp. Las diferencias con el diseño están en [phases.md](../roadmap/phases.md).
+
+### Ajustes del 13-oct-2026
+
+- **Visibilidad dentro del grupo.** Ser miembro deja ver el grupo, no todo lo que hay en él: `SharedGroupReader` devuelve a cada quien solo los gastos, pagos y deudas en que participa.
+- **Anular un pago** anula el movimiento propio en el ledger y avisa al otro lado. Solo dentro de un día, una vez por pago y tres al día por persona y grupo.
+- La sugerencia de liquidación se retiró.
+
+### Pantalla
+
+Lista de grupos (qué hay por saldar en cada uno) y detalle (con quién, y gasto a gasto quién pagó su parte). El resumen de cada grupo lo calcula el servidor para quien pregunta; la pantalla no suma deudas por su cuenta.

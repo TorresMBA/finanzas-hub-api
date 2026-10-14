@@ -33,6 +33,9 @@ internal sealed class GoalConfiguration : IEntityTypeConfiguration<Goal>
             });
             participants.WithOwner().HasForeignKey("GoalId");
             participants.HasKey("GoalId", nameof(GoalParticipant.UserId));
+
+            // The person is given, never generated: without saying so EF takes a row added to an existing owner for one already saved.
+            participants.Property(participant => participant.UserId).ValueGeneratedNever();
             participants.Property(participant => participant.Role).HasConversion<string>().HasMaxLength(16);
             participants.Property(participant => participant.Status).HasConversion<string>().HasMaxLength(16);
             participants.Ignore(participant => participant.IsActive);

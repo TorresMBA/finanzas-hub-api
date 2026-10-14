@@ -59,3 +59,5 @@ Diferido: el evento `AccountArchived` (con su primer consumidor); el aviso de ve
 - Una moneda sin tipo de cambio queda fuera de todo total en moneda base, y la respuesta dice cuál es (`missingRates`): un total nunca finge estar completo.
 
 Desde el ADR-021 las cuentas, operaciones y tipos de cambio son de la persona y viven en su espacio personal: `LedgerScope` y `ExchangeRateBook` leen `IPersonalSpace`. La moneda base de sus cifras es la de ese espacio.
+
+Desde la fase 9 el ledger registra reembolsos (`OperationKind.Refund`, por `ILedgerPosting.PostRefundAsync`): dinero que entra a una cuenta por un gasto de una categoría. No es un ingreso: los reportes lo cuentan como gasto en negativo, así que resta de la categoría y de su presupuesto.

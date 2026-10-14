@@ -1,8 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Application.Accounts;
+using PersonalFinance.Modules.Ledger.Application.ExchangeRates;
 using PersonalFinance.Modules.Ledger.Application.Transfers;
 using PersonalFinance.Modules.Ledger.Contracts;
 using PersonalFinance.Modules.Ledger.Domain;
@@ -15,8 +17,9 @@ namespace PersonalFinance.Modules.Ledger.Application.Transactions;
 /// command, it joins that command's transaction.
 /// </summary>
 internal sealed class LedgerPosting(
-    ICommandHandler<PostTransactionCommand, TransactionResponse> postTransaction, TransferPoster transfers, ILedgerDb db, LedgerScope scope, IAuditLog audit,
-    IClock clock) : ILedgerPosting
+    ICommandHandler<PostTransactionCommand, TransactionResponse> postTransaction, ICommandHandler<VoidTransactionCommand, TransactionResponse> voidTransaction,
+    TransferPoster transfers, TransactionReader reader, ExchangeRateBook rates,
+    ILedgerDb db, LedgerScope scope, IAuditLog audit, IClock clock) : ILedgerPosting
 {
     private const string GoalsModule = "goals";
 
@@ -28,6 +31,44 @@ internal sealed class LedgerPosting(
                 request.Description, null, null, null, false, request.IdempotencyKey),
             cancellationToken);
         return posted.IsFailure ? posted.Error : posted.Value.Id;
+    }
+
+    public async Task<Result> VoidAsync(Guid operationId, string reason, CancellationToken cancellationToken)
+    {
+        var voided = await voidTransaction.HandleAsync(new VoidTransactionCommand(operationId, reason), cancellationToken);
+        return voided.IsFailure ? voided.Error : Result.Success();
+    }
+
+    public async Task<Result<Guid>> PostRefundAsync(
+        Guid accountId, decimal amount, Guid categoryId, DateOnly occurredOn, string description, CancellationToken cancellationToken)
+    {
+        // The owner filter makes an account of someone else indistinguishable from one that does not exist.
+        if (await db.Accounts.SingleOrDefaultAsync(candidate => candidate.Id == accountId, cancellationToken) is not { } account)
+        {
+            return LedgerErrors.AccountNotFound;
+        }
+
+        var category = await reader.ValidateCategoryAsync(TransactionType.Expense, categoryId, null, cancellationToken);
+        if (category.IsFailure)
+        {
+            return category.Error;
+        }
+
+        var posted = Operation.PostRefund(account, amount, categoryId, occurredOn, description, clock.UtcNow);
+        if (posted.IsFailure)
+        {
+            return posted.Error;
+        }
+
+        var operation = posted.Value;
+        await rates.ValueAsync(operation, cancellationToken);
+        db.Operations.Add(operation);
+        audit.Record(new AuditEntry("ledger", "ledger.refund.posted", "operation", operation.Id)
+        {
+            OwnerUserId = operation.OwnerUserId,
+            After = new { operation.CategoryId, amount, account.Currency, occurredOn }
+        });
+        return operation.Id;
     }
 
     public async Task<Result<Guid>> OpenGoalFundAsync(string goalName, string currency, CancellationToken cancellationToken)

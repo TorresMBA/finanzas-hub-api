@@ -15,9 +15,11 @@ using PersonalFinance.Modules.Identity.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
 using PersonalFinance.Modules.Notifications.Application.Abstractions;
 using PersonalFinance.Modules.Scheduling.Application.Abstractions;
+using PersonalFinance.Modules.SharedExpenses.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Domain;
 using PersonalFinance.Modules.Notifications.Domain;
 using PersonalFinance.Modules.Scheduling.Domain;
+using PersonalFinance.Modules.SharedExpenses.Domain;
 using PersonalFinance.Modules.Identity.Domain;
 using PersonalFinance.Modules.Workspaces.Application.Abstractions;
 using PersonalFinance.Modules.Workspaces.Domain;
@@ -36,6 +38,7 @@ internal static class Schemas
     public const string Notifications = "notifications";
     public const string Scheduling = "scheduling";
     public const string Goals = "goals";
+    public const string SharedExpenses = "shared_expenses";
 }
 
 /// <summary>
@@ -45,7 +48,7 @@ internal static class Schemas
 /// </summary>
 internal sealed class AppDbContext(
     DbContextOptions<AppDbContext> options, ICurrentUser currentUser, IWorkspaceContext workspaceContext, IPersonalSpace personalSpace)
-    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ILedgerDb, IBudgetsDb, INotificationsDb, ISchedulingDb, IGoalsDb
+    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ILedgerDb, IBudgetsDb, INotificationsDb, ISchedulingDb, IGoalsDb, ISharedExpensesDb
 {
     private static readonly MethodInfo ApplyOwnerFilterMethod =
         typeof(AppDbContext).GetMethod(nameof(ApplyOwnerFilter), BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -87,6 +90,8 @@ internal sealed class AppDbContext(
     public DbSet<RecurringRule> RecurringRules => Set<RecurringRule>();
 
     public DbSet<Goal> Goals => Set<Goal>();
+
+    public DbSet<SharedGroup> SharedGroups => Set<SharedGroup>();
 
     // Read by the global query filters. With no user or workspace they match nothing.
     private Guid CurrentUserId => currentUser.UserId ?? Guid.Empty;
@@ -132,6 +137,11 @@ internal sealed class AppDbContext(
         modelBuilder.Entity<Goal>().HasQueryFilter(goal =>
             goal.WorkspaceId == CurrentWorkspaceId
             && goal.Participants.Any(participant => participant.UserId == CurrentUserId && participant.Status == ParticipantStatus.Active));
+
+        // The same for a group that splits expenses: only its active members ever load it.
+        modelBuilder.Entity<SharedGroup>().HasQueryFilter(group =>
+            group.WorkspaceId == CurrentWorkspaceId
+            && group.Members.Any(member => member.UserId == CurrentUserId && member.Status == GroupMemberStatus.Active));
     }
 
     private void ApplyOwnerFilter<TEntity>(ModelBuilder modelBuilder)

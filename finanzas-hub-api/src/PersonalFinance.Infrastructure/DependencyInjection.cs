@@ -18,6 +18,7 @@ using PersonalFinance.Modules.Identity.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
 using PersonalFinance.Modules.Notifications.Application.Abstractions;
 using PersonalFinance.Modules.Scheduling.Application.Abstractions;
+using PersonalFinance.Modules.SharedExpenses.Application.Abstractions;
 using PersonalFinance.Modules.Identity.Domain;
 using PersonalFinance.Modules.Reporting.Application.Dashboard;
 using PersonalFinance.Modules.Workspaces.Application.Abstractions;
@@ -108,6 +109,9 @@ public static class DependencyInjection
 
         services.AddModule(typeof(IGoalsDb).Assembly);
         services.AddScoped<IGoalsDb>(provider => provider.GetRequiredService<AppDbContext>());
+
+        services.AddModule(typeof(ISharedExpensesDb).Assembly);
+        services.AddScoped<ISharedExpensesDb>(provider => provider.GetRequiredService<AppDbContext>());
 
         // Reporting has no tables: it reads the other modules through their contracts.
         services.AddModule(typeof(GetDashboardQuery).Assembly);

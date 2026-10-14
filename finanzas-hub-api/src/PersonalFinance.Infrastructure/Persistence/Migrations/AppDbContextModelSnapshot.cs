@@ -1266,6 +1266,61 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PersonalFinance.Modules.SharedExpenses.Domain.SharedGroup", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character(3)")
+                        .HasColumnName("currency")
+                        .IsFixedLength();
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shared_groups");
+
+                    b.HasIndex("WorkspaceId", "Status")
+                        .HasDatabaseName("ix_shared_groups_workspace_id_status");
+
+                    b.ToTable("shared_groups", "shared_expenses", t =>
+                        {
+                            t.HasCheckConstraint("ck_shared_groups_status", "status IN ('Active', 'Archived')");
+                        });
+                });
+
             modelBuilder.Entity("PersonalFinance.Modules.Workspaces.Domain.Invitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1588,7 +1643,6 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                                 .HasColumnName("goal_id");
 
                             b1.Property<Guid>("UserId")
-                                .ValueGeneratedOnAdd()
                                 .HasColumnType("uuid")
                                 .HasColumnName("user_id");
 
@@ -1810,6 +1864,257 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         });
 
                     b.Navigation("Occurrences");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.SharedExpenses.Domain.SharedGroup", b =>
+                {
+                    b.OwnsMany("PersonalFinance.Modules.SharedExpenses.Domain.GroupMember", "Members", b1 =>
+                        {
+                            b1.Property<Guid>("GroupId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("group_id");
+
+                            b1.Property<Guid>("UserId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("user_id");
+
+                            b1.Property<DateTimeOffset>("JoinedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("joined_at");
+
+                            b1.Property<string>("Role")
+                                .IsRequired()
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)")
+                                .HasColumnName("role");
+
+                            b1.Property<string>("Status")
+                                .IsRequired()
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)")
+                                .HasColumnName("status");
+
+                            b1.HasKey("GroupId", "UserId")
+                                .HasName("pk_group_members");
+
+                            b1.HasIndex("UserId", "Status")
+                                .HasDatabaseName("ix_group_members_user_id_status");
+
+                            b1.ToTable("group_members", "shared_expenses", t =>
+                                {
+                                    t.HasCheckConstraint("ck_group_members_role", "role IN ('Admin', 'Member')");
+
+                                    t.HasCheckConstraint("ck_group_members_status", "status IN ('Active', 'Left')");
+                                });
+
+                            b1.WithOwner()
+                                .HasForeignKey("GroupId")
+                                .HasConstraintName("fk_group_members_shared_groups_group_id");
+                        });
+
+                    b.OwnsMany("PersonalFinance.Modules.SharedExpenses.Domain.Settlement", "Settlements", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("amount");
+
+                            b1.Property<DateTimeOffset>("CreatedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("created_at");
+
+                            b1.Property<Guid?>("FromOperationId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("from_operation_id");
+
+                            b1.Property<Guid>("FromUserId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("from_user_id");
+
+                            b1.Property<Guid>("GroupId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("group_id");
+
+                            b1.Property<DateOnly>("OccurredOn")
+                                .HasColumnType("date")
+                                .HasColumnName("occurred_on");
+
+                            b1.Property<Guid>("RecordedByUserId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("recorded_by_user_id");
+
+                            b1.Property<Guid?>("ToOperationId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("to_operation_id");
+
+                            b1.Property<Guid>("ToUserId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("to_user_id");
+
+                            b1.Property<DateTimeOffset?>("VoidedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("voided_at");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_settlements");
+
+                            b1.HasIndex("GroupId", "OccurredOn")
+                                .HasDatabaseName("ix_settlements_group_id_occurred_on");
+
+                            b1.ToTable("settlements", "shared_expenses", t =>
+                                {
+                                    t.HasCheckConstraint("ck_settlements_amount", "amount > 0");
+                                });
+
+                            b1.WithOwner()
+                                .HasForeignKey("GroupId")
+                                .HasConstraintName("fk_settlements_shared_groups_group_id");
+
+                            b1.OwnsMany("PersonalFinance.Modules.SharedExpenses.Domain.SettlementAllocation", "Allocations", b2 =>
+                                {
+                                    b2.Property<Guid>("SettlementId")
+                                        .HasColumnType("uuid")
+                                        .HasColumnName("settlement_id");
+
+                                    b2.Property<Guid>("ExpenseId")
+                                        .HasColumnType("uuid")
+                                        .HasColumnName("expense_id");
+
+                                    b2.Property<decimal>("Amount")
+                                        .HasPrecision(18, 2)
+                                        .HasColumnType("numeric(18,2)")
+                                        .HasColumnName("amount");
+
+                                    b2.HasKey("SettlementId", "ExpenseId")
+                                        .HasName("pk_settlement_allocations");
+
+                                    b2.ToTable("settlement_allocations", "shared_expenses");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("SettlementId")
+                                        .HasConstraintName("fk_settlement_allocations_settlements_settlement_id");
+                                });
+
+                            b1.Navigation("Allocations");
+                        });
+
+                    b.OwnsMany("PersonalFinance.Modules.SharedExpenses.Domain.SharedExpense", "Expenses", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<DateTimeOffset?>("CancelledAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("cancelled_at");
+
+                            b1.Property<DateTimeOffset>("CreatedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("created_at");
+
+                            b1.Property<Guid>("CreatedByUserId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("created_by_user_id");
+
+                            b1.Property<string>("Description")
+                                .IsRequired()
+                                .HasMaxLength(120)
+                                .HasColumnType("character varying(120)")
+                                .HasColumnName("description");
+
+                            b1.Property<Guid>("GroupId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("group_id");
+
+                            b1.Property<DateOnly>("OccurredOn")
+                                .HasColumnType("date")
+                                .HasColumnName("occurred_on");
+
+                            b1.Property<Guid>("PaidByUserId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("paid_by_user_id");
+
+                            b1.Property<Guid?>("PayerCategoryId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("payer_category_id");
+
+                            b1.Property<Guid?>("PayerOperationId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("payer_operation_id");
+
+                            b1.Property<string>("SplitType")
+                                .IsRequired()
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)")
+                                .HasColumnName("split_type");
+
+                            b1.Property<decimal>("TotalAmount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("total_amount");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_shared_expenses");
+
+                            b1.HasIndex("GroupId", "OccurredOn")
+                                .HasDatabaseName("ix_shared_expenses_group_id_occurred_on");
+
+                            b1.ToTable("shared_expenses", "shared_expenses", t =>
+                                {
+                                    t.HasCheckConstraint("ck_shared_expenses_split_type", "split_type IN ('Equal', 'Percentage', 'FixedAmount', 'Shares')");
+
+                                    t.HasCheckConstraint("ck_shared_expenses_total", "total_amount > 0");
+                                });
+
+                            b1.WithOwner()
+                                .HasForeignKey("GroupId")
+                                .HasConstraintName("fk_shared_expenses_shared_groups_group_id");
+
+                            b1.OwnsMany("PersonalFinance.Modules.SharedExpenses.Domain.ExpenseShare", "Shares", b2 =>
+                                {
+                                    b2.Property<Guid>("ExpenseId")
+                                        .HasColumnType("uuid")
+                                        .HasColumnName("expense_id");
+
+                                    b2.Property<Guid>("UserId")
+                                        .HasColumnType("uuid")
+                                        .HasColumnName("user_id");
+
+                                    b2.Property<decimal>("Amount")
+                                        .HasPrecision(18, 2)
+                                        .HasColumnType("numeric(18,2)")
+                                        .HasColumnName("amount");
+
+                                    b2.Property<decimal>("PaidAmount")
+                                        .HasPrecision(18, 2)
+                                        .HasColumnType("numeric(18,2)")
+                                        .HasColumnName("paid_amount");
+
+                                    b2.HasKey("ExpenseId", "UserId")
+                                        .HasName("pk_expense_shares");
+
+                                    b2.ToTable("expense_shares", "shared_expenses", t =>
+                                        {
+                                            t.HasCheckConstraint("ck_expense_shares_amounts", "amount >= 0 AND paid_amount >= 0 AND paid_amount <= amount");
+                                        });
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("ExpenseId")
+                                        .HasConstraintName("fk_expense_shares_shared_expenses_expense_id");
+                                });
+
+                            b1.Navigation("Shares");
+                        });
+
+                    b.Navigation("Expenses");
+
+                    b.Navigation("Members");
+
+                    b.Navigation("Settlements");
                 });
 
             modelBuilder.Entity("PersonalFinance.Modules.Workspaces.Domain.Invitation", b =>

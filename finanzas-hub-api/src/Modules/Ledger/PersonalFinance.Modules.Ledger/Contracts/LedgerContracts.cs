@@ -67,6 +67,19 @@ public sealed record LedgerTransactionRequest(
 public interface ILedgerPosting
 {
     /// <summary>
+    /// Voids a movement of the current person, as they would by hand. A movement of someone else is not found:
+    /// nobody undoes what is in the ledger of another person.
+    /// </summary>
+    Task<Result> VoidAsync(Guid operationId, string reason, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Registers money that comes back to the current person for an expense of a category. It enters the account
+    /// and takes away from what the category spent, so being repaid is never counted as an income.
+    /// </summary>
+    /// <returns>The id of the operation.</returns>
+    Task<Result<Guid>> PostRefundAsync(Guid accountId, decimal amount, Guid categoryId, DateOnly occurredOn, string description, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Opens the account where the current person keeps what they put aside for a goal. It starts empty and
     /// outside their net worth; the person can include it from their accounts.
     /// </summary>

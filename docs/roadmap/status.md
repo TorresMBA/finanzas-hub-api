@@ -15,8 +15,8 @@ Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance d
 | 6 | Notifications y tiempo real | ✅ Completada | 13-oct-2026 |
 | 7 | Scheduling y Calendario | ✅ Completada | 13-oct-2026 |
 | 8 | Goals | ✅ Completada | 13-oct-2026 |
-| 9 | SharedExpenses | ⏳ Pendiente (siguiente) | — |
-| 10 | Integrations: importación y reglas | ⏳ Pendiente | — |
+| 9 | SharedExpenses | ✅ Completada | 13-oct-2026 |
+| 10 | Integrations: importación y reglas | ⏳ Pendiente (siguiente) | — |
 | 11 | WhatsApp | ⏳ Pendiente | — |
 | 12 | Reporting | ⏳ Pendiente | — |
 | 13 | Investments | ⏳ Pendiente | — |
@@ -26,14 +26,14 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-13-oct-2026, tras el ADR-021 (finanzas privadas de la persona), posterior al cierre de la fase 8.
+13-oct-2026, al cerrar la fase 9.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 250 en verde (145 unitarios, 19 de arquitectura, 86 de integración) |
-| Frontend: build, tests y lint | Build correcto y sin avisos, 124 tests, lint limpio |
-| E2E en Chrome | 26 en verde |
+| Backend: tests | 254 en verde (148 unitarios, 19 de arquitectura, 87 de integración) |
+| Frontend: build, tests y lint | Build correcto y sin avisos, 126 tests, lint limpio |
+| E2E en Chrome | 27 en verde |
 
 ## Pendientes que dejaron las fases cerradas
 
@@ -69,7 +69,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 |---|---|
 | Evento `AccountArchived` | Con su primer consumidor |
 | `ETag` / `If-Match` en la API | Sin fecha. La meta lleva `xmin`: dos cambios simultáneos sobre la misma fila responden 409, pero la API no expone la versión |
-| "Dividir gasto" en el detalle del movimiento | Fase 9 |
+| "Dividir gasto" en el detalle del movimiento | Sin fecha. La fase 9 no lo incluyó: un gasto compartido se registra desde Gastos compartidos, y quien pagó puede llevarlo a su cuenta ahí mismo |
 | Concurrencia por `xmin` en cuentas y operaciones | Configurada; ningún test la provoca todavía |
 
 ### Fase 4
@@ -133,6 +133,21 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Ver la señal en tiempo real entre dos navegadores | Sin verificar. El aporte de otro participante envía `resource.changed`; ningún test lo observa |
 | Tablet, móvil a ojo y tema claro de Metas | Solo se revisó escritorio en tema oscuro; en móvil se comprobó que no desborda |
 
+### Fase 9
+
+| Pendiente | Se retoma |
+|---|---|
+| Editar un gasto compartido | Sin fecha. Se cancela (si nadie pagó aún) y se registra de nuevo |
+| Borrador de un gasto y publicación aparte | Sin fecha. Un gasto se registra ya publicado |
+| Elegir a qué gastos va un pago | Sin fecha. Un pago cubre los gastos más antiguos primero |
+| Anular el movimiento del otro lado al anular un pago o cancelar un gasto | Sin fecha. Quien anula se lleva su propio movimiento; al otro lado se le avisa para que anule el suyo, porque nadie escribe en el ledger de otro |
+| Sugerencia de liquidación con menos pagos | Retirada el 13-oct-2026: cada miembro ve solo sus deudas, y la sugerencia exponía las de los demás |
+| Resumen aparte (`W/shared-expenses/summary`) y gastos compartidos en el Inicio | Sin fecha. Los totales vienen en el listado de grupos |
+| Recordatorio por WhatsApp | Fase 11 |
+| Refunds en la pantalla de Transacciones: registrar uno a mano | Sin fecha. Hoy un reembolso solo nace de un cobro de gastos compartidos |
+| Tests de concurrencia y de la señal en tiempo real | Sin fecha |
+| Tablet y tema claro de Gastos compartidos | Solo se revisó escritorio en tema oscuro; en móvil, que no desborda |
+
 ### ADR-021: finanzas privadas de la persona (13-oct-2026)
 
 | Pendiente | Se retoma |
@@ -152,6 +167,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Selección de categoría y de tags en un formulario | Fase 2 | Fase 3, dentro del formulario de transacción |
 | Monto por categoría en la pantalla de Categorías | Fase 2 | Fase 4: cada categoría dice lo que movió en el mes de la barra superior |
 | Aviso al llegar al umbral del presupuesto y eventos del ledger | Fases 3 y 5 | Fase 6: `LedgerOperationChanged` y `EvaluateBudgetThresholds` |
+| El reembolso resta del consumo de un presupuesto | Fase 5 | Fase 9: el ledger registra reembolsos y los reportes los cuentan como gasto en negativo |
 | Cuentas de meta fuera del patrimonio por defecto y metas en el Inicio | Fase 4 | Fase 8 |
 | `ILedgerPosting` para otros módulos | Fase 3 | Fase 7: Scheduling registra por él |
 | "Repetir cada mes" en el formulario de transacción | Fase 3 | Fase 7 |

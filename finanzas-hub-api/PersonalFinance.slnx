@@ -14,6 +14,7 @@
     <Project Path="src/Modules/Categories/PersonalFinance.Modules.Categories/PersonalFinance.Modules.Categories.csproj" />
     <Project Path="src/Modules/Ledger/PersonalFinance.Modules.Ledger/PersonalFinance.Modules.Ledger.csproj" />
     <Project Path="src/Modules/Budgets/PersonalFinance.Modules.Budgets/PersonalFinance.Modules.Budgets.csproj" />
+    <Project Path="src/Modules/SharedExpenses/PersonalFinance.Modules.SharedExpenses/PersonalFinance.Modules.SharedExpenses.csproj" />
     <Project Path="src/Modules/Goals/PersonalFinance.Modules.Goals/PersonalFinance.Modules.Goals.csproj" />
     <Project Path="src/Modules/Scheduling/PersonalFinance.Modules.Scheduling/PersonalFinance.Modules.Scheduling.csproj" />
     <Project Path="src/Modules/Notifications/PersonalFinance.Modules.Notifications/PersonalFinance.Modules.Notifications.csproj" />
