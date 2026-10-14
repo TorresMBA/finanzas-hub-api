@@ -52,11 +52,17 @@ public sealed class Workspace : AggregateRoot
 
     public Guid OwnerUserId { get; private set; }
 
+    /// <summary>
+    /// The workspace a person gets with their account, where their private finances live. There is one per
+    /// person and it stays theirs: it cannot be handed over.
+    /// </summary>
+    public bool IsPersonal { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public IReadOnlyCollection<Membership> Memberships => _memberships;
 
-    public static Result<Workspace> Create(string? name, Guid ownerUserId, DateTimeOffset now)
+    public static Result<Workspace> Create(string? name, Guid ownerUserId, DateTimeOffset now, bool isPersonal = false)
     {
         var normalized = NormalizeName(name);
         if (normalized.IsFailure)
@@ -64,7 +70,7 @@ public sealed class Workspace : AggregateRoot
             return normalized.Error;
         }
 
-        var workspace = new Workspace(NewId(), normalized.Value, ownerUserId, now);
+        var workspace = new Workspace(NewId(), normalized.Value, ownerUserId, now) { IsPersonal = isPersonal };
         workspace._memberships.Add(new Membership(workspace.Id, ownerUserId, WorkspaceRole.Owner, now));
         workspace.Raise(new WorkspaceCreated(workspace.Id, ownerUserId));
         return workspace;
@@ -95,7 +101,7 @@ public sealed class Workspace : AggregateRoot
         BaseCurrency = currency.Value.Code;
         TimeZone = zone.Value;
         Status = WorkspaceStatus.Active;
-        Raise(new OnboardingCompleted(Id, OwnerUserId, BaseCurrency, TimeZone));
+        Raise(new OnboardingCompleted(Id, OwnerUserId, BaseCurrency, TimeZone, IsPersonal));
         return Result.Success();
     }
 
@@ -222,6 +228,12 @@ public sealed class Workspace : AggregateRoot
         if (actorUserId == targetUserId)
         {
             return Error.BusinessRule("workspaces.already_owner", "You are already the owner.");
+        }
+
+        if (IsPersonal)
+        {
+            // The private finances of the owner live here; they would be left without a place.
+            return Error.BusinessRule("workspaces.personal_not_transferable", "A personal workspace cannot be handed over. Create another workspace to share.");
         }
 
         actor.ChangeRole(WorkspaceRole.Admin);

@@ -3,22 +3,33 @@ using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.BuildingBlocks.Domain;
+using PersonalFinance.Modules.Identity.Contracts;
 using PersonalFinance.Modules.Workspaces.Application.Abstractions;
 using PersonalFinance.Modules.Workspaces.Domain;
 
 namespace PersonalFinance.Modules.Workspaces.Application.Workspaces;
 
 /// <param name="Role">The role of the person asking, not a property of the workspace.</param>
-public sealed record WorkspaceResponse(Guid Id, string Name, string? BaseCurrency, string TimeZone, WorkspaceStatus Status, WorkspaceRole Role, int MemberCount)
+/// <param name="IsPersonal">
+/// The workspace the person got with their account. The private finances of its owner live there and are the
+/// same whichever workspace is open; the others only add what is shared.
+/// </param>
+/// <param name="OwnerName">
+/// Who owns the workspace. Only in the list of the workspaces of a person, where two called the same ("Personal",
+/// theirs and the one they were invited to) have to be told apart; null elsewhere.
+/// </param>
+public sealed record WorkspaceResponse(
+    Guid Id, string Name, string? BaseCurrency, string TimeZone, WorkspaceStatus Status, WorkspaceRole Role, int MemberCount, bool IsPersonal,
+    string? OwnerName = null)
 {
-    internal static WorkspaceResponse From(Workspace workspace, WorkspaceRole role) => new(
+    internal static WorkspaceResponse From(Workspace workspace, WorkspaceRole role, string? ownerName = null) => new(
         workspace.Id, workspace.Name, workspace.BaseCurrency, workspace.TimeZone, workspace.Status, role,
-        workspace.Memberships.Count(membership => membership.Status == MembershipStatus.Active));
+        workspace.Memberships.Count(membership => membership.Status == MembershipStatus.Active), workspace.IsPersonal, ownerName);
 }
 
 public sealed record GetMyWorkspacesQuery : IQuery<IReadOnlyList<WorkspaceResponse>>;
 
-internal sealed class GetMyWorkspacesHandler(IWorkspacesDb db, ICurrentUser currentUser) : IQueryHandler<GetMyWorkspacesQuery, IReadOnlyList<WorkspaceResponse>>
+internal sealed class GetMyWorkspacesHandler(IWorkspacesDb db, ICurrentUser currentUser, IUserDirectory users) : IQueryHandler<GetMyWorkspacesQuery, IReadOnlyList<WorkspaceResponse>>
 {
     public async Task<Result<IReadOnlyList<WorkspaceResponse>>> HandleAsync(GetMyWorkspacesQuery query, CancellationToken cancellationToken)
     {
@@ -33,7 +44,11 @@ internal sealed class GetMyWorkspacesHandler(IWorkspacesDb db, ICurrentUser curr
                 && workspace.Memberships.Any(membership => membership.UserId == userId && membership.Status == MembershipStatus.Active))
             .OrderBy(workspace => workspace.CreatedAt)
             .ToListAsync(cancellationToken);
-        return workspaces.Select(workspace => WorkspaceResponse.From(workspace, workspace.ActiveMembershipOf(userId)!.Role)).ToList();
+        var owners = await users.GetAsync(workspaces.Select(workspace => workspace.OwnerUserId).Distinct().ToList(), cancellationToken);
+        return workspaces
+            .Select(workspace => WorkspaceResponse.From(
+                workspace, workspace.ActiveMembershipOf(userId)!.Role, owners.GetValueOrDefault(workspace.OwnerUserId)?.DisplayName))
+            .ToList();
     }
 }
 

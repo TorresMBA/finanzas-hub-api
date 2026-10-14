@@ -79,14 +79,8 @@ internal sealed class DefaultCategoriesSeeder(ICategoriesDb db, IAuditLog audit,
 internal sealed class SeedCategoriesOnOnboardingCompleted(DefaultCategoriesSeeder seeder) : IDomainEventHandler<OnboardingCompleted>
 {
     public Task HandleAsync(OnboardingCompleted domainEvent, CancellationToken cancellationToken) =>
-        seeder.SeedAsync(domainEvent.WorkspaceId, domainEvent.OwnerUserId, cancellationToken);
-}
-
-/// <summary>Each member gets their own copy: categories are private, so nobody inherits the owner's.</summary>
-internal sealed class SeedCategoriesOnMemberJoined(DefaultCategoriesSeeder seeder) : IDomainEventHandler<MemberJoined>
-{
-    public Task HandleAsync(MemberJoined domainEvent, CancellationToken cancellationToken) =>
-        seeder.SeedAsync(domainEvent.WorkspaceId, domainEvent.UserId, cancellationToken);
+        // Categories are private, so they go where the private finances of the owner live: their personal workspace.
+        domainEvent.IsPersonal ? seeder.SeedAsync(domainEvent.WorkspaceId, domainEvent.OwnerUserId, cancellationToken) : Task.CompletedTask;
 }
 
 public sealed record SeededCategoriesResponse(int Created);

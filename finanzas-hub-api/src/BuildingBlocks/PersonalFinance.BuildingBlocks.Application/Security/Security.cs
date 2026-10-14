@@ -19,9 +19,33 @@ public interface ICurrentUser
     bool IsAuthenticated => UserId is not null;
 }
 
-public sealed record WorkspaceMembershipInfo(Guid WorkspaceId, Guid UserId, WorkspaceRole Role, string? BaseCurrency, string TimeZone);
+/// <summary>The personal workspace of a person: where their private finances live, whichever workspace they are looking at.</summary>
+public sealed record PersonalSpaceInfo(Guid WorkspaceId, string? BaseCurrency, string TimeZone);
 
-/// <summary>The workspace the current use case runs in, resolved once per request from an active membership.</summary>
+/// <param name="Personal">The personal workspace of the member. When left out, this workspace itself is taken as theirs.</param>
+public sealed record WorkspaceMembershipInfo(
+    Guid WorkspaceId, Guid UserId, WorkspaceRole Role, string? BaseCurrency, string TimeZone, PersonalSpaceInfo? Personal = null);
+
+/// <summary>
+/// Where the private finances of the current person live: their personal workspace. Accounts, movements,
+/// categories, budgets and scheduled movements belong to the person, not to the workspace they have open, so
+/// the modules that hold them ask here and never to <see cref="IWorkspaceContext"/>. Someone invited to the
+/// workspace of another person finds their own books there, not an empty set.
+/// </summary>
+public interface IPersonalSpace
+{
+    Guid? WorkspaceId { get; }
+
+    /// <summary>The currency the private reports of the person are stated in.</summary>
+    string? BaseCurrency { get; }
+
+    string? TimeZone { get; }
+}
+
+/// <summary>
+/// The workspace the current use case runs in, resolved once per request from an active membership. It is what
+/// collaboration happens in (members, goals, shared expenses); private finances go by <see cref="IPersonalSpace"/>.
+/// </summary>
 public interface IWorkspaceContext
 {
     Guid? WorkspaceId { get; }

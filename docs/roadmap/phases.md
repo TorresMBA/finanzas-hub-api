@@ -527,6 +527,45 @@ Diferencias respecto al diseño de la fase:
 | Risks | OQ-12 y OQ-13; diseño de UI de metas compartidas |
 | Out of scope | Moneda distinta entre cuenta y meta; custodia |
 
+**Estado: implementada el 13-oct-2026.** Con pocos tests, por pedido del dueño. Es el primer recurso colaborativo: se autoriza por participación, no por pertenecer al workspace. Riesgos ya decididos: se puede superar el objetivo y hay retiros (OQ-12); cada participante conserva lo suyo (OQ-13); la cuenta de una meta nace fuera del patrimonio (OQ-26).
+
+Verificado:
+
+| Comprobación | Resultado |
+|---|---|
+| `dotnet build PersonalFinance.slnx` | Sin errores ni advertencias |
+| `dotnet test PersonalFinance.slnx` | 247 tests: 144 unitarios, 19 de arquitectura, 84 de integración contra PostgreSQL 18 |
+| Criterio de aceptación | El caso del encargo, por API: Brian aporta 500 desde BCP; BCP baja 500; aparece una transferencia en su ledger; el progreso sube para Brian y para Juan; Pedro, miembro del workspace y no de la meta, recibe 404. En el navegador, con una sola persona: crear, aportar y ver la transferencia y el fondo |
+| Autorización por participación | Un filtro global de la consulta deja ver una meta solo a sus participantes activos del workspace. Pedro no la ve en la lista, y leerla, aportar o cancelarla le responde 404; tampoco recibe avisos |
+| Lo que el participante no ve | Juan ve cuánto aportó Brian y cuándo. La respuesta no contiene el id de la cuenta de origen ni el del fondo de Brian, y pedir esa cuenta le responde 404 |
+| Aporte atómico con el ledger | Aporte y transferencia van en una transacción. La transferencia lleva `source = goals` y hay un aporte por operación (índice único): se concilian uno a uno. Reenviar el POST con la misma clave no aporta dos veces |
+| El dinero de la meta solo se mueve desde la meta | El fondo es una cuenta `GoalFund` del participante: registrar un gasto en ella, transferir desde ella o anular a mano la transferencia del aporte se rechaza |
+| Patrimonio | El fondo nace fuera: aportar 500 baja el patrimonio mostrado de 2 000 a 1 500. La persona lo incluye con la casilla de la cuenta |
+| Retiros y salidas | Cada uno retira como máximo lo que aportó. No se quita ni sale quien todavía tiene dinero en la meta. Solo quien la creó la edita, suma gente, la archiva o la cancela (403 para los demás) |
+| Meta alcanzada | Se avisa una vez a todos los participantes; bajar del objetivo y volver a llegar no repite el aviso |
+| Arquitectura | `Goals` usa los contratos de `Ledger`, `Workspaces` y `Notifications`; `Reporting` lee `IGoalQueries`. Los 19 tests de arquitectura lo cubren |
+| Frontend | `ng build` correcto y sin avisos; 123 tests unitarios; `ng lint` correcto |
+| E2E | 25 tests en Chrome, 1 nuevo |
+| Revisión visual | Metas en escritorio, tema oscuro; en móvil solo que no desborda |
+
+No verificado: lo que depende de Docker; la señal en tiempo real entre dos navegadores; dos aportes simultáneos; la meta compartida en el navegador (el E2E usa una sola persona); tablet y tema claro.
+
+Diferencias respecto al diseño de la fase:
+
+| Tema | Diseño | Implementación |
+|---|---|---|
+| Destino del aporte | Cuenta vinculada o fondo de sistema | Siempre el fondo: una cuenta `GoalFund` que se abre a nombre del participante con su primer aporte. Se ve en Cuentas, bajo "Fondos de metas" |
+| Aporte automático | `SetAutoContribution` con regla en Scheduling | No está. Tampoco `IScheduledActionHandler` ni `ICalendarItemProvider` |
+| `VoidContribution` | Anula aporte y operación | No está: se retira |
+| `LeaveGoal` y traspaso | El Owner transfiere antes de salir | Quien creó la meta no sale. Los demás salen con saldo cero |
+| `GoalContribution` | Aggregate root propio | Colección dentro de `Goal`, igual que los participantes: así un solo filtro de participación cubre todo |
+| Estado `Achieved` | Estado almacenado | `AchievedAt`, que se fija una vez; "completada" se calcula de lo ahorrado. Estados: activa, archivada, cancelada |
+| Eventos `GoalContributionAdded`, `GoalTargetReached`… | Eventos de integración | No existen: el caso de uso publica el aviso y la señal directamente |
+| Señal de tiempo real | Grupo `goal:{id}` con `Subscribe` | `resource.changed` enviado a cada participante activo por su identidad; sin suscripción |
+| `ETag` | Con el primer agregado que editan varias personas | No se añadió |
+| Tipo de cuenta | `GoalFund` de sistema | Añadido a `AccountType`; la migración amplía el CHECK de `accounts.type` |
+| Categoría de aviso | — | Nueva: `Goals`, solo bandeja por defecto |
+
 #### Fase 9 — SharedExpenses
 
 | | |

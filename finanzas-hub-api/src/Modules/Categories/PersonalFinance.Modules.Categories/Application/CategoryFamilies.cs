@@ -29,7 +29,7 @@ internal static class CategoryErrors
 /// Loads and describes categories as families. Every query goes through the owner filter of the context, so
 /// a category of someone else is simply not found.
 /// </summary>
-internal sealed class CategoryFamilies(ICategoriesDb db, ICurrentUser currentUser, IWorkspaceContext workspace)
+internal sealed class CategoryFamilies(ICategoriesDb db, ICurrentUser currentUser, IPersonalSpace workspace)
 {
     /// <summary>A root category with its subcategories, and which of them a command asked for.</summary>
     internal sealed record Family(Category Root, List<Category> Subcategories, Category Target);

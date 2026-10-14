@@ -15,8 +15,16 @@ public interface IActorContextInitializer
 }
 
 /// <summary>One instance per DI scope. Until someone calls <see cref="ActAs"/> the actor is the system with no user.</summary>
-internal sealed class ActorContext : ICurrentUser, IWorkspaceContext, IActorContextInitializer
+internal sealed class ActorContext : ICurrentUser, IWorkspaceContext, IPersonalSpace, IActorContextInitializer
 {
+    // Without a personal workspace of its own, the membership stands for it: a background process acting as a
+    // person enters their personal workspace directly.
+    Guid? IPersonalSpace.WorkspaceId => _membership?.Personal?.WorkspaceId ?? _membership?.WorkspaceId;
+
+    string? IPersonalSpace.BaseCurrency => _membership is { Personal: { } personal } ? personal.BaseCurrency : _membership?.BaseCurrency;
+
+    string? IPersonalSpace.TimeZone => _membership?.Personal?.TimeZone ?? _membership?.TimeZone;
+
     private WorkspaceMembershipInfo? _membership;
 
     public Guid? UserId { get; private set; }

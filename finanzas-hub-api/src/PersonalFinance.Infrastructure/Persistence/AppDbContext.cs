@@ -7,8 +7,10 @@ using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Infrastructure.Platform;
 using PersonalFinance.Modules.Budgets.Application.Abstractions;
 using PersonalFinance.Modules.Categories.Application.Abstractions;
+using PersonalFinance.Modules.Goals.Application.Abstractions;
 using PersonalFinance.Modules.Budgets.Domain;
 using PersonalFinance.Modules.Categories.Domain;
+using PersonalFinance.Modules.Goals.Domain;
 using PersonalFinance.Modules.Identity.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
 using PersonalFinance.Modules.Notifications.Application.Abstractions;
@@ -33,15 +35,17 @@ internal static class Schemas
     public const string Budgets = "budgets";
     public const string Notifications = "notifications";
     public const string Scheduling = "scheduling";
+    public const string Goals = "goals";
 }
 
 /// <summary>
 /// The one database context. A module reaches only its own tables, through the interface it declares
 /// (<see cref="ILedgerDb"/> and the like); every <see cref="IOwned"/> entity is filtered by the current user
-/// and workspace. It derives from ASP.NET Core Identity's context so the framework's own user store works on it.
+/// and their personal workspace. It derives from ASP.NET Core Identity's context so the framework's own user store works on it.
 /// </summary>
-internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUser currentUser, IWorkspaceContext workspaceContext)
-    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ILedgerDb, IBudgetsDb, INotificationsDb, ISchedulingDb
+internal sealed class AppDbContext(
+    DbContextOptions<AppDbContext> options, ICurrentUser currentUser, IWorkspaceContext workspaceContext, IPersonalSpace personalSpace)
+    : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ILedgerDb, IBudgetsDb, INotificationsDb, ISchedulingDb, IGoalsDb
 {
     private static readonly MethodInfo ApplyOwnerFilterMethod =
         typeof(AppDbContext).GetMethod(nameof(ApplyOwnerFilter), BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -82,10 +86,15 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurr
 
     public DbSet<RecurringRule> RecurringRules => Set<RecurringRule>();
 
+    public DbSet<Goal> Goals => Set<Goal>();
+
     // Read by the global query filters. With no user or workspace they match nothing.
     private Guid CurrentUserId => currentUser.UserId ?? Guid.Empty;
 
     private Guid CurrentWorkspaceId => workspaceContext.WorkspaceId ?? Guid.Empty;
+
+    // Private finances belong to the person: they live in their personal workspace, whichever one is open.
+    private Guid PersonalWorkspaceId => personalSpace.WorkspaceId ?? Guid.Empty;
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
@@ -117,12 +126,18 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurr
                 ApplyOwnerFilterMethod.MakeGenericMethod(entityType.ClrType).Invoke(this, [modelBuilder]);
             }
         }
+
+        // A goal is shared by participation, not by membership: it exists only for its active participants. Being
+        // a member of the workspace, whatever the role, is not enough to load it.
+        modelBuilder.Entity<Goal>().HasQueryFilter(goal =>
+            goal.WorkspaceId == CurrentWorkspaceId
+            && goal.Participants.Any(participant => participant.UserId == CurrentUserId && participant.Status == ParticipantStatus.Active));
     }
 
     private void ApplyOwnerFilter<TEntity>(ModelBuilder modelBuilder)
         where TEntity : class, IOwned =>
         modelBuilder.Entity<TEntity>().HasQueryFilter(entity =>
-            entity.OwnerUserId == CurrentUserId && entity.WorkspaceId == CurrentWorkspaceId);
+            entity.OwnerUserId == CurrentUserId && entity.WorkspaceId == PersonalWorkspaceId);
 
     /// <summary>
     /// The command pipeline takes the events out of the aggregates before it saves. Events still present here

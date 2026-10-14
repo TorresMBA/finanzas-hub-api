@@ -171,6 +171,11 @@ internal sealed class ArchiveAccountHandler(ILedgerDb db, AccountBalances balanc
             return LedgerErrors.AccountNotFound;
         }
 
+        if (account.IsGoalFund)
+        {
+            return Account.ManagedByGoal;
+        }
+
         if (!account.IsArchived)
         {
             account.Archive(clock.UtcNow);

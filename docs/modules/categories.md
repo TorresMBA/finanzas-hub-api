@@ -36,3 +36,7 @@ Desde la fase 3 el módulo expone `ICategoryLookup` (una categoría, varias, y u
 - Archivar un tag lo quita de todas las categorías que lo sugerían.
 - La siembra copia el catálogo de `Domain/DefaultCatalog.cs` y se puede repetir: salta lo que la persona ya recibió (por `system_key`, aunque lo haya renombrado o archivado) y lo que choca con un nombre que ya usa. Corre al completar el onboarding (para el Owner) y al unirse un miembro; como quien se une desde una invitación aún no tiene sesión, es el único código que usa `IgnoreQueryFilters`, con el workspace y el usuario explícitos.
 - Cambiar el catálogo no cambia lo que alguien ya tiene. Una clave del catálogo no se reutiliza para otra cosa.
+
+## Tras el ADR-021
+
+Las categorías y los tags son de la persona y viven en su espacio personal. El catálogo sugerido se siembra solo al configurar ese espacio; unirse a otro espacio ya no siembra nada.

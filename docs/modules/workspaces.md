@@ -18,7 +18,7 @@ Relación confirmada: `User 1:N WorkspaceMembership N:1 Workspace`. Clave única
 | CompleteOnboarding | Owner | moneda base, zona horaria, sembrar categorías | Solo desde `PendingSetup`; moneda de la lista permitida | Pasa a `Active`; `OnboardingCompleted` |
 | RenameWorkspace, ChangeTimeZone | Admin u Owner | — | — | Auditoría |
 | ChangeBaseCurrency | Owner | moneda | Solo si el workspace no tiene asientos | Auditoría |
-| InviteMember | Admin u Owner | correo, rol | Rol ≠ Owner; no duplicar invitación pendiente; no invitar a un miembro activo | Token con caducidad de 7 días; `MemberInvited` (correo) |
+| InviteMember | Admin u Owner | correo, rol | Rol ≠ Owner; no duplicar invitación pendiente; no invitar a un miembro activo | Token con caducidad de 7 días; `MemberInvited` (correo). La respuesta trae el enlace de aceptación (`acceptLink`) una sola vez, para que quien invita lo entregue por su cuenta si el correo no llega; el listado no lo repite porque el token no se guarda |
 | RevokeInvitation | Admin u Owner | id | Solo pendientes | — |
 | AcceptInvitation | Autenticado cuyo correo coincide | token | Vigente y no usada | Membresía activa; `MemberJoined` |
 | ChangeMemberRole | Admin u Owner | usuario, rol | No sobre uno mismo; no sobre el Owner; un Admin no concede Admin | Auditoría |
@@ -36,3 +36,7 @@ Diferido: `ChangeBaseCurrency` (sin fecha: desde la fase 4 cada asiento en otra 
 - Una invitación caducada sigue en estado pendiente; invitar de nuevo al mismo correo la revoca y crea otra.
 - Solo el Owner invita o nombra administradores; un Admin gestiona miembros.
 - `Workspace` lleva `xmin` como token de concurrencia sobre sus propios datos (nombre, zona horaria, propietario). Dos cambios simultáneos de miembros no chocan en ese token: afectan a filas de `memberships`.
+
+## Espacio personal (ADR-021)
+
+Cada persona tiene un espacio personal (`is_personal`), el que recibe al registrarse. Ahí viven sus finanzas privadas, que son las mismas tenga abierto el espacio que tenga. No se traspasa. `IWorkspaceAccess` lo resuelve en cada petición junto con la membresía, y el resto de la aplicación lo lee de `IPersonalSpace`. Al aceptar una invitación, un espacio personal aún sin configurar toma la moneda y la zona horaria del espacio al que la persona se une. `GET /me/workspaces` dice cuál es (`isPersonal`) y de quién es cada uno (`ownerName`).

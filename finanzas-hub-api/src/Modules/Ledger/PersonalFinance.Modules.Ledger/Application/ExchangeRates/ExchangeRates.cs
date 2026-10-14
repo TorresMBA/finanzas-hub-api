@@ -9,7 +9,7 @@ using PersonalFinance.Modules.Ledger.Domain;
 namespace PersonalFinance.Modules.Ledger.Application.ExchangeRates;
 
 /// <summary>Where every conversion to the base currency gets its rates from.</summary>
-internal sealed class ExchangeRateBook(ILedgerDb db, IWorkspaceContext workspace)
+internal sealed class ExchangeRateBook(ILedgerDb db, IPersonalSpace workspace)
 {
     public async Task<RateTable> LoadAsync(CancellationToken cancellationToken)
     {
@@ -58,7 +58,7 @@ internal sealed class ListExchangeRatesHandler(ExchangeRateBook book) : IQueryHa
 /// <param name="AsOf">Today when left out. A rate already given for that day is replaced.</param>
 public sealed record SetExchangeRateCommand(string Currency, decimal Rate, DateOnly? AsOf) : ICommand<ExchangeRateResponse>;
 
-internal sealed class SetExchangeRateHandler(ILedgerDb db, LedgerScope scope, IWorkspaceContext workspace, IAuditLog audit, IClock clock)
+internal sealed class SetExchangeRateHandler(ILedgerDb db, LedgerScope scope, IPersonalSpace workspace, IAuditLog audit, IClock clock)
     : ICommandHandler<SetExchangeRateCommand, ExchangeRateResponse>
 {
     public async Task<Result<ExchangeRateResponse>> HandleAsync(SetExchangeRateCommand command, CancellationToken cancellationToken)

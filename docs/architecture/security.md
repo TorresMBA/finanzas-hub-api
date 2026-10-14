@@ -16,7 +16,7 @@
 
 | Clase de dato | Columnas | Predicado de acceso | Módulos |
 |---|---|---|---|
-| Privado | `workspace_id`, `owner_user_id` | `workspace_id = @ws AND owner_user_id = @yo` | Ledger, Categories, Budgets, Scheduling, Integrations, Investments |
+| Privado | `workspace_id`, `owner_user_id` | `workspace_id = @mi_espacio_personal AND owner_user_id = @yo` (ADR-021: no el espacio de la ruta) | Ledger, Categories, Budgets, Scheduling, Integrations, Investments |
 | Colaborativo | `workspace_id`, `created_by_user_id` y tabla de participantes | `workspace_id = @ws AND EXISTS (participante activo con user_id = @yo)` | Goals, SharedExpenses |
 | Del workspace | `workspace_id` | Membresía activa y rol | Workspaces |
 | Personal sin workspace | `user_id` | `user_id = @yo` | Identity (perfil, preferencias), Notifications |

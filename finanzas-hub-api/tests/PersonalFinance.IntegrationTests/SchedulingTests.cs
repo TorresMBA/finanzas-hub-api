@@ -105,9 +105,9 @@ public class SchedulingTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.NotFound, (await juan.Client.PostAsync(Url(workspaceId, $"recurring-rules/{rent.Id()}/occurrences/{today.AddMonths(1):yyyy-MM-dd}/skip"), null)).StatusCode);
         Assert.Equal(new RunScheduleResponse(0, 0, 0), await api.ExecuteAsync(async services =>
         {
-            // Juan's own cycle in the same workspace finds nothing of Brian's to run.
+            // The cycle runs once per person, in their personal workspace. Juan's finds nothing of Brian's to run.
             var owners = await services.GetRequiredService<IQueryHandler<ListScheduleOwnersQuery, IReadOnlyList<ScheduleOwner>>>().HandleAsync(new ListScheduleOwnersQuery(), CancellationToken.None);
-            var owner = owners.Value.Single(candidate => candidate.UserId == juan.UserId && candidate.WorkspaceId == workspaceId);
+            var owner = owners.Value.Single(candidate => candidate.UserId == juan.UserId && candidate.WorkspaceId == juan.PersonalWorkspaceId);
             var actor = services.GetRequiredService<IActorContextInitializer>();
             actor.ActAs(owner.UserId, ActorType.System, "Worker");
             actor.EnterWorkspace(new WorkspaceMembershipInfo(owner.WorkspaceId, owner.UserId, owner.Role, owner.BaseCurrency, owner.TimeZone));

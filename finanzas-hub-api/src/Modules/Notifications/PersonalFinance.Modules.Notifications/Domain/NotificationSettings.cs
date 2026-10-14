@@ -72,7 +72,7 @@ public sealed class NotificationSettings : AggregateRoot
     };
 
     /// <summary>A budget about to run out or a payment coming up is worth an email; a large movement the person just made is not.</summary>
-    public static bool EmailByDefault(NotificationCategory category) => category != NotificationCategory.LargeMovement;
+    public static bool EmailByDefault(NotificationCategory category) => category is NotificationCategory.Budget or NotificationCategory.Bills;
 
     public bool EmailEnabled(NotificationCategory category) =>
         _preferences.FirstOrDefault(preference => preference.Category == category && preference.Channel == NotificationChannel.Email)?.Enabled

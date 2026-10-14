@@ -6,6 +6,7 @@
     <ProjectReference Include="..\..\Categories\PersonalFinance.Modules.Categories\PersonalFinance.Modules.Categories.csproj" />
     <ProjectReference Include="..\..\Ledger\PersonalFinance.Modules.Ledger\PersonalFinance.Modules.Ledger.csproj" />
     <ProjectReference Include="..\..\Budgets\PersonalFinance.Modules.Budgets\PersonalFinance.Modules.Budgets.csproj" />
+    <ProjectReference Include="..\..\Goals\PersonalFinance.Modules.Goals\PersonalFinance.Modules.Goals.csproj" />
     <ProjectReference Include="..\..\Scheduling\PersonalFinance.Modules.Scheduling\PersonalFinance.Modules.Scheduling.csproj" />
   </ItemGroup>
 

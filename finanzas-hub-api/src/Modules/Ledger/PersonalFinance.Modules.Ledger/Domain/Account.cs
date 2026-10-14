@@ -8,7 +8,10 @@ public enum AccountType
     Bank,
     Cash,
     Wallet,
-    CreditCard
+    CreditCard,
+
+    /// <summary>What a person has put aside for a goal. Opened and moved by the goals, never by hand.</summary>
+    GoalFund
 }
 
 /// <summary>
@@ -55,6 +58,8 @@ public sealed class Account : AggregateRoot, IOwned
     public CreditCardProfile? CreditCard { get; private set; }
 
     public bool IsCreditCard => Type == AccountType.CreditCard;
+
+    public bool IsGoalFund => Type == AccountType.GoalFund;
 
     public DateTimeOffset CreatedAt { get; private set; }
 
@@ -154,6 +159,15 @@ public sealed class Account : AggregateRoot, IOwned
 
     /// <summary>Fails when the account cannot take new entries.</summary>
     public Result EnsureOpen() => IsArchived ? Archived : Result.Success();
+
+    /// <summary>
+    /// Fails for the fund of a goal: its balance is what the person contributed to the goal, so money enters and
+    /// leaves it only as a contribution or a withdrawal.
+    /// </summary>
+    public Result EnsureMovedByHand() => IsGoalFund ? ManagedByGoal : EnsureOpen();
+
+    public static Error ManagedByGoal =>
+        Error.BusinessRule("ledger.account.managed_by_goal", "This account holds the money of a goal. Contribute to the goal or withdraw from it instead.");
 
     private static Error Archived => Error.BusinessRule("ledger.account.archived", "The account is archived. Restore it first.");
 

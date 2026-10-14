@@ -9,10 +9,15 @@ using PersonalFinance.Modules.Workspaces.Domain;
 
 namespace PersonalFinance.Modules.Workspaces.Application.Invitations;
 
-public sealed record InvitationResponse(Guid Id, string Email, WorkspaceRole Role, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt, bool Expired)
+/// <param name="AcceptLink">
+/// The link the invited person opens to join. Only in the answer to creating the invitation, so whoever invited
+/// can hand it over themselves when the email does not arrive; null everywhere else, because the token is not kept.
+/// </param>
+public sealed record InvitationResponse(
+    Guid Id, string Email, WorkspaceRole Role, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt, bool Expired, string? AcceptLink = null)
 {
-    internal static InvitationResponse From(Invitation invitation, DateTimeOffset now) =>
-        new(invitation.Id, invitation.Email, invitation.Role, invitation.CreatedAt, invitation.ExpiresAt, now >= invitation.ExpiresAt);
+    internal static InvitationResponse From(Invitation invitation, DateTimeOffset now, string? acceptLink = null) =>
+        new(invitation.Id, invitation.Email, invitation.Role, invitation.CreatedAt, invitation.ExpiresAt, now >= invitation.ExpiresAt, acceptLink);
 }
 
 public sealed record ListInvitationsQuery : IQuery<IReadOnlyList<InvitationResponse>>;
@@ -81,17 +86,18 @@ internal sealed class InviteMemberHandler(
         db.Invitations.Add(invitation);
 
         var inviter = await users.FindAsync(actor, cancellationToken);
+        var acceptLink = links.To($"/invite/{token}");
         emails.Queue(new EmailMessage(
             invitation.Email,
             $"{inviter?.DisplayName ?? "Alguien"} te invitó a «{workspace.Name}» en PersonalHub",
             $"Hola:\n\n{inviter?.DisplayName ?? "Alguien"} te invitó a unirte a «{workspace.Name}» en PersonalHub.\n\n"
-            + $"Acepta la invitación con este enlace, válido durante {Invitation.Lifetime.Days} días:\n{links.To($"/invite/{token}")}\n\n"
+            + $"Acepta la invitación con este enlace, válido durante {Invitation.Lifetime.Days} días:\n{acceptLink}\n\n"
             + "Unirte no da acceso a tus finanzas personales a nadie: solo a lo que decidas compartir."));
         audit.Record(new AuditEntry("workspaces", "workspaces.invitation.created", "invitation", invitation.Id)
         {
             After = new { Role = invitation.Role.ToString() }
         });
-        return InvitationResponse.From(invitation, now);
+        return InvitationResponse.From(invitation, now, acceptLink);
     }
 }
 
@@ -208,6 +214,17 @@ internal sealed class InvitationAcceptance(IWorkspacesDb db, IAuditLog audit, IC
             WorkspaceId = workspace.Id,
             After = new { Role = invitation.Role.ToString() }
         });
+
+        // Someone whose personal workspace is still to be set up takes the currency and the time zone of the one
+        // they join, so their own books are ready to use at once. The one just created by a registration is not in
+        // the database yet: it is found among the tracked ones.
+        var personal = db.Workspaces.Local.FirstOrDefault(row => row.IsPersonal && row.OwnerUserId == userId)
+            ?? await db.Workspaces.FirstOrDefaultAsync(row => row.IsPersonal && row.OwnerUserId == userId, cancellationToken);
+        if (personal is { Status: WorkspaceStatus.PendingSetup } && workspace.BaseCurrency is not null)
+        {
+            personal.CompleteOnboarding(workspace.BaseCurrency, workspace.TimeZone);
+        }
+
         return invitation;
     }
 }

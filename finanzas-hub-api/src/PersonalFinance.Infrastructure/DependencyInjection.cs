@@ -13,6 +13,7 @@ using PersonalFinance.Infrastructure.Email;
 using PersonalFinance.Infrastructure.Messaging;
 using PersonalFinance.Modules.Budgets.Application.Abstractions;
 using PersonalFinance.Modules.Categories.Application.Abstractions;
+using PersonalFinance.Modules.Goals.Application.Abstractions;
 using PersonalFinance.Modules.Identity.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
 using PersonalFinance.Modules.Notifications.Application.Abstractions;
@@ -63,6 +64,7 @@ public static class DependencyInjection
         services.AddScoped<ActorContext>();
         services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<ActorContext>());
         services.AddScoped<IWorkspaceContext>(provider => provider.GetRequiredService<ActorContext>());
+        services.AddScoped<IPersonalSpace>(provider => provider.GetRequiredService<ActorContext>());
         services.AddScoped<IActorContextInitializer>(provider => provider.GetRequiredService<ActorContext>());
         services.AddScoped<CorrelationContext>();
 
@@ -103,6 +105,9 @@ public static class DependencyInjection
 
         services.AddModule(typeof(ISchedulingDb).Assembly);
         services.AddScoped<ISchedulingDb>(provider => provider.GetRequiredService<AppDbContext>());
+
+        services.AddModule(typeof(IGoalsDb).Assembly);
+        services.AddScoped<IGoalsDb>(provider => provider.GetRequiredService<AppDbContext>());
 
         // Reporting has no tables: it reads the other modules through their contracts.
         services.AddModule(typeof(GetDashboardQuery).Assembly);

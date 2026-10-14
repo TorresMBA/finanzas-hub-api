@@ -14,10 +14,10 @@
 | Search (query) | Dueño | texto | Transacciones, cuentas y metas propias |
 | ExportReport (query) | Dueño | formato | Archivo XLSX o CSV |
 
-## Estado tras la fase 7
+## Estado tras la fase 8
 
-Implementado: `GetDashboard`, en `GET W/dashboard?month=2026-10` (sin `month`, el mes actual del workspace). Devuelve, en la moneda base: patrimonio al cierre del mes y su variación contra el mes anterior, ingresos y gastos del mes y del anterior, tasa de ahorro, flujo de los seis meses que terminan en ese, las cinco categorías con más gasto (cada una con sus subcategorías sumadas), los cinco últimos movimientos las cuatro cuentas de mayor saldo y, si la persona tiene presupuestos, lo presupuestado y lo gastado contra ellos. Desde la fase 7, también los próximos pagos de los treinta días siguientes: gastos programados y tarjetas por vencer. Los movimientos y las cuentas conservan su moneda.
+Implementado: `GetDashboard`, en `GET W/dashboard?month=2026-10` (sin `month`, el mes actual del workspace). Devuelve, en la moneda base: patrimonio al cierre del mes y su variación contra el mes anterior, ingresos y gastos del mes y del anterior, tasa de ahorro, flujo de los seis meses que terminan en ese, las cinco categorías con más gasto (cada una con sus subcategorías sumadas), los cinco últimos movimientos las cuatro cuentas de mayor saldo y, si la persona tiene presupuestos, lo presupuestado y lo gastado contra ellos. Desde la fase 7, también los próximos pagos de los treinta días siguientes: gastos programados y tarjetas por vencer. Desde la fase 8, las tres metas abiertas más cerca de su objetivo. Los movimientos y las cuentas conservan su moneda.
 
-El módulo no tiene tablas ni dominio. Lee `ILedgerQueries`, `IBudgetQueries`, `IScheduleQueries` e `ICategoryLookup`, que ya limitan todo a la persona de la petición, así que el Inicio de un miembro nunca muestra dinero de otro. Registra la métrica `reporting.dashboard.duration`.
+El módulo no tiene tablas ni dominio. Lee `ILedgerQueries`, `IBudgetQueries`, `IScheduleQueries`, `IGoalQueries` e `ICategoryLookup`, que ya limitan todo a la persona de la petición, así que el Inicio de un miembro nunca muestra dinero de otro. Registra la métrica `reporting.dashboard.duration`.
 
-Diferido: las metas del Inicio (fase 8); los reportes, la búsqueda y la exportación (fase 12).
+Diferido: los reportes, la búsqueda y la exportación (fase 12).

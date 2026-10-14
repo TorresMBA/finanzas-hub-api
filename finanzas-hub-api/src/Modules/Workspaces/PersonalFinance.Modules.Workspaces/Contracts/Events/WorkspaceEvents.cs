@@ -5,7 +5,8 @@ namespace PersonalFinance.Modules.Workspaces.Contracts.Events;
 public sealed record WorkspaceCreated(Guid WorkspaceId, Guid OwnerUserId) : IDomainEvent;
 
 /// <summary>The owner chose the base currency and the time zone; the workspace is ready to hold data.</summary>
-public sealed record OnboardingCompleted(Guid WorkspaceId, Guid OwnerUserId, string BaseCurrency, string TimeZone) : IDomainEvent;
+/// <param name="IsPersonal">Whether it is the personal workspace of its owner, where their private finances live.</param>
+public sealed record OnboardingCompleted(Guid WorkspaceId, Guid OwnerUserId, string BaseCurrency, string TimeZone, bool IsPersonal) : IDomainEvent;
 
 public sealed record MemberJoined(Guid WorkspaceId, Guid UserId, WorkspaceRole Role) : IDomainEvent;
 

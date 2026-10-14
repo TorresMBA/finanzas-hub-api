@@ -44,7 +44,7 @@ internal sealed class NotificationSettingsStore(INotificationsDb db)
 /// </summary>
 internal sealed class NotificationPublisher(
     INotificationsDb db, NotificationSettingsStore settingsStore, IUserDirectory users, IEmailSender email, IAppLinks links, IRealtimeNotifier realtime,
-    IWorkspaceContext workspace, IClock clock) : INotificationPublisher
+    IPersonalSpace workspace, IClock clock) : INotificationPublisher
 {
     /// <summary>The name the browsers listen to on the hub.</summary>
     public const string CreatedEvent = "notification.created";

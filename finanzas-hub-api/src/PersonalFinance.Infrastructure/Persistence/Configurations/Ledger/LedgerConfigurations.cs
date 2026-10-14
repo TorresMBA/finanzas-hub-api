@@ -15,7 +15,7 @@ internal sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
     public void Configure(EntityTypeBuilder<Account> builder)
     {
         // There is no balance column, and there must never be one: the balance is the sum of the entries.
-        builder.ToTable("accounts", Schemas.Ledger, table => table.HasCheckConstraint("ck_accounts_type", "type IN ('Bank', 'Cash', 'Wallet', 'CreditCard')"));
+        builder.ToTable("accounts", Schemas.Ledger, table => table.HasCheckConstraint("ck_accounts_type", "type IN ('Bank', 'Cash', 'Wallet', 'CreditCard', 'GoalFund')"));
         builder.HasKey(account => account.Id);
         builder.Property(account => account.Id).ValueGeneratedNever();
         builder.Property(account => account.Name).HasMaxLength(Account.MaxNameLength).IsRequired();

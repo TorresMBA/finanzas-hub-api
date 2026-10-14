@@ -19,7 +19,7 @@ El backend tiene dos entradas, la API (`Controllers/<Módulo>`) y el Worker (`Jo
 
 ## Reglas que no se negocian
 
-**Privacidad.** Pertenecer a un workspace no da acceso a lo financiero de otros miembros. Lo privado lleva `workspace_id` y `owner_user_id` e implementa `IOwned`; el filtro global de EF lo aísla. Lo colaborativo (metas y gastos compartidos) se autoriza por participación en el recurso. Ningún rol ve datos privados ajenos. Un recurso ajeno responde 404.
+**Privacidad.** Pertenecer a un workspace no da acceso a lo financiero de otros miembros. Lo privado es de la persona: vive en su workspace personal y es lo mismo tenga abierto el workspace que tenga ([ADR-021](docs/adr/ADR-021-finanzas-privadas-de-la-persona.md)). Lleva `workspace_id` y `owner_user_id` e implementa `IOwned`; el filtro global de EF lo aísla con el workspace personal del dueño, que los módulos piden a `IPersonalSpace`. Lo colaborativo (metas y gastos compartidos) se autoriza por participación en el recurso. Ningún rol ve datos privados ajenos. Un recurso ajeno responde 404.
 
 **Dinero.** `decimal` siempre, moneda explícita. El saldo se deriva de los asientos; no existe una columna de saldo. Una transferencia no es ingreso ni gasto. Nada financiero se borra: se anula.
 
@@ -81,4 +81,4 @@ npm run e2e                                      # requiere la API en marcha
 
 ## Estado
 
-Fases 0 a 7 terminadas: plataforma, cuentas y sesión (Identity), workspaces con miembros, roles e invitaciones, categorías y tags privados por usuario (Categories), cuentas con ingresos y gastos (Ledger I), y transferencias, tarjetas de crédito, patrimonio, tipo de cambio e Inicio (Ledger II y Reporting), presupuestos mensuales por categoría (Budgets), bandeja de avisos con correo y tiempo real (Notifications), y movimientos programados con su calendario (Scheduling). Lo siguiente es la fase 8 (Goals). El tablero está en [docs/roadmap/status.md](docs/roadmap/status.md).
+Fases 0 a 8 terminadas: plataforma, cuentas y sesión (Identity), workspaces con miembros, roles e invitaciones, categorías y tags privados por usuario (Categories), cuentas con ingresos y gastos (Ledger I), y transferencias, tarjetas de crédito, patrimonio, tipo de cambio e Inicio (Ledger II y Reporting), presupuestos mensuales por categoría (Budgets), bandeja de avisos con correo y tiempo real (Notifications), movimientos programados con su calendario (Scheduling), y metas personales y compartidas (Goals). Lo siguiente es la fase 9 (SharedExpenses). El tablero está en [docs/roadmap/status.md](docs/roadmap/status.md).

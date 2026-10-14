@@ -17,7 +17,7 @@ internal sealed class PersonalWorkspaceOnRegistration(IWorkspacesDb db, Invitati
 
     public async Task<Result<Guid>> OnRegisteredAsync(NewUser user, CancellationToken cancellationToken)
     {
-        var created = Workspace.Create(PersonalWorkspaceName, user.Id, clock.UtcNow);
+        var created = Workspace.Create(PersonalWorkspaceName, user.Id, clock.UtcNow, isPersonal: true);
         if (created.IsFailure)
         {
             return created.Error;

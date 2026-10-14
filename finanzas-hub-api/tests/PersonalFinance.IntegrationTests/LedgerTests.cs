@@ -339,7 +339,7 @@ public class LedgerTests(ApiFixture api)
     }
 
     [Fact]
-    public async Task Books_stay_in_the_workspace_they_were_made_in_and_outsiders_get_nothing()
+    public async Task The_books_of_a_person_are_the_same_in_every_workspace_of_theirs_and_outsiders_get_nothing()
     {
         var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
         var pedro = await api.RegisterAsync("Pedro");
@@ -353,8 +353,9 @@ public class LedgerTests(ApiFixture api)
         var outsiderTransactions = await pedro.Client.GetAsync(Books.TransactionsUrl(brian.PersonalWorkspaceId));
         var anonymous = await api.AnonymousClient().GetAsync(Books.TransactionsUrl(brian.PersonalWorkspaceId));
 
-        Assert.Empty(inOther.EnumerateArray());
-        Assert.Equal(HttpStatusCode.NotFound, fromOther.StatusCode);
+        // Private finances belong to the person, not to the workspace open: Brian finds his account from both.
+        Assert.Equal("BCP", Assert.Single(inOther.EnumerateArray()).GetProperty("name").GetString());
+        Assert.Equal(HttpStatusCode.OK, fromOther.StatusCode);
         Assert.Equal((HttpStatusCode.NotFound, "workspace.not_found"), (outsider.StatusCode, await Accounts.CodeOfAsync(outsider)));
         Assert.Equal(HttpStatusCode.NotFound, outsiderTransactions.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);

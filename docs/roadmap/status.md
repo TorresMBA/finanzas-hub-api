@@ -14,8 +14,8 @@ Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance d
 | 5 | Budgets | ✅ Completada | 13-oct-2026 |
 | 6 | Notifications y tiempo real | ✅ Completada | 13-oct-2026 |
 | 7 | Scheduling y Calendario | ✅ Completada | 13-oct-2026 |
-| 8 | Goals | ⏳ Pendiente (siguiente) | — |
-| 9 | SharedExpenses | ⏳ Pendiente | — |
+| 8 | Goals | ✅ Completada | 13-oct-2026 |
+| 9 | SharedExpenses | ⏳ Pendiente (siguiente) | — |
 | 10 | Integrations: importación y reglas | ⏳ Pendiente | — |
 | 11 | WhatsApp | ⏳ Pendiente | — |
 | 12 | Reporting | ⏳ Pendiente | — |
@@ -26,14 +26,14 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-13-oct-2026, al cerrar la fase 7.
+13-oct-2026, tras el ADR-021 (finanzas privadas de la persona), posterior al cierre de la fase 8.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 240 en verde (138 unitarios, 19 de arquitectura, 83 de integración) |
-| Frontend: build, tests y lint | Build correcto y sin avisos, 122 tests, lint limpio |
-| E2E en Chrome | 24 en verde |
+| Backend: tests | 250 en verde (145 unitarios, 19 de arquitectura, 86 de integración) |
+| Frontend: build, tests y lint | Build correcto y sin avisos, 124 tests, lint limpio |
+| E2E en Chrome | 26 en verde |
 
 ## Pendientes que dejaron las fases cerradas
 
@@ -53,7 +53,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Archivar un workspace | Sin fecha |
 | Foto de perfil | Sin fecha |
 | Inicio de sesión con Google o Microsoft (OQ-25) | Backlog diferido |
-| Envío por SMTP real y respuesta 429 del límite de `/auth` | Sin verificar; se prueban al desplegar |
+| Envío por SMTP real y respuesta 429 del límite de `/auth` | Sin verificar; se prueban al desplegar. Sin SMTP configurado los correos se escriben como `.eml` en `%TEMP%\personal-hub-mail`, y solo con el Worker en marcha. Invitar ya no depende de eso: desde el 13-oct-2026 la pantalla muestra el enlace de la invitación al crearla |
 
 ### Fase 2
 
@@ -68,7 +68,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Pendiente | Se retoma |
 |---|---|
 | Evento `AccountArchived` | Con su primer consumidor |
-| `ETag` / `If-Match` en la API | Fase 8, con el primer agregado que editan varias personas |
+| `ETag` / `If-Match` en la API | Sin fecha. La meta lleva `xmin`: dos cambios simultáneos sobre la misma fila responden 409, pero la API no expone la versión |
 | "Dividir gasto" en el detalle del movimiento | Fase 9 |
 | Concurrencia por `xmin` en cuentas y operaciones | Configurada; ningún test la provoca todavía |
 
@@ -79,9 +79,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Comisión de una transferencia como gasto vinculado | Sin fecha. Hoy se registra aparte, como un gasto más |
 | Editar una transferencia | Sin fecha. Se anula y se registra de nuevo |
 | Marca de "cuenta favorita" para las cuentas del Inicio (OQ-24) | Sin fecha. El Inicio muestra las cuatro de mayor saldo |
-| Metas en el Inicio | Fase 8 |
 | Historial de tipos de cambio en pantalla | Fase 14. Se guarda una fila por día; la pantalla solo muestra y cambia el vigente |
-| Cuentas de meta (`GoalFund`) fuera del patrimonio por defecto | Fase 8. La casilla "Incluir en mi patrimonio" ya existe en toda cuenta; Goals abrirá las suyas con ella desmarcada |
 
 ### Fase 5
 
@@ -115,11 +113,34 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Editar una regla | Sin fecha. Se termina y se programa otra |
 | Programar una transferencia o un pago de tarjeta | Sin fecha. Una regla es un ingreso o un gasto |
 | Frecuencias semanal y quincenal, intervalos y política de fin de semana | Sin fecha. Hay una vez, cada mes y cada año |
-| `IScheduledActionHandler` e `ICalendarItemProvider` | Fase 8, con su primer consumidor: el aporte automático a una meta |
+| `IScheduledActionHandler` e `ICalendarItemProvider` | Con el aporte automático a una meta, que la fase 8 dejó pendiente |
 | Pausar las reglas de quien pierde el acceso y avisarle | Sin fecha. Hoy esas reglas simplemente dejan de correr, y vuelven a correr si la persona recupera el acceso |
 | Ver el job del Worker registrar un movimiento | Sin verificar. El test corre el mismo caso de uso que el job, no la clase del job; en el E2E el Worker arrancó sin errores pero no tenía nada automático que registrar |
 | Métrica de la duración del ciclo | Sin fecha. Se cuenta lo registrado (`scheduler.occurrences`) |
 | Tablet y tema claro del Calendario | Sin revisar a ojo |
+
+### Fase 8
+
+| Pendiente | Se retoma |
+|---|---|
+| Aporte automático mensual a una meta | Sin fecha. Necesita que Scheduling programe acciones de otros módulos (`IScheduledActionHandler`) |
+| Fecha objetivo de la meta en el Calendario | Sin fecha, con `ICalendarItemProvider` |
+| Cuenta de ahorro propia como destino del aporte ("cuenta vinculada") | Sin fecha. Hoy todo aporte va al fondo de la meta, una cuenta que la aplicación abre a nombre de quien aporta |
+| Anular un aporte | Sin fecha. Un aporte equivocado se retira |
+| Traspasar la propiedad de una meta | Sin fecha. Quien la creó no puede salir: la archiva o la cancela |
+| Meta en otra moneda que la cuenta | Fuera de alcance: la cuenta debe tener la moneda de la meta |
+| Test de dos aportes simultáneos | Sin fecha. Dos aportes a la vez no chocan (cada uno es una fila); que crucen el objetivo a la vez sí, y uno responde 409 |
+| Ver la señal en tiempo real entre dos navegadores | Sin verificar. El aporte de otro participante envía `resource.changed`; ningún test lo observa |
+| Tablet, móvil a ojo y tema claro de Metas | Solo se revisó escritorio en tema oscuro; en móvil se comprobó que no desborda |
+
+### ADR-021: finanzas privadas de la persona (13-oct-2026)
+
+| Pendiente | Se retoma |
+|---|---|
+| Lo privado registrado antes dentro del espacio de otra persona | No se retoma: eran datos de prueba. Siguen en la base, pero no se ven porque no están en el espacio personal de su dueño |
+| Un fondo de meta abierto antes en un espacio ajeno | No se retoma. Esa cuenta ya no se ve, así que ese aporte no se puede retirar |
+| Libros propios de un espacio compartido ("cuentas del hogar") | No existen por decisión. Lo común se lleva con metas y, desde la fase 9, gastos compartidos |
+| Una persona que ya no posee ningún espacio (traspasó el único que tenía antes de este cambio) | Sin fecha. La migración no le marca espacio personal y no vería sus finanzas |
 
 ## Resuelto de fases anteriores
 
@@ -131,6 +152,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Selección de categoría y de tags en un formulario | Fase 2 | Fase 3, dentro del formulario de transacción |
 | Monto por categoría en la pantalla de Categorías | Fase 2 | Fase 4: cada categoría dice lo que movió en el mes de la barra superior |
 | Aviso al llegar al umbral del presupuesto y eventos del ledger | Fases 3 y 5 | Fase 6: `LedgerOperationChanged` y `EvaluateBudgetThresholds` |
+| Cuentas de meta fuera del patrimonio por defecto y metas en el Inicio | Fase 4 | Fase 8 |
 | `ILedgerPosting` para otros módulos | Fase 3 | Fase 7: Scheduling registra por él |
 | "Repetir cada mes" en el formulario de transacción | Fase 3 | Fase 7 |
 | Aviso de vencimiento de tarjeta y próximos pagos en el Inicio | Fase 4 | Fase 7 |

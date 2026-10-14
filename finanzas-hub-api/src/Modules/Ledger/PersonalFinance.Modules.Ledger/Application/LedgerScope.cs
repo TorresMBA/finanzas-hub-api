@@ -30,7 +30,7 @@ internal static class LedgerMetrics
 }
 
 /// <summary>Whose books the current request works on, and what day it is for that person.</summary>
-internal sealed class LedgerScope(ICurrentUser currentUser, IWorkspaceContext workspace, IClock clock)
+internal sealed class LedgerScope(ICurrentUser currentUser, IPersonalSpace workspace, IClock clock)
 {
     /// <summary>Null when there is no signed-in member of the workspace.</summary>
     public (Guid WorkspaceId, Guid UserId)? Owner =>

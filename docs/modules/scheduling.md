@@ -40,3 +40,5 @@ Implementado: `CreateRecurringRule` (`POST W/recurring-rules`), pausar, reanudar
 Una regla es un ingreso o un gasto, una vez, cada mes o cada año, automática o con confirmación, con recordatorio opcional. Sus ocurrencias son una colección propia con clave `(rule_id, scheduled_on)`: solo existe la fila de lo registrado u omitido. El registro pasa por `ILedgerPosting` con la clave `scheduling:{regla}:{fecha}`.
 
 Diferido: editar una regla, transferencias programadas, más frecuencias, `IScheduledActionHandler` e `ICalendarItemProvider` (fase 8). Las diferencias con el diseño están en [phases.md](../roadmap/phases.md).
+
+Desde el ADR-021 las reglas viven en el espacio personal de su dueño y el ciclo corre una vez por persona, no una por membresía.

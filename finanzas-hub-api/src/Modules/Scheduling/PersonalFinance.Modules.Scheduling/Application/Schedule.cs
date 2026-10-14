@@ -68,7 +68,7 @@ public sealed record RecurringRuleResponse(
 /// every query to that person, so a calendar can only ever show their own plans.
 /// </summary>
 internal sealed class ScheduleReader(
-    ISchedulingDb db, ILedgerQueries ledger, ICategoryLookup categories, ICurrentUser currentUser, IWorkspaceContext workspace, IClock clock)
+    ISchedulingDb db, ILedgerQueries ledger, ICategoryLookup categories, ICurrentUser currentUser, IPersonalSpace workspace, IClock clock)
 {
     public (Guid WorkspaceId, Guid UserId)? Owner =>
         currentUser.UserId is { } userId && workspace.WorkspaceId is { } workspaceId ? (workspaceId, userId) : null;

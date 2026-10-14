@@ -7,6 +7,7 @@ using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Budgets.Contracts;
 using PersonalFinance.Modules.Categories.Contracts;
+using PersonalFinance.Modules.Goals.Contracts;
 using PersonalFinance.Modules.Ledger.Contracts;
 using PersonalFinance.Modules.Scheduling.Contracts;
 
@@ -23,6 +24,10 @@ public sealed record DashboardMonthResponse(string Month, decimal Income, decima
 /// <summary>Something still to be paid: a scheduled expense or a credit card falling due.</summary>
 /// <param name="Amount">Positive, in its own currency.</param>
 public sealed record DashboardUpcomingResponse(DateOnly Date, string Description, decimal Amount, string Currency, bool IsCardPayment);
+
+/// <summary>A goal the person takes part in. What was saved is by all its participants.</summary>
+/// <param name="Percent">Of the target; it passes 100 when more was saved.</param>
+public sealed record DashboardGoalResponse(Guid Id, string Name, decimal Saved, decimal TargetAmount, string Currency, decimal Percent, bool IsShared);
 
 /// <summary>The budgets of the month added up.</summary>
 /// <param name="UsedPercent">What was spent of the limit; it passes 100 when the limit was passed.</param>
@@ -50,12 +55,13 @@ public sealed record DashboardAccountResponse(Guid Id, string Name, LedgerAccoun
 /// <param name="SavingsRate">What was left of the income, from 0 to 100; negative when more was spent than earned. Null in a month without income.</param>
 /// <param name="Cashflow">The six months that end in this one, oldest first.</param>
 /// <param name="Budget">Null when no budget applies to the month.</param>
+/// <param name="Goals">The open goals closest to their target.</param>
 /// <param name="Upcoming">The next payments of the thirty days from today, the soonest first.</param>
 /// <param name="MissingRates">Currencies that could not be converted and are left out of the amounts.</param>
 public sealed record DashboardResponse(
     string Month, string? BaseCurrency, DashboardNetWorthResponse NetWorth, decimal Income, decimal Expense, decimal PreviousIncome, decimal PreviousExpense,
     decimal? SavingsRate, IReadOnlyList<DashboardMonthResponse> Cashflow, IReadOnlyList<DashboardCategoryResponse> TopCategories,
-    IReadOnlyList<DashboardMovementResponse> RecentMovements, IReadOnlyList<DashboardAccountResponse> Accounts, DashboardBudgetResponse? Budget, IReadOnlyList<DashboardUpcomingResponse> Upcoming,
+    IReadOnlyList<DashboardMovementResponse> RecentMovements, IReadOnlyList<DashboardAccountResponse> Accounts, DashboardBudgetResponse? Budget, IReadOnlyList<DashboardUpcomingResponse> Upcoming, IReadOnlyList<DashboardGoalResponse> Goals,
     IReadOnlyList<string> MissingRates);
 
 /// <param name="Month">As <c>2026-10</c>. The current month of the workspace when left out.</param>
@@ -66,7 +72,7 @@ public sealed record GetDashboardQuery(string? Month) : IQuery<DashboardResponse
 /// it reads is already limited to the current person by the modules it asks.
 /// </summary>
 internal sealed class GetDashboardHandler(
-    ILedgerQueries ledger, IBudgetQueries budgets, IScheduleQueries schedule, ICategoryLookup categories, IWorkspaceContext workspace, IClock clock)
+    ILedgerQueries ledger, IBudgetQueries budgets, IScheduleQueries schedule, IGoalQueries goals, ICategoryLookup categories, IPersonalSpace workspace, IClock clock)
     : IQueryHandler<GetDashboardQuery, DashboardResponse>
 {
     private const int CashflowMonths = 6;
@@ -75,6 +81,7 @@ internal sealed class GetDashboardHandler(
     private const int MainAccounts = 4;
     private const int UpcomingPayments = 5;
     private const int UpcomingDays = 30;
+    private const int MainGoals = 3;
 
     // Same meter name as the platform's, which is the one the hosts export.
     private static readonly Histogram<double> Duration =
@@ -134,6 +141,8 @@ internal sealed class GetDashboardHandler(
                 .ToList(),
             budget.Count == 0 ? null : new DashboardBudgetResponse(budget.Limit, budget.Spent, decimal.Round(budget.Spent * 100 / budget.Limit, 1)),
             upcoming.Select(payment => new DashboardUpcomingResponse(payment.Date, payment.Description, payment.Amount, payment.Currency, payment.IsCardPayment)).ToList(),
+            (await goals.GetActiveAsync(MainGoals, cancellationToken))
+                .Select(goal => new DashboardGoalResponse(goal.Id, goal.Name, goal.Saved, goal.TargetAmount, goal.Currency, goal.Percent, goal.IsShared)).ToList(),
             netWorth.MissingRates.Union(flow.MissingRates).Union(totals.MissingRates).Order(StringComparer.Ordinal).ToList());
 
         Duration.Record(Stopwatch.GetElapsedTime(started).TotalMilliseconds);

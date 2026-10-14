@@ -517,6 +517,76 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                     b.ToTable("tags", "categories");
                 });
 
+            modelBuilder.Entity("PersonalFinance.Modules.Goals.Domain.Goal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("AchievedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("achieved_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character(3)")
+                        .HasColumnName("currency")
+                        .IsFixedLength();
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("TargetAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("target_amount");
+
+                    b.Property<DateOnly?>("TargetDate")
+                        .HasColumnType("date")
+                        .HasColumnName("target_date");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_goals");
+
+                    b.HasIndex("WorkspaceId", "Status")
+                        .HasDatabaseName("ix_goals_workspace_id_status");
+
+                    b.ToTable("goals", "goals", t =>
+                        {
+                            t.HasCheckConstraint("ck_goals_status", "status IN ('Active', 'Archived', 'Cancelled')");
+
+                            t.HasCheckConstraint("ck_goals_target_amount", "target_amount > 0");
+                        });
+                });
+
             modelBuilder.Entity("PersonalFinance.Modules.Identity.Domain.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -733,7 +803,7 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
 
                     b.ToTable("accounts", "ledger", t =>
                         {
-                            t.HasCheckConstraint("ck_accounts_type", "type IN ('Bank', 'Cash', 'Wallet', 'CreditCard')");
+                            t.HasCheckConstraint("ck_accounts_type", "type IN ('Bank', 'Cash', 'Wallet', 'CreditCard', 'GoalFund')");
                         });
                 });
 
@@ -1331,6 +1401,10 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<bool>("IsPersonal")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_personal");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(80)
@@ -1361,6 +1435,11 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_workspaces");
+
+                    b.HasIndex("OwnerUserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_workspaces_one_personal_per_owner")
+                        .HasFilter("is_personal");
 
                     b.ToTable("workspaces", "workspaces", t =>
                         {
@@ -1439,6 +1518,126 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         });
 
                     b.Navigation("Tags");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Goals.Domain.Goal", b =>
+                {
+                    b.OwnsMany("PersonalFinance.Modules.Goals.Domain.GoalContribution", "Contributions", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("amount");
+
+                            b1.Property<DateTimeOffset>("CreatedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("created_at");
+
+                            b1.Property<Guid>("GoalId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("goal_id");
+
+                            b1.Property<Guid>("LedgerOperationId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("ledger_operation_id");
+
+                            b1.Property<DateOnly>("OccurredOn")
+                                .HasColumnType("date")
+                                .HasColumnName("occurred_on");
+
+                            b1.Property<string>("Type")
+                                .IsRequired()
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)")
+                                .HasColumnName("type");
+
+                            b1.Property<Guid>("UserId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("user_id");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_goal_contributions");
+
+                            b1.HasIndex("LedgerOperationId")
+                                .IsUnique()
+                                .HasDatabaseName("ix_goal_contributions_ledger_operation_id");
+
+                            b1.HasIndex("GoalId", "OccurredOn")
+                                .HasDatabaseName("ix_goal_contributions_goal_id_occurred_on");
+
+                            b1.ToTable("goal_contributions", "goals", t =>
+                                {
+                                    t.HasCheckConstraint("ck_goal_contributions_amount", "amount > 0");
+
+                                    t.HasCheckConstraint("ck_goal_contributions_type", "type IN ('Contribution', 'Withdrawal')");
+                                });
+
+                            b1.WithOwner()
+                                .HasForeignKey("GoalId")
+                                .HasConstraintName("fk_goal_contributions_goals_goal_id");
+                        });
+
+                    b.OwnsMany("PersonalFinance.Modules.Goals.Domain.GoalParticipant", "Participants", b1 =>
+                        {
+                            b1.Property<Guid>("GoalId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("goal_id");
+
+                            b1.Property<Guid>("UserId")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("uuid")
+                                .HasColumnName("user_id");
+
+                            b1.Property<Guid?>("FundAccountId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("fund_account_id");
+
+                            b1.Property<DateTimeOffset>("JoinedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("joined_at");
+
+                            b1.Property<string>("Role")
+                                .IsRequired()
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)")
+                                .HasColumnName("role");
+
+                            b1.Property<string>("Status")
+                                .IsRequired()
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)")
+                                .HasColumnName("status");
+
+                            b1.HasKey("GoalId", "UserId")
+                                .HasName("pk_goal_participants");
+
+                            b1.HasIndex("GoalId")
+                                .IsUnique()
+                                .HasDatabaseName("ix_goal_participants_one_owner")
+                                .HasFilter("role = 'Owner' AND status = 'Active'");
+
+                            b1.HasIndex("UserId", "Status")
+                                .HasDatabaseName("ix_goal_participants_user_id_status");
+
+                            b1.ToTable("goal_participants", "goals", t =>
+                                {
+                                    t.HasCheckConstraint("ck_goal_participants_role", "role IN ('Owner', 'Participant')");
+
+                                    t.HasCheckConstraint("ck_goal_participants_status", "status IN ('Active', 'Left')");
+                                });
+
+                            b1.WithOwner()
+                                .HasForeignKey("GoalId")
+                                .HasConstraintName("fk_goal_participants_goals_goal_id");
+                        });
+
+                    b.Navigation("Contributions");
+
+                    b.Navigation("Participants");
                 });
 
             modelBuilder.Entity("PersonalFinance.Modules.Identity.Domain.UserPreferences", b =>

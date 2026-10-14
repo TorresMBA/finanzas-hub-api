@@ -24,6 +24,9 @@ internal sealed class WorkspaceConfiguration : IEntityTypeConfiguration<Workspac
         // conflict, not a silent overwrite. Membership rows are separate and are not covered by it.
         builder.Property<uint>("Version").IsRowVersion();
 
+        // One personal workspace per person: it is where their private finances live.
+        builder.HasIndex(workspace => workspace.OwnerUserId).IsUnique().HasFilter("is_personal").HasDatabaseName("ix_workspaces_one_personal_per_owner");
+
         builder.HasMany(workspace => workspace.Memberships).WithOne().HasForeignKey(membership => membership.WorkspaceId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(workspace => workspace.Memberships).UsePropertyAccessMode(PropertyAccessMode.Field);
     }

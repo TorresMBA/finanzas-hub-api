@@ -93,6 +93,17 @@ public sealed class Operation : AggregateRoot, IOwned
     public bool IsTransaction => Kind is OperationKind.Income or OperationKind.Expense;
 
     /// <summary>
+    /// Says which module created the operation and for what. From then on only that module changes it: a person
+    /// cannot edit or void it by hand, because something else depends on it staying as it is.
+    /// </summary>
+    public void AttributeTo(string module, string type, Guid id)
+    {
+        SourceModule = module;
+        SourceType = type;
+        SourceId = id;
+    }
+
+    /// <summary>
     /// Tells the other modules that this income or expense was registered, edited or voided. Called once its
     /// entries are valued, so whoever reacts reads it as it stands. Any other kind of operation says nothing.
     /// </summary>
@@ -114,7 +125,7 @@ public sealed class Operation : AggregateRoot, IOwned
             return Error.Validation("ledger.transaction.kind_invalid", "A transaction is either an income or an expense.");
         }
 
-        var open = account.EnsureOpen();
+        var open = account.EnsureMovedByHand();
         if (open.IsFailure)
         {
             return open.Error;
@@ -155,8 +166,15 @@ public sealed class Operation : AggregateRoot, IOwned
     /// </summary>
     /// <param name="amountIn">What arrives. Required when the currencies differ; otherwise it is the amount that left.</param>
     public static Result<Operation> PostTransfer(
-        Account from, Account to, decimal amountOut, decimal? amountIn, DateOnly occurredOn, string? description, string? note, DateTimeOffset now)
+        Account from, Account to, decimal amountOut, decimal? amountIn, DateOnly occurredOn, string? description, string? note, DateTimeOffset now,
+        bool forGoal = false)
     {
+        // The fund of a goal is one side of a transfer only when the goals ask for it.
+        if (!forGoal && (from.IsGoalFund || to.IsGoalFund))
+        {
+            return Account.ManagedByGoal;
+        }
+
         if (from.Id == to.Id)
         {
             return Error.Validation("ledger.transfer.same_account", "A transfer needs two different accounts.");
@@ -259,7 +277,7 @@ public sealed class Operation : AggregateRoot, IOwned
         if (current.AccountId != account.Id)
         {
             // Moving to another account is a new entry there; an archived account takes none.
-            var open = account.EnsureOpen();
+            var open = account.EnsureMovedByHand();
             if (open.IsFailure)
             {
                 return open;
@@ -339,7 +357,7 @@ public sealed class Operation : AggregateRoot, IOwned
 
     private static Result<Operation> Single(OperationKind kind, Account account, decimal signedAmount, DateOnly occurredOn, string description, DateTimeOffset now)
     {
-        var open = account.EnsureOpen();
+        var open = account.EnsureMovedByHand();
         if (open.IsFailure)
         {
             return open.Error;

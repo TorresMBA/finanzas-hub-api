@@ -154,6 +154,17 @@ public class WorkspaceTests
         Assert.Equal("workspace.not_found", workspace.Remove(Juan, Brian, Now).Error.Code);
     }
 
+    [Fact]
+    public void A_personal_workspace_is_not_handed_over_because_the_private_finances_of_its_owner_live_there()
+    {
+        var personal = Workspace.Create("Personal", Brian, Now, isPersonal: true).Value;
+        var juan = Guid.NewGuid();
+        personal.Join(juan, WorkspaceRole.Admin, Now);
+
+        Assert.Equal("workspaces.personal_not_transferable", personal.TransferOwnership(Brian, juan).Error.Code);
+        Assert.Equal(Brian, personal.OwnerUserId);
+    }
+
     private static Workspace WorkspaceWith(params (Guid UserId, WorkspaceRole Role)[] members)
     {
         var workspace = Workspace.Create("Hogar", Brian, Now).Value;

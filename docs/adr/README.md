@@ -26,5 +26,6 @@ Los ADR 0008, 0009, 0010, 0013 y 0014 del repositorio anterior (`finance-hub-api
 | [ADR-018](ADR-018-notificaciones.md) | Notificaciones | Aceptado |
 | [ADR-019](ADR-019-simplificacion-de-la-plataforma.md) | Simplificación de la plataforma | Aceptado |
 | [ADR-020](ADR-020-sesion-y-correos.md) | Sesión, CSRF y correos | Aceptado |
+| [ADR-021](ADR-021-finanzas-privadas-de-la-persona.md) | Las finanzas privadas son de la persona, no del espacio | Aceptado |
 
 Los documentos de [architecture/](../architecture/) describen el diseño vigente, es decir, ya con el ADR-019 aplicado. Un ADR sustituido se conserva para entender de dónde se viene.

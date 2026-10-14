@@ -35,7 +35,7 @@ Implementado: abrir, cambiar, archivar y restaurar cuentas de banco, efectivo, b
 
 Expone `ILedgerQueries` (patrimonio a una fecha, flujo por mes, totales por categoría, saldos de las cuentas y últimos movimientos), que usa Reporting. Todo lo que responde es de la persona de la petición: no acepta un dueño como parámetro.
 
-Desde la fase 7 existe `ILedgerPosting` (ingreso o gasto), que usa Scheduling.
+Desde la fase 7 existe `ILedgerPosting` (ingreso o gasto), que usa Scheduling. Desde la fase 8 también abre el fondo de una meta (cuenta `GoalFund`, fuera del patrimonio) y mueve dinero entre una cuenta de la persona y ese fondo; una cuenta `GoalFund` no admite movimientos hechos a mano.
 
 Diferido: el evento `AccountArchived` (con su primer consumidor); el aviso de vencimiento de tarjeta (fase 6); `ETag` (fase 8); la comisión de una transferencia; estado de cuenta, cuotas y tipo de cambio automático (fase 14).
 
@@ -57,3 +57,5 @@ Diferido: el evento `AccountArchived` (con su primer consumidor); el aviso de ve
 - **Tipo de cambio.** Cada persona lleva los suyos hacia la moneda base del workspace: una fila por moneda y día en `exchange_rates`, que vale desde ese día. Sirve para valorar; no mueve dinero.
 - **Valor en moneda base.** Al registrar o editar una operación, cada asiento en otra moneda guarda `base_amount`, `fx_rate` y `fx_rate_date` con el tipo de cambio que regía en su fecha, para que el total de un mes pasado no cambie cuando cambia el tipo. Un asiento sin tipo de cambio para su fecha queda sin valor propio y se valora al vigente. Los saldos y el patrimonio se valoran siempre al vigente.
 - Una moneda sin tipo de cambio queda fuera de todo total en moneda base, y la respuesta dice cuál es (`missingRates`): un total nunca finge estar completo.
+
+Desde el ADR-021 las cuentas, operaciones y tipos de cambio son de la persona y viven en su espacio personal: `LedgerScope` y `ExchangeRateBook` leen `IPersonalSpace`. La moneda base de sus cifras es la de ese espacio.

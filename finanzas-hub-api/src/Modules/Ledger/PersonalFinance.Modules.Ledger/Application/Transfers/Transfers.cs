@@ -62,12 +62,13 @@ internal sealed class TransferPoster(ILedgerDb db, ExchangeRateBook rates, Trans
 {
     public async Task<Result<TransactionResponse>> PostAsync(
         Guid fromAccountId, Guid toAccountId, decimal amountOut, decimal? amountIn, DateOnly occurredOn, string? description, string? note,
-        Func<Account, Account, Result> rule, CancellationToken cancellationToken)
+        Func<Account, Account, Result> rule, CancellationToken cancellationToken, (string Module, string Type, Guid Id)? source = null)
     {
         // The owner filter makes an account of someone else indistinguishable from one that does not exist: both must be the person's.
         var accounts = await db.Accounts.Where(account => account.Id == fromAccountId || account.Id == toAccountId).ToListAsync(cancellationToken);
-        var from = accounts.SingleOrDefault(account => account.Id == fromAccountId);
-        var to = accounts.SingleOrDefault(account => account.Id == toAccountId);
+        // An account opened earlier in this same command is not in the database yet: it is found among the tracked ones.
+        var from = accounts.SingleOrDefault(account => account.Id == fromAccountId) ?? db.Accounts.Local.SingleOrDefault(account => account.Id == fromAccountId);
+        var to = accounts.SingleOrDefault(account => account.Id == toAccountId) ?? db.Accounts.Local.SingleOrDefault(account => account.Id == toAccountId);
         if (from is null || to is null)
         {
             return LedgerErrors.AccountNotFound;
@@ -79,13 +80,18 @@ internal sealed class TransferPoster(ILedgerDb db, ExchangeRateBook rates, Trans
             return allowed.Error;
         }
 
-        var posted = Operation.PostTransfer(from, to, amountOut, amountIn, occurredOn, description, note, clock.UtcNow);
+        var posted = Operation.PostTransfer(from, to, amountOut, amountIn, occurredOn, description, note, clock.UtcNow, forGoal: source is not null);
         if (posted.IsFailure)
         {
             return posted.Error;
         }
 
         var operation = posted.Value;
+        if (source is var (module, type, id))
+        {
+            operation.AttributeTo(module, type, id);
+        }
+
         await rates.ValueAsync(operation, cancellationToken);
         db.Operations.Add(operation);
         LedgerMetrics.OperationsPosted.Add(1, new KeyValuePair<string, object?>("kind", nameof(OperationKind.Transfer)));

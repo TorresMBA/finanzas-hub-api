@@ -251,7 +251,7 @@ public class CategoriesTests(ApiFixture api)
     }
 
     [Fact]
-    public async Task Categories_stay_in_the_workspace_they_were_made_in()
+    public async Task The_categories_of_a_person_are_the_same_in_every_workspace_of_theirs()
     {
         var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
         var second = await brian.Client.PostAsJsonAsync("/api/v1/workspaces", new { name = "Negocio" });
@@ -261,8 +261,10 @@ public class CategoriesTests(ApiFixture api)
         var inOther = await ListAsync(brian, workspaceId: secondId);
         var fromOther = await brian.Client.PatchAsJsonAsync($"{Url(secondId)}/{Id(housing)}", new { name = "Local" });
 
-        Assert.Empty(inOther);
-        Assert.Equal(HttpStatusCode.NotFound, fromOther.StatusCode);
+        // Categories are private, so they follow the person: the second workspace shows and changes the very same ones.
+        Assert.Equal(Id(housing), Id(Named(inOther, "Vivienda")));
+        Assert.Equal(HttpStatusCode.OK, fromOther.StatusCode);
+        Assert.Contains(await ListAsync(brian), category => category.GetProperty("name").GetString() == "Local");
     }
 
     [Fact]

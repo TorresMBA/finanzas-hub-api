@@ -86,7 +86,14 @@ public class WorkspacesTests(ApiFixture api)
         var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
         var juan = await api.RegisterAsync("Juan");
         var pedro = await api.RegisterAsync("Pedro");
-        var token = await api.InviteAsync(brian, brian.PersonalWorkspaceId, juan.Email);
+        // Whoever invites gets the link in the answer, to hand it over when the email does not arrive. The list never repeats it.
+        var invitations = $"/api/v1/workspaces/{brian.PersonalWorkspaceId}/invitations";
+        var invited = await brian.Client.PostAsJsonAsync(invitations, new { email = juan.Email, role = "member" });
+        Assert.Equal(HttpStatusCode.Created, invited.StatusCode);
+        var link = (await invited.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("acceptLink").GetString()!;
+        var token = link[(link.LastIndexOf('/') + 1)..];
+        Assert.Contains("/invite/", link);
+        Assert.Equal(JsonValueKind.Null, Assert.Single((await brian.Client.GetFromJsonAsync<JsonElement>(invitations)).EnumerateArray()).GetProperty("acceptLink").ValueKind);
 
         var preview = await api.AnonymousClient().GetFromJsonAsync<JsonElement>($"/api/v1/invitations/{token}");
         Assert.Equal("Personal", preview.GetProperty("workspaceName").GetString());
@@ -102,6 +109,11 @@ public class WorkspacesTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.OK, byJuan.StatusCode);
         Assert.Equal(HttpStatusCode.UnprocessableEntity, again.StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await juan.Client.GetAsync($"/api/v1/workspaces/{brian.PersonalWorkspaceId}")).StatusCode);
+
+        // Juan now has two workspaces called "Personal": the list says whose each one is, so he can tell them apart.
+        var mine = (await juan.Client.GetFromJsonAsync<JsonElement>("/api/v1/me/workspaces")).EnumerateArray()
+            .ToDictionary(workspace => workspace.GetProperty("id").GetGuid(), workspace => workspace.GetProperty("ownerName").GetString());
+        Assert.Equal(("Brian", "Juan"), (mine[brian.PersonalWorkspaceId], mine[juan.PersonalWorkspaceId]));
         Assert.Equal(HttpStatusCode.NotFound, (await pedro.Client.GetAsync($"/api/v1/workspaces/{brian.PersonalWorkspaceId}")).StatusCode);
         Assert.False((await api.AnonymousClient().GetFromJsonAsync<JsonElement>($"/api/v1/invitations/{token}")).GetProperty("available").GetBoolean());
     }
@@ -199,10 +211,17 @@ public class WorkspacesTests(ApiFixture api)
     [Fact]
     public async Task Ownership_moves_to_another_member_and_the_former_owner_becomes_admin()
     {
+        // A workspace made to be shared can change hands. The personal one cannot: the finances of its owner live there.
         var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
-        var workspace = $"/api/v1/workspaces/{brian.PersonalWorkspaceId}";
-        var juanEmail = Accounts.NewEmail("juan");
-        var juan = await api.RegisterAsync("Juan", await api.InviteAsync(brian, brian.PersonalWorkspaceId, juanEmail), juanEmail);
+        var created = await brian.Client.PostAsJsonAsync("/api/v1/workspaces", new { name = "Hogar" });
+        var homeId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var workspace = $"/api/v1/workspaces/{homeId}";
+        Assert.Equal(HttpStatusCode.OK, (await brian.Client.PostAsJsonAsync($"{workspace}/onboarding/complete", new { baseCurrency = "PEN", timeZone = "America/Lima" })).StatusCode);
+        var juan = await api.RegisterWithActiveWorkspaceAsync("Juan");
+        var token = await api.InviteAsync(brian, homeId, juan.Email);
+        Assert.Equal(HttpStatusCode.OK, (await juan.Client.PostAsync($"/api/v1/invitations/{token}/accept", null)).StatusCode);
+        var personal = await brian.Client.PostAsJsonAsync($"/api/v1/workspaces/{brian.PersonalWorkspaceId}/ownership-transfer", new { userId = juan.UserId });
+        Assert.NotEqual(HttpStatusCode.NoContent, personal.StatusCode);
 
         var byMember = await juan.Client.PostAsJsonAsync($"{workspace}/ownership-transfer", new { userId = juan.UserId });
         var byOwner = await brian.Client.PostAsJsonAsync($"{workspace}/ownership-transfer", new { userId = juan.UserId });

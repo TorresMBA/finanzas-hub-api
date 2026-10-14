@@ -45,7 +45,7 @@ public sealed record BudgetsResponse(
 /// budget cannot disagree with the movements. Everything read is already limited to the current person.
 /// </summary>
 internal sealed class BudgetReader(
-    IBudgetsDb db, ILedgerQueries ledger, ICategoryLookup categories, ICurrentUser currentUser, IWorkspaceContext workspace, IClock clock)
+    IBudgetsDb db, ILedgerQueries ledger, ICategoryLookup categories, ICurrentUser currentUser, IPersonalSpace workspace, IClock clock)
 {
     public (Guid WorkspaceId, Guid UserId)? Owner =>
         currentUser.UserId is { } userId && workspace.WorkspaceId is { } workspaceId ? (workspaceId, userId) : null;

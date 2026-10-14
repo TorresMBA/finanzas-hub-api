@@ -7,7 +7,10 @@ public enum NotificationCategory
     LargeMovement,
 
     /// <summary>Payments coming up: reminders of scheduled movements and credit cards about to fall due.</summary>
-    Bills
+    Bills,
+
+    /// <summary>What happens in a goal the person takes part in: someone contributed, it reached its target.</summary>
+    Goals
 }
 
 public enum NotificationSeverity

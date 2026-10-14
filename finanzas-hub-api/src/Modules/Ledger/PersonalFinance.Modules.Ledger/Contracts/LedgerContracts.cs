@@ -8,7 +8,8 @@ public enum LedgerAccountType
     Bank,
     Cash,
     Wallet,
-    CreditCard
+    CreditCard,
+    GoalFund
 }
 
 public enum LedgerMovementKind
@@ -65,6 +66,21 @@ public sealed record LedgerTransactionRequest(
 /// </summary>
 public interface ILedgerPosting
 {
+    /// <summary>
+    /// Opens the account where the current person keeps what they put aside for a goal. It starts empty and
+    /// outside their net worth; the person can include it from their accounts.
+    /// </summary>
+    /// <returns>The id of the account.</returns>
+    Task<Result<Guid>> OpenGoalFundAsync(string goalName, string currency, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Moves money of the current person between one of their accounts and the fund of a goal, in either
+    /// direction. Both accounts must have the same currency. The person cannot edit or void the movement by hand.
+    /// </summary>
+    /// <param name="sourceId">What in the goals this movement is: there is one movement per id.</param>
+    /// <returns>The id of the operation.</returns>
+    Task<Result<Guid>> MoveGoalMoneyAsync(Guid fromAccountId, Guid toAccountId, decimal amount, DateOnly occurredOn, string description, Guid sourceId, CancellationToken cancellationToken);
+
     /// <returns>The id of the operation.</returns>
     Task<Result<Guid>> PostTransactionAsync(LedgerTransactionRequest request, CancellationToken cancellationToken);
 }
