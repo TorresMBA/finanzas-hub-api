@@ -80,7 +80,7 @@ internal sealed class TransferPoster(ILedgerDb db, ExchangeRateBook rates, Trans
             return allowed.Error;
         }
 
-        var posted = Operation.PostTransfer(from, to, amountOut, amountIn, occurredOn, description, note, clock.UtcNow, forGoal: source is not null);
+        var posted = Operation.PostTransfer(from, to, amountOut, amountIn, occurredOn, description, note, clock.UtcNow, byModule: source is not null);
         if (posted.IsFailure)
         {
             return posted.Error;

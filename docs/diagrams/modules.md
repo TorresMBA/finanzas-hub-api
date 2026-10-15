@@ -38,6 +38,7 @@ flowchart BT
     IN --> CT
     IN --> NT
     IV --> LG
+    IV --> CT
     IV --> SC
     IV --> NT
     RP --> LG

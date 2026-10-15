@@ -781,3 +781,15 @@ Verificado: 266 tests de backend (nuevos: verificación con intento fallido guar
 - **Pantalla** `/reports` con sus cuatro estados: KPI con variación, dona (cinco categorías y «Otros», con colores fijos por tramo), variación por categoría, comercios frecuentes y tasa de ahorro mensual.
 
 Verificado: 278 tests de backend, 128 de frontend, 30 E2E (el nuevo registra dos gastos, ve el reporte del mes, descarga el Excel y encuentra los gastos con Ctrl+K). Revisión visual de Reportes en escritorio y móvil y del buscador.
+
+**Estado de la fase 13 (15-oct-2026): completada.**
+
+- **Una sola verdad para el capital.** Cada inversión tiene una cuenta de sistema en el ledger (tipo `Investment`), que solo mueve Investments (`ledger.account.managed_by_investment` a mano). Abrir, aportar y rescatar son transferencias con ese origen: la cuenta de la persona baja, su patrimonio y sus gastos no cambian (lo prueba el test de integración con el depósito de 15 000).
+- **Valor.** Un depósito a plazo crece con su TEA sobre 360 días hasta el vencimiento; lo demás vale su última valuación más lo movido después (por monto, o por precio por unidades en acciones, ETFs y cripto); sin valuación, su capital.
+- **Rescate.** Devuelve el capital en proporción al valor: rescatar 600 de algo que vale 1 200 y costó 1 000 devuelve 500 de capital y 100 de ganancia, que entra como ingreso de «Inversiones» (o gasto, si es pérdida). Es el único momento en que una inversión toca ingresos o gastos. Rescatar todo cierra la inversión.
+- **Patrimonio.** `IPortfolioValuation` da el valor de mercado; el Inicio suma la ganancia no realizada al patrimonio del ledger, que ya cuenta el capital, y nunca valora más allá de hoy.
+- **Aviso de vencimiento.** Scheduling declara `IScheduleCycleStep` y corre los pasos de otros módulos en su ciclo diario por persona; Investments avisa una vez (categoría Pagos y vencimientos) cuando un depósito vence en 7 días o menos.
+- **También.** Ya no se abren a mano cuentas de fondo de meta o de inversión (`ledger.account.type_invalid`); Cuentas muestra las de inversión en su grupo, sin ajustar ni archivar. Grafo: Investments → Ledger, Categories, Scheduling, Notifications; Reporting → Investments.
+- **Pantalla** `/investments`: valor, ganancia no realizada e invertido; distribución por tipo; filtros; posiciones con su línea de 12 meses; detalle con historial; registrar, aportar, rescatar y actualizar valor.
+
+Verificado: 281 tests de backend, 128 de frontend, 31 E2E (el nuevo registra el depósito de 15 000 y comprueba la cuenta, el patrimonio y los gastos del mes). Revisión visual de Inversiones en escritorio y móvil.

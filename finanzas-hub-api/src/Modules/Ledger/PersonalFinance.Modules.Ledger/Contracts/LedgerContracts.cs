@@ -9,7 +9,8 @@ public enum LedgerAccountType
     Cash,
     Wallet,
     CreditCard,
-    GoalFund
+    GoalFund,
+    Investment
 }
 
 public enum LedgerMovementKind
@@ -103,6 +104,21 @@ public interface ILedgerPosting
 
     /// <returns>The id of the operation.</returns>
     Task<Result<Guid>> PostTransactionAsync(LedgerTransactionRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Opens the account that holds the capital the current person puts into an investment. It starts empty and
+    /// counts in their net worth; only the investments move it.
+    /// </summary>
+    /// <returns>The id of the account.</returns>
+    Task<Result<Guid>> OpenInvestmentAccountAsync(string investmentName, string currency, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Moves money of the current person between one of their accounts and the account of an investment, in either
+    /// direction. Both accounts must have the same currency. It is a transfer: neither an income nor an expense.
+    /// </summary>
+    /// <param name="sourceId">What in the investments this movement is: there is one movement per id.</param>
+    /// <returns>The id of the operation.</returns>
+    Task<Result<Guid>> MoveInvestmentMoneyAsync(Guid fromAccountId, Guid toAccountId, decimal amount, DateOnly occurredOn, string description, Guid sourceId, CancellationToken cancellationToken);
 }
 
 /// <summary>

@@ -177,12 +177,12 @@ public sealed class Operation : AggregateRoot, IOwned
     /// <param name="amountIn">What arrives. Required when the currencies differ; otherwise it is the amount that left.</param>
     public static Result<Operation> PostTransfer(
         Account from, Account to, decimal amountOut, decimal? amountIn, DateOnly occurredOn, string? description, string? note, DateTimeOffset now,
-        bool forGoal = false)
+        bool byModule = false)
     {
-        // The fund of a goal is one side of a transfer only when the goals ask for it.
-        if (!forGoal && (from.IsGoalFund || to.IsGoalFund))
+        // The fund of a goal or the capital of an investment is one side of a transfer only when their module asks for it.
+        if (!byModule && (from.IsManaged || to.IsManaged))
         {
-            return Account.ManagedByGoal;
+            return from.IsManaged ? from.EnsureNotManaged().Error : to.EnsureNotManaged().Error;
         }
 
         if (from.Id == to.Id)

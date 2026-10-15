@@ -5,6 +5,7 @@ using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Ledger.Contracts;
 using PersonalFinance.Modules.Notifications.Contracts;
 using PersonalFinance.Modules.Scheduling.Application.Abstractions;
+using PersonalFinance.Modules.Scheduling.Contracts;
 using PersonalFinance.Modules.Scheduling.Domain;
 using PersonalFinance.Modules.Workspaces.Contracts;
 
@@ -39,7 +40,8 @@ public sealed record RunScheduleResponse(int Posted, int Failed, int Notices);
 public sealed record RunScheduleCommand : ICommand<RunScheduleResponse>;
 
 internal sealed class RunScheduleHandler(
-    ISchedulingDb db, ScheduleReader reader, OccurrencePoster poster, ILedgerQueries ledger, INotificationPublisher notifications)
+    ISchedulingDb db, ScheduleReader reader, OccurrencePoster poster, ILedgerQueries ledger, INotificationPublisher notifications,
+    IEnumerable<IScheduleCycleStep> steps)
     : ICommandHandler<RunScheduleCommand, RunScheduleResponse>
 {
     /// <summary>How many days before a credit card falls due the person is told.</summary>
@@ -88,6 +90,12 @@ internal sealed class RunScheduleHandler(
             notices += await NotifyAsync(
                 NotificationSeverity.Warning, $"Tu tarjeta {card.Name} vence {When(card.DueOn, today)}", $"Debes {Money(card.Debt, card.Currency)}.", "/accounts",
                 $"card-due:{card.AccountId}:{card.DueOn:yyyy-MM-dd}");
+        }
+
+        // What other modules watch day by day, as a term deposit about to mature.
+        foreach (var step in steps)
+        {
+            notices += await step.RunAsync(today, cancellationToken);
         }
 
         return new RunScheduleResponse(posted, failed, notices);

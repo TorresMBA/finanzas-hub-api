@@ -19,21 +19,21 @@ Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance d
 | 10 | Integrations: importación y reglas | ✅ Completada | 13-oct-2026 |
 | 11 | WhatsApp | ✅ Completada | 14-oct-2026 |
 | 12 | Reporting | ✅ Completada | 15-oct-2026 |
-| 13 | Investments | ⏳ Pendiente (siguiente) | — |
-| 14 | Tarjetas avanzadas y FX | ⏳ Pendiente | — |
+| 13 | Investments | ✅ Completada | 15-oct-2026 |
+| 14 | Tarjetas avanzadas y FX | ⏳ Pendiente (siguiente) | — |
 
 Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-15-oct-2026, al cerrar la fase 12.
+15-oct-2026, al cerrar la fase 13.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 278 en verde (166 unitarios, 19 de arquitectura, 93 de integración) |
+| Backend: tests | 281 en verde (168 unitarios, 19 de arquitectura, 94 de integración) |
 | Frontend: build, tests y lint | Build correcto y sin avisos, 128 tests, lint limpio |
-| E2E en Chrome | 30 en verde |
+| E2E en Chrome | 31 en verde |
 
 ## Pendientes que dejaron las fases cerradas
 
@@ -211,3 +211,17 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Búsqueda de categorías, grupos compartidos y notas de metas | Sin fecha. Busca movimientos (descripción, comercio, nota), cuentas y metas abiertas |
 | Abrir un movimiento desde la búsqueda | Sin fecha. Lleva a Transacciones filtradas por el texto; una cuenta, a sus movimientos |
 | Tablet y tema claro de Reportes y del buscador | Solo se revisó escritorio y móvil en tema oscuro |
+
+### Fase 13
+
+| Pendiente | Se retoma |
+|---|---|
+| Dividendos y comisiones (`RecordDividend`, `RecordFee`) | Sin fecha. Hoy un dividendo se registra como ingreso a mano en Transacciones |
+| Precios automáticos (`RefreshPrices`) | Futuro, como decía el diseño. La valuación es manual |
+| Rendimiento anual frente a la inflación y «Perfil» del mock | Sin fecha: es dato externo |
+| `Asset` y `PriceSnapshot` como agregados propios | No hicieron falta: el instrumento (nombre, ticker, institución) va en la posición y cada valuación en `holding_valuations`. Se separan si varias personas siguen el mismo activo con precios compartidos |
+| Ver las inversiones ya rescatadas por completo | Sin fecha. Salen del portafolio; su historial queda y su cuenta del ledger también |
+| Renovar un depósito al vencer | Sin fecha. Se rescata y se abre otro |
+| Patrimonio de Cuentas a valor de mercado | Sin fecha. El resumen de Cuentas cuenta las inversiones por su capital (lo que dice el ledger); el Inicio suma además la ganancia no realizada |
+| Vencimientos de depósitos en el Calendario | Sin fecha. Hoy llegan como aviso una semana antes |
+| Tablet y tema claro de Inversiones | Solo se revisó escritorio y móvil en tema oscuro |

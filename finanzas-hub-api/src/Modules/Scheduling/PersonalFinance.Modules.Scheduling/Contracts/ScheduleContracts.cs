@@ -11,3 +11,13 @@ public interface IScheduleQueries
     /// <summary>The payments between two days that are not registered yet, the soonest first.</summary>
     Task<IReadOnlyList<UpcomingPayment>> GetUpcomingAsync(DateOnly from, DateOnly to, int count, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// Something another module checks once a day for each person, in the cycle that runs their schedule: it acts as
+/// that person, in their personal workspace. Scheduling does not know what the module does, only that it runs.
+/// </summary>
+public interface IScheduleCycleStep
+{
+    /// <returns>How many notices it published.</returns>
+    Task<int> RunAsync(DateOnly today, CancellationToken cancellationToken);
+}

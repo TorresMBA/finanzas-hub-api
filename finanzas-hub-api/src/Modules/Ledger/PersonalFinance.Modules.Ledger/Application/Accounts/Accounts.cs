@@ -75,6 +75,12 @@ internal sealed class OpenAccountHandler(ILedgerDb db, LedgerScope scope, Exchan
             return LedgerErrors.Unauthenticated;
         }
 
+        // The fund of a goal and the account of an investment are opened by their modules, never by hand.
+        if (command.Type is AccountType.GoalFund or AccountType.Investment)
+        {
+            return Error.Validation("ledger.account.type_invalid", "This kind of account is opened from Goals or Investments.");
+        }
+
         var opened = Account.Open(
             workspaceId, userId, command.Name, command.Type, command.Currency, command.Institution, clock.UtcNow, command.CreditCard, command.IncludeInNetWorth);
         if (opened.IsFailure)
@@ -171,9 +177,10 @@ internal sealed class ArchiveAccountHandler(ILedgerDb db, AccountBalances balanc
             return LedgerErrors.AccountNotFound;
         }
 
-        if (account.IsGoalFund)
+        var managed = account.EnsureNotManaged();
+        if (managed.IsFailure)
         {
-            return Account.ManagedByGoal;
+            return managed.Error;
         }
 
         if (!account.IsArchived)

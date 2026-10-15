@@ -11,7 +11,10 @@ public enum AccountType
     CreditCard,
 
     /// <summary>What a person has put aside for a goal. Opened and moved by the goals, never by hand.</summary>
-    GoalFund
+    GoalFund,
+
+    /// <summary>The capital a person has put into one investment. Opened and moved by the investments, never by hand.</summary>
+    Investment
 }
 
 /// <summary>
@@ -60,6 +63,11 @@ public sealed class Account : AggregateRoot, IOwned
     public bool IsCreditCard => Type == AccountType.CreditCard;
 
     public bool IsGoalFund => Type == AccountType.GoalFund;
+
+    public bool IsInvestment => Type == AccountType.Investment;
+
+    /// <summary>An account another module opens and moves: the fund of a goal or the capital of an investment.</summary>
+    public bool IsManaged => IsGoalFund || IsInvestment;
 
     public DateTimeOffset CreatedAt { get; private set; }
 
@@ -164,10 +172,16 @@ public sealed class Account : AggregateRoot, IOwned
     /// Fails for the fund of a goal: its balance is what the person contributed to the goal, so money enters and
     /// leaves it only as a contribution or a withdrawal.
     /// </summary>
-    public Result EnsureMovedByHand() => IsGoalFund ? ManagedByGoal : EnsureOpen();
+    public Result EnsureMovedByHand() => IsGoalFund ? ManagedByGoal : IsInvestment ? ManagedByInvestment : EnsureOpen();
+
+    /// <summary>Why an account cannot be moved by hand, or success when it can.</summary>
+    public Result EnsureNotManaged() => IsGoalFund ? ManagedByGoal : IsInvestment ? ManagedByInvestment : Result.Success();
 
     public static Error ManagedByGoal =>
         Error.BusinessRule("ledger.account.managed_by_goal", "This account holds the money of a goal. Contribute to the goal or withdraw from it instead.");
+
+    public static Error ManagedByInvestment =>
+        Error.BusinessRule("ledger.account.managed_by_investment", "This account holds the capital of an investment. Contribute to it or redeem it from Investments.");
 
     private static Error Archived => Error.BusinessRule("ledger.account.archived", "The account is archived. Restore it first.");
 

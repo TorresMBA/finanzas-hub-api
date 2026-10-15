@@ -22,6 +22,7 @@ internal sealed class LedgerPosting(
     ILedgerDb db, LedgerScope scope, IAuditLog audit, IClock clock) : ILedgerPosting
 {
     private const string GoalsModule = "goals";
+    private const string InvestmentsModule = "investments";
 
     public async Task<Result<Guid>> PostTransactionAsync(LedgerTransactionRequest request, CancellationToken cancellationToken)
     {
@@ -71,20 +72,41 @@ internal sealed class LedgerPosting(
         return operation.Id;
     }
 
-    public async Task<Result<Guid>> OpenGoalFundAsync(string goalName, string currency, CancellationToken cancellationToken)
+    public Task<Result<Guid>> OpenGoalFundAsync(string goalName, string currency, CancellationToken cancellationToken) =>
+        OpenManagedAsync($"Meta: {goalName}", AccountType.GoalFund, currency, includeInNetWorth: false, cancellationToken);
+
+    public Task<Result<Guid>> OpenInvestmentAccountAsync(string investmentName, string currency, CancellationToken cancellationToken) =>
+        OpenManagedAsync($"Inversión: {investmentName}", AccountType.Investment, currency, includeInNetWorth: true, cancellationToken);
+
+    public async Task<Result<Guid>> MoveInvestmentMoneyAsync(
+        Guid fromAccountId, Guid toAccountId, decimal amount, DateOnly occurredOn, string description, Guid sourceId, CancellationToken cancellationToken)
+    {
+        var moved = await transfers.PostAsync(
+            fromAccountId, toAccountId, amount, null, occurredOn, description, null,
+            (from, to) => from.Currency != to.Currency
+                ? Error.BusinessRule("ledger.investment.currency_mismatch", "The account must have the same currency as the investment.")
+                : from.IsCreditCard || to.IsCreditCard || from.IsGoalFund || to.IsGoalFund
+                    ? Error.BusinessRule("ledger.investment.account_not_allowed", "An investment is funded from an account that holds money, not from a credit card or a goal.")
+                : from.IsInvestment == to.IsInvestment
+                    ? Error.BusinessRule("ledger.investment.account_required", "One side of the movement must be the account of the investment, and only one.")
+                    : Result.Success(),
+            cancellationToken, (InvestmentsModule, "movement", sourceId));
+        return moved.IsFailure ? moved.Error : moved.Value.Id;
+    }
+
+    /// <summary>An account another module opens for itself. Its name is unique among those in use, so a number is added when taken.</summary>
+    private async Task<Result<Guid>> OpenManagedAsync(string name, AccountType type, string currency, bool includeInNetWorth, CancellationToken cancellationToken)
     {
         if (scope.Owner is not (var workspaceId, var userId))
         {
             return LedgerErrors.Unauthenticated;
         }
 
-        // An account name is unique among those in use; a goal may be called like another account or another goal.
-        var name = $"Meta: {goalName}";
         name = name.Length > Account.MaxNameLength - 3 ? name[..(Account.MaxNameLength - 3)] : name;
         for (var attempt = 1; ; attempt++)
         {
             var opened = Account.Open(
-                workspaceId, userId, attempt == 1 ? name : $"{name} {attempt}", AccountType.GoalFund, currency, null, clock.UtcNow, includeInNetWorth: false);
+                workspaceId, userId, attempt == 1 ? name : $"{name} {attempt}", type, currency, null, clock.UtcNow, includeInNetWorth: includeInNetWorth);
             if (opened.IsFailure)
             {
                 return opened.Error;
@@ -99,7 +121,7 @@ internal sealed class LedgerPosting(
             audit.Record(new AuditEntry("ledger", "ledger.account.opened", "account", opened.Value.Id)
             {
                 OwnerUserId = userId,
-                After = new { opened.Value.Name, Type = nameof(AccountType.GoalFund), opened.Value.Currency }
+                After = new { opened.Value.Name, Type = type.ToString(), opened.Value.Currency }
             });
             return opened.Value.Id;
         }

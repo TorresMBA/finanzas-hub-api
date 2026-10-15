@@ -24,7 +24,7 @@ internal sealed class LedgerImport(
             return LedgerErrors.Unauthenticated;
         }
 
-        if (type is LedgerAccountType.CreditCard or LedgerAccountType.GoalFund)
+        if (type is LedgerAccountType.CreditCard or LedgerAccountType.GoalFund or LedgerAccountType.Investment)
         {
             return Error.Validation("ledger.import.account_type_invalid", "An import opens bank accounts, cash and wallets. Open a credit card from the accounts.");
         }

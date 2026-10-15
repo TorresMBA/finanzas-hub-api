@@ -982,6 +982,87 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PersonalFinance.Modules.Investments.Domain.Holding", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<DateOnly?>("ClosedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("closed_on");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character(3)")
+                        .HasColumnName("currency")
+                        .IsFixedLength();
+
+                    b.Property<string>("Institution")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("institution");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.Property<DateOnly>("OpenedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("opened_on");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<string>("Ticker")
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("ticker");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("type");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_holdings");
+
+                    b.HasIndex("AccountId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_holdings_account_id");
+
+                    b.HasIndex("WorkspaceId", "OwnerUserId", "ClosedOn")
+                        .HasDatabaseName("ix_holdings_workspace_id_owner_user_id_closed_on");
+
+                    b.ToTable("holdings", "investments", t =>
+                        {
+                            t.HasCheckConstraint("ck_holdings_type", "type IN ('MutualFund', 'TermDeposit', 'Stock', 'Etf', 'Crypto', 'Other')");
+                        });
+                });
+
             modelBuilder.Entity("PersonalFinance.Modules.Ledger.Domain.Account", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1052,7 +1133,7 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
 
                     b.ToTable("accounts", "ledger", t =>
                         {
-                            t.HasCheckConstraint("ck_accounts_type", "type IN ('Bank', 'Cash', 'Wallet', 'CreditCard', 'GoalFund')");
+                            t.HasCheckConstraint("ck_accounts_type", "type IN ('Bank', 'Cash', 'Wallet', 'CreditCard', 'GoalFund', 'Investment')");
                         });
                 });
 
@@ -2249,6 +2330,148 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                     b.Navigation("Accounts");
 
                     b.Navigation("Categories");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Investments.Domain.Holding", b =>
+                {
+                    b.OwnsMany("PersonalFinance.Modules.Investments.Domain.HoldingMovement", "Movements", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("amount");
+
+                            b1.Property<decimal>("Capital")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("capital");
+
+                            b1.Property<Guid>("CashAccountId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("cash_account_id");
+
+                            b1.Property<DateTimeOffset>("CreatedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("created_at");
+
+                            b1.Property<Guid>("HoldingId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("holding_id");
+
+                            b1.Property<string>("Kind")
+                                .IsRequired()
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)")
+                                .HasColumnName("kind");
+
+                            b1.Property<DateOnly>("OccurredOn")
+                                .HasColumnType("date")
+                                .HasColumnName("occurred_on");
+
+                            b1.Property<decimal?>("Quantity")
+                                .HasPrecision(28, 8)
+                                .HasColumnType("numeric(28,8)")
+                                .HasColumnName("quantity");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_holding_movements");
+
+                            b1.HasIndex("HoldingId")
+                                .HasDatabaseName("ix_holding_movements_holding_id");
+
+                            b1.ToTable("holding_movements", "investments", t =>
+                                {
+                                    t.HasCheckConstraint("ck_holding_movements_amount", "amount > 0 AND capital >= 0");
+
+                                    t.HasCheckConstraint("ck_holding_movements_kind", "kind IN ('Contribution', 'Withdrawal')");
+                                });
+
+                            b1.WithOwner()
+                                .HasForeignKey("HoldingId")
+                                .HasConstraintName("fk_holding_movements_holdings_holding_id");
+                        });
+
+                    b.OwnsMany("PersonalFinance.Modules.Investments.Domain.HoldingValuation", "Valuations", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<DateTimeOffset>("CreatedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("created_at");
+
+                            b1.Property<Guid>("HoldingId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("holding_id");
+
+                            b1.Property<DateOnly>("OnDate")
+                                .HasColumnType("date")
+                                .HasColumnName("on_date");
+
+                            b1.Property<decimal?>("UnitPrice")
+                                .HasPrecision(28, 8)
+                                .HasColumnType("numeric(28,8)")
+                                .HasColumnName("unit_price");
+
+                            b1.Property<decimal>("Value")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("value");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_holding_valuations");
+
+                            b1.HasIndex("HoldingId")
+                                .HasDatabaseName("ix_holding_valuations_holding_id");
+
+                            b1.ToTable("holding_valuations", "investments", t =>
+                                {
+                                    t.HasCheckConstraint("ck_holding_valuations_value", "value >= 0");
+                                });
+
+                            b1.WithOwner()
+                                .HasForeignKey("HoldingId")
+                                .HasConstraintName("fk_holding_valuations_holdings_holding_id");
+                        });
+
+                    b.OwnsOne("PersonalFinance.Modules.Investments.Domain.TermDepositTerms", "TermDeposit", b1 =>
+                        {
+                            b1.Property<Guid>("HoldingId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<decimal>("AnnualRate")
+                                .HasPrecision(9, 4)
+                                .HasColumnType("numeric(9,4)")
+                                .HasColumnName("term_annual_rate");
+
+                            b1.Property<int>("Days")
+                                .HasColumnType("integer")
+                                .HasColumnName("term_days");
+
+                            b1.Property<DateOnly>("MaturesOn")
+                                .HasColumnType("date")
+                                .HasColumnName("term_matures_on");
+
+                            b1.HasKey("HoldingId");
+
+                            b1.ToTable("holdings", "investments");
+
+                            b1.WithOwner()
+                                .HasForeignKey("HoldingId")
+                                .HasConstraintName("fk_holdings_holdings_id");
+                        });
+
+                    b.Navigation("Movements");
+
+                    b.Navigation("TermDeposit");
+
+                    b.Navigation("Valuations");
                 });
 
             modelBuilder.Entity("PersonalFinance.Modules.Ledger.Domain.Account", b =>
