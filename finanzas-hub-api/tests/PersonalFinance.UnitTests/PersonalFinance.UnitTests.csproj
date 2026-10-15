@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\src\Modules\Goals\PersonalFinance.Modules.Goals\PersonalFinance.Modules.Goals.csproj" />
     <ProjectReference Include="..\..\src\Modules\Scheduling\PersonalFinance.Modules.Scheduling\PersonalFinance.Modules.Scheduling.csproj" />
     <ProjectReference Include="..\..\src\Modules\Notifications\PersonalFinance.Modules.Notifications\PersonalFinance.Modules.Notifications.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reporting\PersonalFinance.Modules.Reporting\PersonalFinance.Modules.Reporting.csproj" />
   </ItemGroup>
 
 </Project>

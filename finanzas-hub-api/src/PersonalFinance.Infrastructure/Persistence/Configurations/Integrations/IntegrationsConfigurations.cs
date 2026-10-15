@@ -10,7 +10,7 @@ internal sealed class ImportSessionConfiguration : IEntityTypeConfiguration<Impo
     {
         builder.ToTable("import_sessions", Schemas.Integrations, table =>
         {
-            table.HasCheckConstraint("ck_import_sessions_format", "format IN ('Csv', 'Bluecoins', 'Ofx')");
+            table.HasCheckConstraint("ck_import_sessions_format", "format IN ('Csv', 'Bluecoins', 'Ofx', 'Xlsx')");
             table.HasCheckConstraint("ck_import_sessions_status", "status IN ('Review', 'Committed')");
         });
         builder.HasKey(session => session.Id);

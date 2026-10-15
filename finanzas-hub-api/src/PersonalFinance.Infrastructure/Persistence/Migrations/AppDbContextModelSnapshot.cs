@@ -976,7 +976,7 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
 
                     b.ToTable("import_sessions", "integrations", t =>
                         {
-                            t.HasCheckConstraint("ck_import_sessions_format", "format IN ('Csv', 'Bluecoins', 'Ofx')");
+                            t.HasCheckConstraint("ck_import_sessions_format", "format IN ('Csv', 'Bluecoins', 'Ofx', 'Xlsx')");
 
                             t.HasCheckConstraint("ck_import_sessions_status", "status IN ('Review', 'Committed')");
                         });

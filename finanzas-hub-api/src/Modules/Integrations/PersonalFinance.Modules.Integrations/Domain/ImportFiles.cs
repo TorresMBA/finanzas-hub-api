@@ -14,7 +14,10 @@ public enum ImportFormat
     Bluecoins,
 
     /// <summary>The statement format most banks offer to download.</summary>
-    Ofx
+    Ofx,
+
+    /// <summary>A bank statement as an Excel workbook: its first sheet is read like a CSV table.</summary>
+    Xlsx
 }
 
 public enum ImportKind

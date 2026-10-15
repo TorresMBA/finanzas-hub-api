@@ -159,17 +159,88 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
         }).ToList();
     }
 
-    public async Task<IReadOnlyList<LedgerMovement>> GetRecentMovementsAsync(DateOnly from, DateOnly to, int count, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<LedgerMovement>> GetRecentMovementsAsync(DateOnly from, DateOnly to, int count, CancellationToken cancellationToken) =>
+        DescribeAsync(
+            Movements().Where(operation => operation.OccurredOn >= from && operation.OccurredOn <= to)
+                .OrderByDescending(operation => operation.OccurredOn).ThenByDescending(operation => operation.Id)
+                .Take(Math.Clamp(count, 1, 500)),
+            cancellationToken);
+
+    public Task<IReadOnlyList<LedgerMovement>> GetMovementsAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken) =>
+        DescribeAsync(
+            Movements().Where(operation => operation.OccurredOn >= from && operation.OccurredOn <= to)
+                .OrderBy(operation => operation.OccurredOn).ThenBy(operation => operation.Id)
+                .Take(ILedgerQueries.MaxExportedMovements),
+            cancellationToken);
+
+    public Task<IReadOnlyList<LedgerMovement>> SearchMovementsAsync(string text, int count, CancellationToken cancellationToken)
     {
-        var operations = await db.Operations.AsNoTracking()
-            .Where(operation => operation.Status != OperationStatus.Voided
-                && (operation.Kind == OperationKind.Income || operation.Kind == OperationKind.Expense || operation.Kind == OperationKind.Transfer)
-                && operation.OccurredOn >= from && operation.OccurredOn <= to)
-            .Include(operation => operation.Entries)
-            .OrderByDescending(operation => operation.OccurredOn)
-            .ThenByDescending(operation => operation.Id)
-            .Take(Math.Clamp(count, 1, 500))
+        var lowered = text.Trim().ToLowerInvariant();
+        return DescribeAsync(
+            Movements().Where(operation =>
+                    operation.Description.ToLower().Contains(lowered)
+                    || (operation.Merchant != null && operation.Merchant.ToLower().Contains(lowered))
+                    || (operation.Note != null && operation.Note.ToLower().Contains(lowered)))
+                .OrderByDescending(operation => operation.OccurredOn).ThenByDescending(operation => operation.Id)
+                .Take(Math.Clamp(count, 1, 50)),
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<LedgerAccountBalance>> SearchAccountsAsync(string text, int count, CancellationToken cancellationToken)
+    {
+        var lowered = text.Trim().ToLowerInvariant();
+        return (await GetAccountBalancesAsync(cancellationToken))
+            .Where(account => account.Name.Contains(lowered, StringComparison.CurrentCultureIgnoreCase))
+            .Take(Math.Clamp(count, 1, 50))
+            .ToList();
+    }
+
+    public async Task<LedgerMerchantTotals> GetMerchantTotalsAsync(DateOnly from, DateOnly to, int count, CancellationToken cancellationToken)
+    {
+        var rows = await Transactions(from, to)
+            .Where(operation => operation.Kind == OperationKind.Expense)
+            .SelectMany(operation => operation.Entries, (operation, entry) => new
+            {
+                operation.Merchant, operation.Description, entry.Currency, entry.Amount, entry.BaseAmount
+            })
             .ToListAsync(cancellationToken);
+
+        // Grouped here and not in the database: the key needs the rules of MerchantName, and a person's expenses of a year are few.
+        var table = await rates.LoadAsync(cancellationToken);
+        var missing = new SortedSet<string>(StringComparer.Ordinal);
+        var merchants = rows
+            .Select(row => (Row: row, Key: MerchantName.KeyOf(row.Merchant, row.Description)))
+            .Where(item => item.Key.Length > 0)
+            .GroupBy(item => item.Key)
+            .Select(group =>
+            {
+                var sum = new BaseSum(table);
+                foreach (var (row, _) in group)
+                {
+                    sum.Add(row.Currency, row.BaseAmount == null ? row.Amount : 0m, row.BaseAmount ?? 0m);
+                }
+
+                missing.UnionWith(sum.Missing);
+                var name = group.Select(item => (string.IsNullOrWhiteSpace(item.Row.Merchant) ? item.Row.Description : item.Row.Merchant).Trim())
+                    .GroupBy(spelling => spelling).OrderByDescending(spelling => spelling.Count()).ThenBy(spelling => spelling.Key, StringComparer.Ordinal)
+                    .First().Key;
+                return new LedgerMerchantTotal(name, group.Count(), sum.Total);
+            })
+            .OrderByDescending(merchant => merchant.Amount)
+            .ThenByDescending(merchant => merchant.Count)
+            .Take(Math.Clamp(count, 1, 100))
+            .ToList();
+        return new LedgerMerchantTotals(merchants, [.. missing]);
+    }
+
+    /// <summary>The income, expenses and transfers a person sees in their movements: not the internal ones (opening balances, adjustments).</summary>
+    private IQueryable<Operation> Movements() =>
+        db.Operations.AsNoTracking().Where(operation => operation.Status != OperationStatus.Voided
+            && (operation.Kind == OperationKind.Income || operation.Kind == OperationKind.Expense || operation.Kind == OperationKind.Transfer));
+
+    private async Task<IReadOnlyList<LedgerMovement>> DescribeAsync(IQueryable<Operation> query, CancellationToken cancellationToken)
+    {
+        var operations = await query.Include(operation => operation.Entries).ToListAsync(cancellationToken);
         var accountIds = operations.SelectMany(operation => operation.Entries).Select(entry => entry.AccountId).Distinct().ToList();
         var names = await db.Accounts.AsNoTracking()
             .Where(account => accountIds.Contains(account.Id))
@@ -191,7 +262,7 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
                 operation.OccurredOn, operation.Description, entry.Direction == EntryDirection.In ? entry.Amount : -entry.Amount, entry.Currency,
                 names.GetValueOrDefault(entry.AccountId, string.Empty),
                 arriving is null ? null : names.GetValueOrDefault(arriving.AccountId, string.Empty),
-                operation.CategoryId);
+                operation.CategoryId, operation.Merchant, operation.Note);
         }).ToList();
     }
 

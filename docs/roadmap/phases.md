@@ -770,3 +770,14 @@ Verificado: 259 tests de backend, 127 de frontend, 28 E2E (el nuevo importa una 
 - **Decisión.** Aún no hay cuenta de Meta: sin token los mensajes se escriben en una carpeta, como los correos `.eml`, y en Development la pantalla muestra el código. Todo lo demás está listo para conectarla por configuración.
 
 Verificado: 266 tests de backend (nuevos: verificación con intento fallido guardado, aviso por WhatsApp, `saldo` solo con las cuentas del remitente, evento repetido, firma inválida, número sin verificar, estados de entrega), 127 de frontend, 29 E2E. A mano contra API y Worker locales: un evento firmado con `saldo` deja la respuesta en la carpeta; uno con otra firma, 401.
+
+**Estado de la fase 12 (15-oct-2026): completada.**
+
+- **Reporte por periodo.** `GET W/reports/summary?period=month|quarter|year&anchor=2026-10`: el mes de la barra superior, su trimestre o su año, frente al periodo anterior completo del mismo tamaño. Ingresos, gastos, ahorro, tasa de ahorro y gasto promedio diario (sobre los días transcurridos si el periodo está en curso); gasto por categoría con sus subcategorías sumadas y su variación; los cinco comercios con más gasto; la tasa de ahorro de los seis meses que terminan en el periodo (doce en un año). Todo sale de las mismas consultas del ledger que Transacciones, Categorías y Presupuestos, así que las cifras coinciden (lo prueba el test de integración).
+- **Comercios.** `MerchantName.KeyOf` agrupa las formas de escribir un comercio (mayúsculas, tildes, puntuación, códigos de 3 o más dígitos); un gasto sin comercio va por su descripción. Se agrupa en memoria, sin índice.
+- **Exportación.** `GET W/reports/export?format=xlsx|csv`: Excel con dos hojas (Resumen y Movimientos) o CSV de movimientos en UTF-8 con BOM. Una celda que empieza como fórmula se guarda como texto. Librería: ClosedXML, detrás de `ISpreadsheets` en BuildingBlocks.
+- **Búsqueda global.** `GET W/search?q=` (2 a 80 caracteres): movimientos, cuentas y metas de la persona. En la barra superior, botón «Buscar» y Ctrl+K o ⌘K.
+- **XLSX en Integraciones**, pendiente de la fase 10: la primera hoja del libro pasa por el mismo lector que un CSV de banco. Migración `AllowXlsxImports`, que solo amplía la restricción del formato.
+- **Pantalla** `/reports` con sus cuatro estados: KPI con variación, dona (cinco categorías y «Otros», con colores fijos por tramo), variación por categoría, comercios frecuentes y tasa de ahorro mensual.
+
+Verificado: 278 tests de backend, 128 de frontend, 30 E2E (el nuevo registra dos gastos, ve el reporte del mes, descarga el Excel y encuentra los gastos con Ctrl+K). Revisión visual de Reportes en escritorio y móvil y del buscador.

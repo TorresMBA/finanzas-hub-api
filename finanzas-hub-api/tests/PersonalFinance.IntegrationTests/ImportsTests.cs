@@ -3,7 +3,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using PersonalFinance.Api.Controllers;
+using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.IntegrationTests.Support;
 
 namespace PersonalFinance.IntegrationTests;
@@ -143,5 +145,30 @@ public class ImportsTests(ApiFixture api)
         // Exporting again from Bluecoins, with one more lunch, brings that lunch and nothing else.
         var again = await ReadAsync(await UploadAsync(brian, Export + "\nExpense,2026-10-06 09:00,,Pan,-3.00,PEN,1,Salidas,Menú del día,Efectivo,,,\n", name: "transactions_list.csv"));
         Assert.Equal((1, 0, 4, 0, 0), Counts(again));
+    }
+
+    [Fact]
+    public async Task A_statement_saved_as_an_Excel_workbook_is_read_like_its_csv()
+    {
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var bcp = (await brian.OpenAccountAsync("BCP", 1000m)).Id();
+        var workbook = await api.ExecuteAsync(services => Task.FromResult(services.GetRequiredService<ISpreadsheets>().Write(
+        [
+            new SpreadsheetSheet("Movimientos", [
+                ["Fecha", "Descripción", "Monto"],
+                [new DateOnly(2025, 8, 3), "Wong", -54.90m],
+                [new DateOnly(2025, 8, 5), "Abono sueldo", 2500m]
+            ])
+        ])));
+
+        var content = new ByteArrayContent(workbook);
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        var detail = await ReadAsync(await brian.Client.PostAsync(Url(brian, $"?fileName=extracto.xlsx&accountId={bcp}"), content));
+
+        Assert.Equal(("xlsx", 2, 0), (detail.GetProperty("import").GetProperty("format").GetString(), detail.GetProperty("import").GetProperty("recordCount").GetInt32(), Counts(detail).Invalid));
+        var lines = detail.GetProperty("records").EnumerateArray()
+            .Select(record => (record.GetProperty("occurredOn").GetString(), record.GetProperty("kind").GetString(), record.GetProperty("amount").GetDecimal()))
+            .OrderBy(line => line.Item1).ToList();
+        Assert.Equal([("2025-08-03", "expense", 54.90m), ("2025-08-05", "income", 2500m)], lines);
     }
 }

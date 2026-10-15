@@ -32,3 +32,5 @@
 | Límites | 10 MB, 10 000 líneas; el contenido del archivo no se registra en logs ni se guarda, solo su SHA-256 |
 | API | `W/imports` (subida con el archivo como cuerpo, detalle paginado, `accounts/{id}`, `categories/{id}`, `records/{id}`, `commit`, descartar) y `W/categorization-rules` |
 | Pantalla | `/integrations`: subida, historial, reglas y la revisión |
+
+Desde la fase 12 también se sube un **Excel (.xlsx)** de banco (formato `Xlsx`): su primera hoja se lee con `ISpreadsheets` y pasa por el mismo lector que la tabla de un CSV.

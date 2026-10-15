@@ -2,7 +2,7 @@
 
 Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance de cada una está en [phases.md](phases.md), junto con lo que se verificó al cerrarla; aquí solo va en qué punto está y qué quedó pendiente.
 
-Última actualización: 14-oct-2026.
+Última actualización: 15-oct-2026.
 
 | Fase | Contenido | Estado | Cerrada |
 |---|---|---|---|
@@ -18,22 +18,22 @@ Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance d
 | 9 | SharedExpenses | ✅ Completada | 13-oct-2026 |
 | 10 | Integrations: importación y reglas | ✅ Completada | 13-oct-2026 |
 | 11 | WhatsApp | ✅ Completada | 14-oct-2026 |
-| 12 | Reporting | ⏳ Pendiente (siguiente) | — |
-| 13 | Investments | ⏳ Pendiente | — |
+| 12 | Reporting | ✅ Completada | 15-oct-2026 |
+| 13 | Investments | ⏳ Pendiente (siguiente) | — |
 | 14 | Tarjetas avanzadas y FX | ⏳ Pendiente | — |
 
 Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-14-oct-2026, al cerrar la fase 11.
+15-oct-2026, al cerrar la fase 12.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 266 en verde (156 unitarios, 19 de arquitectura, 91 de integración) |
-| Frontend: build, tests y lint | Build correcto y sin avisos, 127 tests, lint limpio |
-| E2E en Chrome | 29 en verde |
+| Backend: tests | 278 en verde (166 unitarios, 19 de arquitectura, 93 de integración) |
+| Frontend: build, tests y lint | Build correcto y sin avisos, 128 tests, lint limpio |
+| E2E en Chrome | 30 en verde |
 
 ## Pendientes que dejaron las fases cerradas
 
@@ -176,12 +176,12 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Totales convertidos a la moneda base | Fase 3 | Fase 4, con el tipo de cambio de referencia |
 | Avisos por WhatsApp | Fase 6 | Fase 11: interruptor por categoría, junto al del correo |
 | Recordatorio de deuda por WhatsApp | Fase 9 | Fase 11: el recordatorio es un aviso de Gastos compartidos y va por WhatsApp si la persona lo activó |
+| Importar XLSX | Fase 10 | Fase 12: la primera hoja del libro se lee como la tabla de un CSV de banco |
 
 ### Fase 10
 
 | Pendiente | Se retoma |
 |---|---|
-| Importar XLSX | Con la fase 12, que trae la librería de Excel para exportar. Hoy se guarda la hoja como CSV y se sube |
 | Mapear a mano las columnas de un CSV | Sin fecha. Las columnas se reconocen por su nombre (fecha, descripción, monto o cargo y abono, categoría, moneda, en español o inglés); un banco con otros nombres da `imports.format_not_recognized` |
 | Análisis en segundo plano (`ParseImportsJob`, `IFileStorage`) | No hizo falta: con 10 MB y 10 000 líneas como máximo el archivo se lee en la misma petición y no se guarda. Se retoma si un archivo tarda demasiado |
 | Movimientos en otra moneda que la de su cuenta (Bluecoins) | Sin fecha. Quedan como «Otra moneda» y se excluyen; no se convierten con el tipo de cambio del archivo |
@@ -199,3 +199,15 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Ver en la pantalla el estado de entrega de cada mensaje | Sin fecha. Se guarda (enviado, entregado, leído, fallido) y se mide (`whatsapp.deliveries`), pero no se muestra |
 | Purga de `received_webhook_events` y de entregas antiguas | Sin fecha |
 | Tablet y tema claro de la sección WhatsApp | Solo se revisó escritorio y móvil en tema oscuro |
+
+### Fase 12
+
+| Pendiente | Se retoma |
+|---|---|
+| Exportar en PDF | Sin fecha. Hay Excel (resumen y movimientos) y CSV (movimientos) |
+| Reportes programados y resumen semanal | Backlog. El botón «Programar reporte» del mock no existe |
+| Índice sobre el comercio normalizado | Sin fecha. Los comercios se agrupan en memoria con `MerchantName.KeyOf` sobre los gastos del periodo; basta para el volumen de una persona. Se añade una columna con índice si un año tarda |
+| Meta de ahorro propia («Meta del hogar: 25 %» del mock) | Sin fecha. La gráfica muestra la tasa de cada mes sin una meta |
+| Búsqueda de categorías, grupos compartidos y notas de metas | Sin fecha. Busca movimientos (descripción, comercio, nota), cuentas y metas abiertas |
+| Abrir un movimiento desde la búsqueda | Sin fecha. Lleva a Transacciones filtradas por el texto; una cuenta, a sus movimientos |
+| Tablet y tema claro de Reportes y del buscador | Solo se revisó escritorio y móvil en tema oscuro |

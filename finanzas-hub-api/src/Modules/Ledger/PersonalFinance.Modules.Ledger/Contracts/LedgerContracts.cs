@@ -45,7 +45,14 @@ public sealed record LedgerAccountBalance(
 /// <param name="CounterAccountName">The destination account of a transfer.</param>
 public sealed record LedgerMovement(
     Guid Id, LedgerMovementKind Kind, DateOnly OccurredOn, string Description, decimal SignedAmount, string Currency, string AccountName,
-    string? CounterAccountName, Guid? CategoryId);
+    string? CounterAccountName, Guid? CategoryId, string? Merchant = null, string? Note = null);
+
+/// <summary>Where the expenses of a period went, shop by shop.</summary>
+/// <param name="Name">The way of writing it used most often.</param>
+/// <param name="Amount">In the base currency.</param>
+public sealed record LedgerMerchantTotal(string Name, int Count, decimal Amount);
+
+public sealed record LedgerMerchantTotals(IReadOnlyList<LedgerMerchantTotal> Merchants, IReadOnlyList<string> MissingRates);
 
 /// <summary>One expense, as a budget lists it.</summary>
 /// <param name="Amount">Positive, in the currency of the account.</param>
@@ -126,4 +133,18 @@ public interface ILedgerQueries
 
     /// <summary>The latest income, expenses and transfers of a period, newest first.</summary>
     Task<IReadOnlyList<LedgerMovement>> GetRecentMovementsAsync(DateOnly from, DateOnly to, int count, CancellationToken cancellationToken);
+
+    /// <summary>Every income, expense and transfer of a period, oldest first, up to <see cref="MaxExportedMovements"/>.</summary>
+    Task<IReadOnlyList<LedgerMovement>> GetMovementsAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken);
+
+    /// <summary>The shops the expenses of a period went to, the one with most spent first. Refunds are left out.</summary>
+    Task<LedgerMerchantTotals> GetMerchantTotalsAsync(DateOnly from, DateOnly to, int count, CancellationToken cancellationToken);
+
+    /// <summary>The newest movements whose description, merchant or note contain the text.</summary>
+    Task<IReadOnlyList<LedgerMovement>> SearchMovementsAsync(string text, int count, CancellationToken cancellationToken);
+
+    /// <summary>The accounts in use whose name contains the text.</summary>
+    Task<IReadOnlyList<LedgerAccountBalance>> SearchAccountsAsync(string text, int count, CancellationToken cancellationToken);
+
+    const int MaxExportedMovements = 20_000;
 }

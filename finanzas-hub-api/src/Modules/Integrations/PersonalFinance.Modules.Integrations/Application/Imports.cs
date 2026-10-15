@@ -39,7 +39,7 @@ internal sealed class GetImportHandler(ImportReader reader) : IQueryHandler<GetI
 /// <param name="AccountId">Where a bank statement goes. A Bluecoins export brings its own accounts.</param>
 public sealed record UploadImportCommand(string? FileName, byte[] Content, Guid? AccountId) : ICommand<ImportDetailResponse>;
 
-internal sealed class UploadImportHandler(IIntegrationsDb db, ImportReader reader, ICategoryDirectory categories, IAuditLog audit, IClock clock)
+internal sealed class UploadImportHandler(IIntegrationsDb db, ImportReader reader, ICategoryDirectory categories, ISpreadsheets spreadsheets, IAuditLog audit, IClock clock)
     : ICommandHandler<UploadImportCommand, ImportDetailResponse>
 {
     public async Task<Result<ImportDetailResponse>> HandleAsync(UploadImportCommand command, CancellationToken cancellationToken)
@@ -54,13 +54,16 @@ internal sealed class UploadImportHandler(IIntegrationsDb db, ImportReader reade
             return Error.Validation("imports.file_size_invalid", $"The file must have something in it and at most {ImportSession.MaxFileBytes / (1024 * 1024)} MB.");
         }
 
-        var parsed = ImportFileReader.Read(Decode(command.Content));
+        var workbook = ISpreadsheets.IsWorkbook(command.Content);
+        var text = workbook ? AsTable(spreadsheets.ReadFirstSheet(command.Content)) : Decode(command.Content);
+        var parsed = text is null ? (Result<ParsedFile>)ImportFileReader.NotRecognized : ImportFileReader.Read(text);
         if (parsed.IsFailure)
         {
             return parsed.Error;
         }
 
-        var (format, rows) = (parsed.Value.Format, parsed.Value.Rows);
+        // A bank statement saved as an Excel workbook is read as the same table.
+        var (format, rows) = (workbook && parsed.Value.Format == ImportFormat.Csv ? ImportFormat.Xlsx : parsed.Value.Format, parsed.Value.Rows);
         if (rows.Count is 0 or > ImportSession.MaxRows)
         {
             return Error.Validation("imports.row_count_invalid", $"The file must have between 1 and {ImportSession.MaxRows} movements. Split a longer one by year.");
@@ -158,6 +161,12 @@ internal sealed class UploadImportHandler(IIntegrationsDb db, ImportReader reade
     }
 
     private static bool Same(string? one, string? other) => string.Equals(one, other, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The first sheet of a workbook as the text of a table, so it is read by the same rules as a CSV. Null when it is not a workbook.</summary>
+    private static string? AsTable(IReadOnlyList<IReadOnlyList<string>>? sheet) =>
+        sheet is null
+            ? null
+            : string.Join('\n', sheet.Select(row => string.Join(',', row.Select(cell => $"\"{cell.Replace("\"", "\"\"")}\""))));
 
     /// <summary>Apps export in UTF-8 or UTF-16; banks, often in the code page of Windows. A file that is not valid UTF-8 is read as the latter.</summary>
     private static string Decode(byte[] content)
