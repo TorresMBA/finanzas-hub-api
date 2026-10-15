@@ -63,6 +63,9 @@ internal sealed class FallbackWorkspaceAccess(FakeWorkspaceAccess declared, IWor
 {
     public async Task<WorkspaceMembershipInfo?> GetActiveMembershipAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken) =>
         declared.Find(workspaceId, userId) ?? await real.GetActiveMembershipAsync(workspaceId, userId, cancellationToken);
+
+    public Task<WorkspaceMembershipInfo?> GetPersonalMembershipAsync(Guid userId, CancellationToken cancellationToken) =>
+        real.GetPersonalMembershipAsync(userId, cancellationToken);
 }
 
 /// <summary>

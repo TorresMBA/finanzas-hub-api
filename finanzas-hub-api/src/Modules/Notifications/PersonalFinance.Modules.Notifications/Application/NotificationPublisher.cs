@@ -40,11 +40,11 @@ internal sealed class NotificationSettingsStore(INotificationsDb db)
 
 /// <summary>
 /// Where every notice enters. It writes the inbox row, signals the open browsers of the person and queues the
-/// email in the same transaction as the caller: if that is rolled back, none of it happened.
+/// email and the WhatsApp message in the same transaction as the caller: if that is rolled back, none of it happened.
 /// </summary>
 internal sealed class NotificationPublisher(
     INotificationsDb db, NotificationSettingsStore settingsStore, IUserDirectory users, IEmailSender email, IAppLinks links, IRealtimeNotifier realtime,
-    IPersonalSpace workspace, IClock clock) : INotificationPublisher
+    WhatsAppBook whatsApp, IPersonalSpace workspace, IClock clock) : INotificationPublisher
 {
     /// <summary>The name the browsers listen to on the hub.</summary>
     public const string CreatedEvent = "notification.created";
@@ -68,7 +68,10 @@ internal sealed class NotificationPublisher(
 
         var settings = await settingsStore.ReadAsync(request.UserId, cancellationToken);
         var emailed = settings.EmailEnabled(request.Category) && await users.FindAsync(request.UserId, cancellationToken) is { } user && Queue(user, notification, settings);
-        Published.Add(1, new KeyValuePair<string, object?>("category", request.Category.ToString()), new KeyValuePair<string, object?>("email", emailed));
+        var texted = settings.WhatsAppEnabled(request.Category) && await QueueWhatsAppAsync(notification, settings, cancellationToken);
+        Published.Add(
+            1, new KeyValuePair<string, object?>("category", request.Category.ToString()), new KeyValuePair<string, object?>("email", emailed),
+            new KeyValuePair<string, object?>("whatsapp", texted));
         return true;
     }
 
@@ -77,12 +80,29 @@ internal sealed class NotificationPublisher(
 
     private bool Queue(UserSummary user, Notification notification, NotificationSettings settings)
     {
-        // Something critical does not wait for the morning.
-        var holdUntil = notification.Severity == NotificationSeverity.Critical ? null : settings.HoldUntil(LocalNow());
         var body = notification.Link is null ? notification.Body : $"{notification.Body}\n\n{links.To(notification.Link)}";
-        email.Queue(new EmailMessage(user.Email, notification.Title, body, holdUntil?.ToUniversalTime()));
+        email.Queue(new EmailMessage(user.Email, notification.Title, body, HoldUntil(notification, settings)));
         return true;
     }
+
+    /// <summary>To the verified number only; without one the preference waits, as if it were off.</summary>
+    private async Task<bool> QueueWhatsAppAsync(Notification notification, NotificationSettings settings, CancellationToken cancellationToken)
+    {
+        if (await whatsApp.VerifiedPhoneAsync(notification.UserId, cancellationToken) is not { } phone)
+        {
+            return false;
+        }
+
+        var text = notification.Link is null
+            ? $"*{notification.Title}*\n{notification.Body}"
+            : $"*{notification.Title}*\n{notification.Body}\n{links.To(notification.Link)}";
+        whatsApp.Queue(notification.UserId, phone, DeliveryKind.Notice, text, [notification.Title, notification.Body], HoldUntil(notification, settings), notification.Id);
+        return true;
+    }
+
+    /// <summary>Something critical does not wait for the morning.</summary>
+    private DateTimeOffset? HoldUntil(Notification notification, NotificationSettings settings) =>
+        notification.Severity == NotificationSeverity.Critical ? null : settings.HoldUntil(LocalNow())?.ToUniversalTime();
 
     /// <summary>The quiet hours are read in the time zone of the workspace the notice came from.</summary>
     private DateTimeOffset LocalNow()

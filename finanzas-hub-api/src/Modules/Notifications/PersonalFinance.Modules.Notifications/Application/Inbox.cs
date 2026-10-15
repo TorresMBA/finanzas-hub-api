@@ -107,7 +107,8 @@ internal sealed class MarkAllNotificationsReadHandler(INotificationsDb db, ICurr
 }
 
 /// <param name="EmailEnabled">Whether notices of this category also go to the email of the person. The inbox always gets them.</param>
-public sealed record NotificationPreferenceResponse(NotificationCategory Category, bool EmailEnabled);
+/// <param name="WhatsAppEnabled">Whether they also go to their verified WhatsApp number.</param>
+public sealed record NotificationPreferenceResponse(NotificationCategory Category, bool EmailEnabled, bool WhatsAppEnabled);
 
 /// <param name="QuietFrom">While the quiet hours last, an email that is not critical waits. In the time zone of the workspace.</param>
 /// <param name="LargeMovementThreshold">From which amount, in the base currency, a movement is worth a notice. Null: never.</param>
@@ -116,7 +117,7 @@ public sealed record NotificationSettingsResponse(
 {
     public static NotificationSettingsResponse Of(NotificationSettings settings) => new(
         settings.QuietHoursEnabled, settings.QuietFrom, settings.QuietTo, settings.LargeMovementThreshold,
-        Enum.GetValues<NotificationCategory>().Select(category => new NotificationPreferenceResponse(category, settings.EmailEnabled(category))).ToList());
+        Enum.GetValues<NotificationCategory>().Select(category => new NotificationPreferenceResponse(category, settings.EmailEnabled(category), settings.WhatsAppEnabled(category))).ToList());
 }
 
 public sealed record GetNotificationSettingsQuery : IQuery<NotificationSettingsResponse>;
@@ -135,14 +136,15 @@ internal sealed class GetNotificationSettingsHandler(NotificationSettingsStore s
     }
 }
 
-public sealed record NotificationPreferenceChange(NotificationCategory Category, bool EmailEnabled);
+/// <param name="WhatsAppEnabled">Null keeps what it had.</param>
+public sealed record NotificationPreferenceChange(NotificationCategory Category, bool EmailEnabled, bool? WhatsAppEnabled = null);
 
 /// <param name="Preferences">The categories left out keep what they had.</param>
 public sealed record UpdateNotificationSettingsCommand(
     bool QuietHoursEnabled, TimeOnly QuietFrom, TimeOnly QuietTo, decimal? LargeMovementThreshold, IReadOnlyList<NotificationPreferenceChange> Preferences)
     : ICommand<NotificationSettingsResponse>;
 
-internal sealed class UpdateNotificationSettingsHandler(NotificationSettingsStore store, ICurrentUser currentUser, IAuditLog audit)
+internal sealed class UpdateNotificationSettingsHandler(NotificationSettingsStore store, WhatsAppBook whatsApp, ICurrentUser currentUser, IAuditLog audit)
     : ICommandHandler<UpdateNotificationSettingsCommand, NotificationSettingsResponse>
 {
     public async Task<Result<NotificationSettingsResponse>> HandleAsync(UpdateNotificationSettingsCommand command, CancellationToken cancellationToken)
@@ -159,9 +161,19 @@ internal sealed class UpdateNotificationSettingsHandler(NotificationSettingsStor
             return updated.Error;
         }
 
+        if (command.Preferences.Any(preference => preference.WhatsAppEnabled == true && !settings.WhatsAppEnabled(preference.Category))
+            && await whatsApp.VerifiedPhoneAsync(userId, cancellationToken) is null)
+        {
+            return WhatsAppErrors.NotVerified;
+        }
+
         foreach (var preference in command.Preferences)
         {
             settings.SetEmail(preference.Category, preference.EmailEnabled);
+            if (preference.WhatsAppEnabled is { } whatsAppEnabled)
+            {
+                settings.SetWhatsApp(preference.Category, whatsAppEnabled);
+            }
         }
 
         var response = NotificationSettingsResponse.Of(settings);

@@ -759,3 +759,14 @@ Verificado: 254 tests de backend, 126 de frontend, 27 E2E (el de gastos comparti
 - **Decisión.** El archivo se lee en la misma petición y no se guarda: no hay `ParseImportsJob` ni `IFileStorage`. XLSX queda para la fase 12.
 
 Verificado: 259 tests de backend, 127 de frontend, 28 E2E (el nuevo importa una exportación de Bluecoins creando cuenta y categoría, y comprueba que repetirla no añade nada).
+
+**Estado de la fase 11 (14-oct-2026): completada.**
+
+- **Teléfono verificado.** La persona escribe su número con código de país y recibe por WhatsApp un código de 6 dígitos (10 minutos, 5 intentos, uno nuevo cada minuto). Se guarda solo su hash. Un número verificado es de una sola persona. Se puede cambiar o quitar; al quitarlo se apagan sus avisos por WhatsApp.
+- **Avisos.** Un interruptor de WhatsApp por categoría, junto al del correo y apagado por defecto: presupuestos, movimientos grandes, pagos y vencimientos, metas y gastos compartidos (también el recordatorio de deuda). Respetan el horario silencioso como el correo.
+- **Comandos.** `saldo` responde con las cuentas de quien escribe, sin los fondos de metas; `ayuda` y cualquier otro texto, con la ayuda. Solo un número verificado habla por alguien.
+- **Webhook.** `GET/POST /webhooks/v1/whatsapp`, anónimo, con límite por IP. La firma `X-Hub-Signature-256` se comprueba sobre los bytes crudos y en tiempo constante; sin ella, 401 y nada se lee. Cada mensaje se atiende en su propio scope, como su autor y en su espacio personal. Un evento repetido no responde dos veces (índice único `(provider, external_id)`). Los estados de entrega actualizan el mensaje y nunca retroceden.
+- **Envío.** Cola `notifications.deliveries` con reintentos y `SendWhatsAppJob` en el Worker (SKIP LOCKED). Las respuestas van como texto; avisos y códigos usan las plantillas configuradas (`NoticeTemplate`, `CodeTemplate`) y, sin ellas, texto.
+- **Decisión.** Aún no hay cuenta de Meta: sin token los mensajes se escriben en una carpeta, como los correos `.eml`, y en Development la pantalla muestra el código. Todo lo demás está listo para conectarla por configuración.
+
+Verificado: 266 tests de backend (nuevos: verificación con intento fallido guardado, aviso por WhatsApp, `saldo` solo con las cuentas del remitente, evento repetido, firma inválida, número sin verificar, estados de entrega), 127 de frontend, 29 E2E. A mano contra API y Worker locales: un evento firmado con `saldo` deja la respuesta en la carpeta; uno con otra firma, 401.

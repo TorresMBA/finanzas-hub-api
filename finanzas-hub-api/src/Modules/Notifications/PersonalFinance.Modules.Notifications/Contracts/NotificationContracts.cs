@@ -1,6 +1,6 @@
 namespace PersonalFinance.Modules.Notifications.Contracts;
 
-/// <summary>What a notice is about. A person chooses per category whether it also goes to their email.</summary>
+/// <summary>What a notice is about. A person chooses per category whether it also goes to their email or WhatsApp.</summary>
 public enum NotificationCategory
 {
     Budget,
@@ -43,4 +43,12 @@ public interface INotificationPublisher
 
     /// <summary>From which amount, in the base currency, a person wants to hear about a movement. Null when they do not.</summary>
     Task<decimal?> GetLargeMovementThresholdAsync(Guid userId, CancellationToken cancellationToken);
+}
+
+/// <summary>Writes to a person directly, outside the inbox: the answer to something they asked by WhatsApp.</summary>
+public interface IDirectMessenger
+{
+    /// <summary>Queues the text for the verified WhatsApp number of the person, in the transaction of the caller.</summary>
+    /// <returns>False when the person has no verified number.</returns>
+    Task<bool> ReplyByWhatsAppAsync(Guid userId, string text, CancellationToken cancellationToken);
 }

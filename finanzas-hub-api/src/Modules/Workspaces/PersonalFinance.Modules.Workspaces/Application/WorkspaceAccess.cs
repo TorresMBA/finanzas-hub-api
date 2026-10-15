@@ -27,6 +27,15 @@ internal sealed class WorkspaceAccess(IWorkspacesDb db) : IWorkspaceAccess
         return membership with { Personal = personal };
     }
 
+    public async Task<WorkspaceMembershipInfo?> GetPersonalMembershipAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var personalId = await db.Workspaces.AsNoTracking()
+            .Where(workspace => workspace.IsPersonal && workspace.OwnerUserId == userId && workspace.Status != WorkspaceStatus.Archived)
+            .Select(workspace => (Guid?)workspace.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        return personalId is { } id ? await GetActiveMembershipAsync(id, userId, cancellationToken) : null;
+    }
+
     private async Task<WorkspaceMembershipInfo?> MembershipAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken) =>
         await db.Memberships.AsNoTracking()
             .Where(membership => membership.WorkspaceId == workspaceId && membership.UserId == userId && membership.Status == MembershipStatus.Active)

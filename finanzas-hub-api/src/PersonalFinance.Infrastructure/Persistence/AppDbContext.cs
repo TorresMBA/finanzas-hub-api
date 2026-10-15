@@ -91,6 +91,12 @@ internal sealed class AppDbContext(
 
     public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
 
+    public DbSet<ChannelEndpoint> ChannelEndpoints => Set<ChannelEndpoint>();
+
+    public DbSet<Delivery> Deliveries => Set<Delivery>();
+
+    public DbSet<ReceivedWebhookEvent> ReceivedWebhookEvents => Set<ReceivedWebhookEvent>();
+
     public DbSet<RecurringRule> RecurringRules => Set<RecurringRule>();
 
     public DbSet<Goal> Goals => Set<Goal>();

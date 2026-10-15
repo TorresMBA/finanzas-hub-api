@@ -1,5 +1,6 @@
 using PersonalFinance.Infrastructure;
 using PersonalFinance.Infrastructure.Observability;
+using PersonalFinance.Worker.Jobs.Notifications;
 using PersonalFinance.Worker.Jobs.Platform;
 using PersonalFinance.Worker.Jobs.Scheduling;
 
@@ -12,6 +13,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddHostedService<PurgeExpiredIdempotencyKeysJob>();
 builder.Services.AddHostedService<SendEmailsJob>();
+builder.Services.AddHostedService<SendWhatsAppJob>();
 builder.Services.AddHostedService<RunDueOccurrencesJob>();
 
 await builder.Build().RunAsync();

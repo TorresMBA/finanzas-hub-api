@@ -47,3 +47,59 @@ internal sealed class NotificationSettingsConfiguration : IEntityTypeConfigurati
         builder.Navigation(settings => settings.Preferences).UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }
+
+internal sealed class ChannelEndpointConfiguration : IEntityTypeConfiguration<ChannelEndpoint>
+{
+    public void Configure(EntityTypeBuilder<ChannelEndpoint> builder)
+    {
+        builder.ToTable("channel_endpoints", Schemas.Notifications);
+        builder.HasKey(endpoint => endpoint.Id);
+        builder.Property(endpoint => endpoint.Id).ValueGeneratedNever();
+        builder.Property(endpoint => endpoint.Channel).HasConversion<string>().HasMaxLength(16);
+        builder.Property(endpoint => endpoint.Phone).HasMaxLength(PhoneNumber.MaxDigits);
+        builder.Property(endpoint => endpoint.PendingPhone).HasMaxLength(PhoneNumber.MaxDigits);
+        builder.Property(endpoint => endpoint.CodeHash).HasMaxLength(64);
+        builder.Ignore(endpoint => endpoint.IsVerified);
+
+        builder.HasIndex(endpoint => new { endpoint.UserId, endpoint.Channel }).IsUnique();
+
+        // A verified number speaks for one person only.
+        builder.HasIndex(endpoint => new { endpoint.Channel, endpoint.Phone }).IsUnique().HasFilter("phone IS NOT NULL");
+    }
+}
+
+internal sealed class DeliveryConfiguration : IEntityTypeConfiguration<Delivery>
+{
+    public void Configure(EntityTypeBuilder<Delivery> builder)
+    {
+        builder.ToTable("deliveries", Schemas.Notifications);
+        builder.HasKey(delivery => delivery.Id);
+        builder.Property(delivery => delivery.Id).ValueGeneratedNever();
+        builder.Property(delivery => delivery.Channel).HasConversion<string>().HasMaxLength(16);
+        builder.Property(delivery => delivery.Kind).HasConversion<string>().HasMaxLength(24);
+        builder.Property(delivery => delivery.Status).HasConversion<string>().HasMaxLength(16);
+        builder.Property(delivery => delivery.To).HasMaxLength(PhoneNumber.MaxDigits).IsRequired();
+        builder.Property(delivery => delivery.Text).HasMaxLength(Delivery.MaxTextLength);
+        builder.Property(delivery => delivery.ExternalId).HasMaxLength(200);
+        builder.Property(delivery => delivery.LastError).HasMaxLength(500);
+
+        builder.HasIndex(delivery => delivery.NextAttemptAt).HasFilter("status = 'Pending'").HasDatabaseName("ix_deliveries_pending");
+        builder.HasIndex(delivery => delivery.ExternalId).HasFilter("external_id IS NOT NULL");
+        builder.HasIndex(delivery => delivery.UserId);
+    }
+}
+
+internal sealed class ReceivedWebhookEventConfiguration : IEntityTypeConfiguration<ReceivedWebhookEvent>
+{
+    public void Configure(EntityTypeBuilder<ReceivedWebhookEvent> builder)
+    {
+        builder.ToTable("received_webhook_events", Schemas.Notifications);
+        builder.HasKey(received => received.Id);
+        builder.Property(received => received.Id).ValueGeneratedNever();
+        builder.Property(received => received.Provider).HasMaxLength(32).IsRequired();
+        builder.Property(received => received.ExternalId).HasMaxLength(ReceivedWebhookEvent.MaxExternalIdLength).IsRequired();
+
+        // The same event twice is acted on once, also when two deliveries of it race each other.
+        builder.HasIndex(received => new { received.Provider, received.ExternalId }).IsUnique();
+    }
+}

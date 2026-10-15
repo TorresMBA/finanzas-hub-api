@@ -2,7 +2,7 @@
 
 Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance de cada una está en [phases.md](phases.md), junto con lo que se verificó al cerrarla; aquí solo va en qué punto está y qué quedó pendiente.
 
-Última actualización: 13-oct-2026.
+Última actualización: 14-oct-2026.
 
 | Fase | Contenido | Estado | Cerrada |
 |---|---|---|---|
@@ -17,8 +17,8 @@ Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance d
 | 8 | Goals | ✅ Completada | 13-oct-2026 |
 | 9 | SharedExpenses | ✅ Completada | 13-oct-2026 |
 | 10 | Integrations: importación y reglas | ✅ Completada | 13-oct-2026 |
-| 11 | WhatsApp | ⏳ Pendiente (siguiente) | — |
-| 12 | Reporting | ⏳ Pendiente | — |
+| 11 | WhatsApp | ✅ Completada | 14-oct-2026 |
+| 12 | Reporting | ⏳ Pendiente (siguiente) | — |
 | 13 | Investments | ⏳ Pendiente | — |
 | 14 | Tarjetas avanzadas y FX | ⏳ Pendiente | — |
 
@@ -26,14 +26,14 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-13-oct-2026, al cerrar la fase 10.
+14-oct-2026, al cerrar la fase 11.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 259 en verde (151 unitarios, 19 de arquitectura, 89 de integración) |
+| Backend: tests | 266 en verde (156 unitarios, 19 de arquitectura, 91 de integración) |
 | Frontend: build, tests y lint | Build correcto y sin avisos, 127 tests, lint limpio |
-| E2E en Chrome | 28 en verde |
+| E2E en Chrome | 29 en verde |
 
 ## Pendientes que dejaron las fases cerradas
 
@@ -103,7 +103,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Purga de avisos a los 90 días | Sin fecha |
 | Desactivar la bandeja por categoría | Sin fecha. Todo aviso llega a la bandeja; la preferencia decide solo el correo |
 | Métrica de envíos pendientes | Sin fecha. Se cuenta lo publicado (`notifications.published`) |
-| WhatsApp, push móvil, resumen semanal, "Crear alerta" | Fase 11 y backlog |
+| Push móvil, resumen semanal, "Crear alerta" | Backlog |
 | Tablet y tema claro de la pantalla de Notificaciones | Sin revisar a ojo |
 
 ### Fase 7
@@ -143,7 +143,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Anular el movimiento del otro lado al anular un pago o cancelar un gasto | Sin fecha. Quien anula se lleva su propio movimiento; al otro lado se le avisa para que anule el suyo, porque nadie escribe en el ledger de otro |
 | Sugerencia de liquidación con menos pagos | Retirada el 13-oct-2026: cada miembro ve solo sus deudas, y la sugerencia exponía las de los demás |
 | Resumen aparte (`W/shared-expenses/summary`) y gastos compartidos en el Inicio | Sin fecha. Los totales vienen en el listado de grupos |
-| Recordatorio por WhatsApp | Fase 11 |
 | Refunds en la pantalla de Transacciones: registrar uno a mano | Sin fecha. Hoy un reembolso solo nace de un cobro de gastos compartidos |
 | Tests de concurrencia y de la señal en tiempo real | Sin fecha |
 | Tablet y tema claro de Gastos compartidos | Solo se revisó escritorio en tema oscuro; en móvil, que no desborda |
@@ -175,6 +174,8 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Presupuesto en el Inicio | Fase 4 | Fase 5: una cifra con el porcentaje usado |
 | `ILedgerQueries` para otros módulos | Fase 3 | Fase 4: lo usa Reporting para el Inicio |
 | Totales convertidos a la moneda base | Fase 3 | Fase 4, con el tipo de cambio de referencia |
+| Avisos por WhatsApp | Fase 6 | Fase 11: interruptor por categoría, junto al del correo |
+| Recordatorio de deuda por WhatsApp | Fase 9 | Fase 11: el recordatorio es un aviso de Gastos compartidos y va por WhatsApp si la persona lo activó |
 
 ### Fase 10
 
@@ -187,3 +188,14 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Volver a aplicar las reglas a una importación en revisión | Sin fecha. Las reglas se aplican al leer el archivo; después se clasifica línea por línea |
 | Formato real de la exportación de Bluecoins | Probado con las dos cabeceras conocidas (la de exportar y la de la plantilla de importación, con columnas numeradas). Sin verificar con un archivo real del dueño |
 | Evento `ImportCommitted` y aviso al terminar | Sin fecha: la importación se confirma con la pantalla abierta |
+
+### Fase 11
+
+| Pendiente | Se retoma |
+|---|---|
+| Cuenta de WhatsApp Cloud API (Meta): número, token, App Secret y plantillas aprobadas | Cuando el dueño la cree. Sin token, los mensajes se escriben en una carpeta (`WhatsApp:OutboxDirectory`, por defecto `%TEMP%/personal-hub-whatsapp`) y en Development la pantalla muestra el código de verificación |
+| Probar con Meta de verdad | Con la cuenta: envío de texto y de plantilla, el saludo del webhook (`hub.challenge`), la firma y los estados de entrega. Hoy se probaron con eventos firmados por los tests y a mano contra la API local |
+| Registrar gastos por chat | Fuera de alcance (OQ-23): el canal solo consulta (`saldo`, `ayuda`) |
+| Ver en la pantalla el estado de entrega de cada mensaje | Sin fecha. Se guarda (enviado, entregado, leído, fallido) y se mide (`whatsapp.deliveries`), pero no se muestra |
+| Purga de `received_webhook_events` y de entregas antiguas | Sin fecha |
+| Tablet y tema claro de la sección WhatsApp | Solo se revisó escritorio y móvil en tema oscuro |

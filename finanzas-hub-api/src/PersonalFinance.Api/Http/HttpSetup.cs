@@ -82,6 +82,7 @@ internal static class HttpSetup
 {
     public const string CorsPolicy = "Frontend";
     public const string AuthRateLimit = "auth";
+    public const string WebhookRateLimit = "webhooks";
 
     /// <summary>Controllers, error responses, session cookie, authorization and CORS.</summary>
     public static IServiceCollection AddApiHttp(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
@@ -157,12 +158,17 @@ internal static class HttpSetup
 
         // Slows down password guessing and account enumeration. Per client address, on the /auth endpoints only.
         var authPermitsPerMinute = configuration.GetValue("RateLimiting:AuthPermitsPerMinute", 20);
+        var webhookPermitsPerMinute = configuration.GetValue("RateLimiting:WebhookPermitsPerMinute", 300);
+        services.AddScoped<WhatsAppInbox>();
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.AddPolicy(AuthRateLimit, context => RateLimitPartition.GetFixedWindowLimiter(
                 context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = authPermitsPerMinute, Window = TimeSpan.FromMinutes(1) }));
+            options.AddPolicy(WebhookRateLimit, context => RateLimitPartition.GetFixedWindowLimiter(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = webhookPermitsPerMinute, Window = TimeSpan.FromMinutes(1) }));
         });
 
         var allowedOrigins = ResolveAllowedOrigins(configuration, environment);

@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using PersonalFinance.Infrastructure.Audit;
 using PersonalFinance.Infrastructure.Email;
+using PersonalFinance.Infrastructure.WhatsApp;
 using PersonalFinance.Infrastructure.Messaging;
 using PersonalFinance.Modules.Budgets.Application.Abstractions;
 using PersonalFinance.Modules.Categories.Application.Abstractions;
@@ -83,6 +84,11 @@ public static class DependencyInjection
         services.AddSingleton<IAppLinks, AppLinks>();
         services.AddScoped<IEmailSender, EmailQueue>();
         services.AddScoped<IEmailDispatcher, EmailDispatcher>();
+
+        services.Configure<WhatsAppOptions>(configuration.GetSection(WhatsAppOptions.SectionName));
+        services.AddSingleton<IWhatsAppSetup, WhatsAppSetup>();
+        services.AddHttpClient<IWhatsAppSender, WhatsAppSender>(client => client.BaseAddress = new Uri("https://graph.facebook.com/"));
+        services.AddScoped<IDeliveryDispatcher, DeliveryDispatcher>();
 
         AddIdentity(services);
 

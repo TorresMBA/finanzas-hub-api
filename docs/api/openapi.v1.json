@@ -2917,6 +2917,184 @@
         }
       }
     },
+    "/api/v1/me/channels/whatsapp": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "GetWhatsAppChannel",
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppChannelResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "RemoveWhatsAppChannel",
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppChannelResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/channels/whatsapp/verify-start": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "StartWhatsAppVerification",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartWhatsAppVerificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppVerificationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/channels/whatsapp/verify-confirm": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "ConfirmWhatsAppVerification",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmWhatsAppVerificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppChannelResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/accounts": {
       "get": {
         "tags": [
@@ -8832,6 +9010,22 @@
           }
         }
       },
+      "ConfirmWhatsAppVerificationRequest": {
+        "required": [
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "maxLength": 12,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ContributionType": {
         "enum": [
           "contribution",
@@ -11013,13 +11207,20 @@
           },
           "emailEnabled": {
             "type": "boolean"
+          },
+          "whatsAppEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
       "NotificationPreferenceResponse": {
         "required": [
           "category",
-          "emailEnabled"
+          "emailEnabled",
+          "whatsAppEnabled"
         ],
         "type": "object",
         "properties": {
@@ -11027,6 +11228,9 @@
             "$ref": "#/components/schemas/NotificationCategory"
           },
           "emailEnabled": {
+            "type": "boolean"
+          },
+          "whatsAppEnabled": {
             "type": "boolean"
           }
         }
@@ -12322,6 +12526,22 @@
           "shares"
         ]
       },
+      "StartWhatsAppVerificationRequest": {
+        "required": [
+          "phone"
+        ],
+        "type": "object",
+        "properties": {
+          "phone": {
+            "maxLength": 24,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "SubcategoryResponse": {
         "required": [
           "id",
@@ -12961,6 +13181,56 @@
           "monday",
           "sunday"
         ]
+      },
+      "WhatsAppChannelResponse": {
+        "required": [
+          "phone",
+          "pendingPhone",
+          "codeExpiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pendingPhone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "codeExpiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "isVerified": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WhatsAppVerificationResponse": {
+        "required": [
+          "channel",
+          "developmentCode"
+        ],
+        "type": "object",
+        "properties": {
+          "channel": {
+            "$ref": "#/components/schemas/WhatsAppChannelResponse"
+          },
+          "developmentCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
       },
       "WorkspaceResponse": {
         "required": [

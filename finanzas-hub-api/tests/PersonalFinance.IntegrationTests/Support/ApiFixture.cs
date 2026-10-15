@@ -53,6 +53,9 @@ public sealed class ApiFixture : IAsyncLifetime
         }
     }
 
+    public const string WhatsAppSecret = "test-app-secret";
+    public const string WhatsAppVerifyToken = "test-verify-token";
+
     public HttpClient AnonymousClient() => _factory.CreateClient();
 
     /// <summary>A browser-like client: it keeps the session cookie, which is only sent over HTTPS.</summary>
@@ -95,6 +98,8 @@ public sealed class ApiFixture : IAsyncLifetime
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing");
+            builder.UseSetting("WhatsApp:AppSecret", WhatsAppSecret);
+            builder.UseSetting("WhatsApp:VerifyToken", WhatsAppVerifyToken);
             builder.ConfigureTestServices(services =>
             {
                 services.AddAuthentication(TestAuthHandler.SchemeName)

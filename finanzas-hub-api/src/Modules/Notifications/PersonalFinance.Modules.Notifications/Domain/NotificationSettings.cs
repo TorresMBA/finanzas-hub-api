@@ -5,7 +5,8 @@ namespace PersonalFinance.Modules.Notifications.Domain;
 
 public enum NotificationChannel
 {
-    Email
+    Email,
+    WhatsApp
 }
 
 /// <summary>A choice a person made for one category and channel. Without one, the default of the category applies.</summary>
@@ -74,19 +75,36 @@ public sealed class NotificationSettings : AggregateRoot
     /// <summary>A budget about to run out or a payment coming up is worth an email; a large movement the person just made is not.</summary>
     public static bool EmailByDefault(NotificationCategory category) => category is NotificationCategory.Budget or NotificationCategory.Bills;
 
-    public bool EmailEnabled(NotificationCategory category) =>
-        _preferences.FirstOrDefault(preference => preference.Category == category && preference.Channel == NotificationChannel.Email)?.Enabled
-        ?? EmailByDefault(category);
+    public bool EmailEnabled(NotificationCategory category) => Preference(category, NotificationChannel.Email)?.Enabled ?? EmailByDefault(category);
 
-    public void SetEmail(NotificationCategory category, bool enabled)
+    /// <summary>WhatsApp is never on until the person turns it on, which they can only do with a proven number.</summary>
+    public bool WhatsAppEnabled(NotificationCategory category) => Preference(category, NotificationChannel.WhatsApp)?.Enabled ?? false;
+
+    public void SetEmail(NotificationCategory category, bool enabled) => Set(category, NotificationChannel.Email, enabled);
+
+    public void SetWhatsApp(NotificationCategory category, bool enabled) => Set(category, NotificationChannel.WhatsApp, enabled);
+
+    /// <summary>The number was removed: nothing goes to WhatsApp until a new one is proven and turned on again.</summary>
+    public void TurnOffWhatsApp()
     {
-        if (_preferences.FirstOrDefault(preference => preference.Category == category && preference.Channel == NotificationChannel.Email) is { } existing)
+        foreach (var preference in _preferences.Where(preference => preference.Channel == NotificationChannel.WhatsApp))
+        {
+            preference.Enabled = false;
+        }
+    }
+
+    private NotificationPreference? Preference(NotificationCategory category, NotificationChannel channel) =>
+        _preferences.FirstOrDefault(preference => preference.Category == category && preference.Channel == channel);
+
+    private void Set(NotificationCategory category, NotificationChannel channel, bool enabled)
+    {
+        if (Preference(category, channel) is { } existing)
         {
             existing.Enabled = enabled;
         }
         else
         {
-            _preferences.Add(new NotificationPreference(category, NotificationChannel.Email, enabled));
+            _preferences.Add(new NotificationPreference(category, channel, enabled));
         }
     }
 

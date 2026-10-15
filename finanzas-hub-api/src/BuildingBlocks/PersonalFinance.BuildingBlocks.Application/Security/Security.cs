@@ -64,4 +64,7 @@ public interface IWorkspaceContext
 public interface IWorkspaceAccess
 {
     Task<WorkspaceMembershipInfo?> GetActiveMembershipAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>The personal workspace of a user, for acting as them outside a request to a workspace (a WhatsApp message). Null when they have none.</summary>
+    Task<WorkspaceMembershipInfo?> GetPersonalMembershipAsync(Guid userId, CancellationToken cancellationToken);
 }

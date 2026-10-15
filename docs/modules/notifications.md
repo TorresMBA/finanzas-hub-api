@@ -30,4 +30,16 @@ La bandeja y los ajustes son de la persona, no del workspace: sus tablas no llev
 
 Publican hoy: Budgets (`EvaluateBudgetThresholds`, al reaccionar a `LedgerOperationChanged`) y Ledger (`NotifyLargeMovement`).
 
-Diferido: `Delivery`, `ChannelEndpoint`, `IDirectMessenger` y WhatsApp (fase 11); la purga a los 90 días. Las diferencias con el diseño están en [phases.md](../roadmap/phases.md).
+Diferido: la purga a los 90 días. Las diferencias con el diseño están en [phases.md](../roadmap/phases.md).
+
+## Estado tras la fase 11
+
+| | |
+|---|---|
+| Dominio | `ChannelEndpoint` (número verificado, código con hash, intentos y caducidad), `Delivery` (cola de WhatsApp con reintentos y estado), `ReceivedWebhookEvent` (deduplicación por `(provider, external_id)`, levanta `InboundMessageReceived`) |
+| Contratos | `IDirectMessenger.ReplyByWhatsAppAsync`; evento `InboundMessageReceived(UserId, Text)`, al que reacciona Integrations (`AnswerChatCommand`) |
+| Casos de uso | `GetWhatsAppChannel`, `StartWhatsAppVerification`, `ConfirmWhatsAppVerification` (un código errado se guarda como intento: llega como valor, no como fallo), `RemoveWhatsApp`, `ReceiveWhatsAppWebhook` (sistema: estados de entrega y quién escribió) y `HandleWhatsAppMessage` (como el autor) |
+| Preferencias | `whatsAppEnabled` por categoría; activarlo exige número verificado (`notifications.whatsapp_not_verified`) |
+| Infraestructura | `Infrastructure/WhatsApp`: `WhatsAppOptions` (sección `WhatsApp`), `WhatsAppSignature`, `WhatsAppSender` (Cloud API o carpeta), `DeliveryDispatcher`; job `Jobs/Notifications/SendWhatsAppJob` |
+| API | `/api/v1/me/channels/whatsapp` (GET, DELETE, `verify-start`, `verify-confirm`) y `/webhooks/v1/whatsapp` (fuera del contrato OpenAPI: solo lo usa Meta) |
+| Métricas | `whatsapp.webhook.events` (tipo y resultado), `whatsapp.deliveries`, y `notifications.published` con la etiqueta `whatsapp` |

@@ -1296,6 +1296,159 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PersonalFinance.Modules.Notifications.Domain.ChannelEndpoint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("channel");
+
+                    b.Property<DateTimeOffset?>("CodeExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("code_expires_at");
+
+                    b.Property<string>("CodeHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code_hash");
+
+                    b.Property<DateTimeOffset?>("CodeSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("code_sent_at");
+
+                    b.Property<string>("PendingPhone")
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("pending_phone");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("phone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("verified_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_channel_endpoints");
+
+                    b.HasIndex("Channel", "Phone")
+                        .IsUnique()
+                        .HasDatabaseName("ix_channel_endpoints_channel_phone")
+                        .HasFilter("phone IS NOT NULL");
+
+                    b.HasIndex("UserId", "Channel")
+                        .IsUnique()
+                        .HasDatabaseName("ix_channel_endpoints_user_id_channel");
+
+                    b.ToTable("channel_endpoints", "notifications");
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Notifications.Domain.Delivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("channel");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("external_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTimeOffset>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at");
+
+                    b.Property<Guid?>("NotificationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("notification_id");
+
+                    b.PrimitiveCollection<string[]>("Parameters")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("parameters");
+
+                    b.Property<DateTimeOffset?>("SentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Text")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("text");
+
+                    b.Property<string>("To")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("to");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_deliveries");
+
+                    b.HasIndex("ExternalId")
+                        .HasDatabaseName("ix_deliveries_external_id")
+                        .HasFilter("external_id IS NOT NULL");
+
+                    b.HasIndex("NextAttemptAt")
+                        .HasDatabaseName("ix_deliveries_pending")
+                        .HasFilter("status = 'Pending'");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_deliveries_user_id");
+
+                    b.ToTable("deliveries", "notifications");
+                });
+
             modelBuilder.Entity("PersonalFinance.Modules.Notifications.Domain.Notification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1400,6 +1553,42 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_notification_settings_threshold", "large_movement_threshold IS NULL OR large_movement_threshold > 0");
                         });
+                });
+
+            modelBuilder.Entity("PersonalFinance.Modules.Notifications.Domain.ReceivedWebhookEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("external_id");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("provider");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_received_webhook_events");
+
+                    b.HasIndex("Provider", "ExternalId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_received_webhook_events_provider_external_id");
+
+                    b.ToTable("received_webhook_events", "notifications");
                 });
 
             modelBuilder.Entity("PersonalFinance.Modules.Scheduling.Domain.RecurringRule", b =>

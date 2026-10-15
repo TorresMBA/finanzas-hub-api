@@ -14,6 +14,9 @@ public sealed class NotificationPreferenceRequest
     public NotificationCategory? Category { get; init; }
 
     public bool EmailEnabled { get; init; }
+
+    /// <summary>Null keeps what it had. Turning it on needs a verified number.</summary>
+    public bool? WhatsAppEnabled { get; init; }
 }
 
 public sealed class UpdateNotificationSettingsRequest
@@ -67,7 +70,7 @@ public sealed class NotificationsController : ApiControllerBase
         [FromServices] ICommandHandler<MarkAllNotificationsReadCommand, Unit> handler, CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new MarkAllNotificationsReadCommand(), cancellationToken), _ => NoContent());
 
-    /// <summary>Which categories also go to the email, the quiet hours and the amount that makes a movement large.</summary>
+    /// <summary>Which categories also go to the email or WhatsApp, the quiet hours and the amount that makes a movement large.</summary>
     [HttpGet("notification-settings", Name = "GetNotificationSettings")]
     [ProducesResponseType<NotificationSettingsResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSettings(
@@ -84,7 +87,7 @@ public sealed class NotificationsController : ApiControllerBase
             await handler.HandleAsync(
                 new UpdateNotificationSettingsCommand(
                     request.QuietHoursEnabled, request.QuietFrom!.Value, request.QuietTo!.Value, request.LargeMovementThreshold,
-                    request.Preferences.Select(preference => new NotificationPreferenceChange(preference.Category!.Value, preference.EmailEnabled)).ToList()),
+                    request.Preferences.Select(preference => new NotificationPreferenceChange(preference.Category!.Value, preference.EmailEnabled, preference.WhatsAppEnabled)).ToList()),
                 cancellationToken),
             Ok);
 }
