@@ -2,7 +2,7 @@
 
 Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance de cada una está en [phases.md](phases.md), junto con lo que se verificó al cerrarla; aquí solo va en qué punto está y qué quedó pendiente.
 
-Última actualización: 15-oct-2026.
+Última actualización: 16-oct-2026.
 
 | Fase | Contenido | Estado | Cerrada |
 |---|---|---|---|
@@ -26,14 +26,14 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-15-oct-2026, al cerrar la fase 13.
+16-oct-2026, tras los ajustes de operación y usabilidad (proxy, purga, patrimonio único, filtros de Transacciones). E2E sin repetir desde la fase 13.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 281 en verde (168 unitarios, 19 de arquitectura, 94 de integración) |
-| Frontend: build, tests y lint | Build correcto y sin avisos, 128 tests, lint limpio |
-| E2E en Chrome | 31 en verde |
+| Backend: tests | 282 en verde (168 unitarios, 19 de arquitectura, 95 de integración) |
+| Frontend: build, tests y lint | Build correcto y sin avisos, 129 tests, lint limpio |
+| E2E en Chrome | 31 en verde el 15-oct-2026; no se repitieron tras estos ajustes |
 
 ## Pendientes que dejaron las fases cerradas
 
@@ -89,7 +89,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Elegir desde qué mes vale un ajuste | Sin fecha. Hoy vale desde el mes actual |
 | Presupuesto semanal y acumular lo no gastado | Sin fecha (OQ-17) |
 | Sugerir el límite con el promedio de 3 meses | Sin fecha |
-| "Ver movimientos" abre Transacciones ya filtrado por la categoría | Sin fecha. Transacciones no lee filtros de la URL todavía |
 | Span del cálculo del presupuesto | Sin fecha |
 | Tablet y tema claro de la pantalla de Presupuestos | Sin revisar a ojo; se revisó escritorio y móvil en tema oscuro |
 
@@ -100,7 +99,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Test de que el hub solo entrega al destinatario | Sin fecha. La señal se dirige por el id de la persona de la cookie y el E2E prueba que llega a su dueño; ningún test prueba que no llegue a otro |
 | Badge de avisos en móvil | Sin fecha. En móvil la campana no está en la barra superior; el aviso emergente sí aparece |
 | Filtros Alertas y Hogar, y paginación de la bandeja | Cuando haya más categorías. La bandeja muestra los 100 últimos |
-| Purga de avisos a los 90 días | Sin fecha |
 | Desactivar la bandeja por categoría | Sin fecha. Todo aviso llega a la bandeja; la preferencia decide solo el correo |
 | Métrica de envíos pendientes | Sin fecha. Se cuenta lo publicado (`notifications.published`) |
 | Push móvil, resumen semanal, "Crear alerta" | Backlog |
@@ -177,6 +175,9 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Avisos por WhatsApp | Fase 6 | Fase 11: interruptor por categoría, junto al del correo |
 | Recordatorio de deuda por WhatsApp | Fase 9 | Fase 11: el recordatorio es un aviso de Gastos compartidos y va por WhatsApp si la persona lo activó |
 | Importar XLSX | Fase 10 | Fase 12: la primera hoja del libro se lee como la tabla de un CSV de banco |
+| "Ver movimientos" de un presupuesto abre Transacciones filtrado por su categoría | Fase 5 | 16-oct-2026: Transacciones lee `categoryId` de la URL y tiene filtro de categoría |
+| Purga de avisos (90 días), de entregas de WhatsApp ya enviadas (90 días) y de `received_webhook_events` (30 días) | Fases 6 y 11 | 16-oct-2026: `PurgeNotificationHistoryJob`, diario |
+| Patrimonio de Cuentas a valor de mercado | Fase 13 | 16-oct-2026: Cuentas e Inicio usan el mismo cálculo (`GET W/net-worth`, en Reporting) |
 
 ### Fase 10
 
@@ -193,11 +194,10 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 
 | Pendiente | Se retoma |
 |---|---|
-| Cuenta de WhatsApp Cloud API (Meta): número, token, App Secret y plantillas aprobadas | Cuando el dueño la cree. Sin token, los mensajes se escriben en una carpeta (`WhatsApp:OutboxDirectory`, por defecto `%TEMP%/personal-hub-whatsapp`) y en Development la pantalla muestra el código de verificación |
-| Probar con Meta de verdad | Con la cuenta: envío de texto y de plantilla, el saludo del webhook (`hub.challenge`), la firma y los estados de entrega. Hoy se probaron con eventos firmados por los tests y a mano contra la API local |
+| Plantillas aprobadas en Meta (`WhatsApp:NoticeTemplate`, `CodeTemplate`) | Cuando Meta las apruebe. La cuenta (número propio, token permanente de usuario del sistema, App Secret) está en dev desde el 16-oct-2026. Sin plantillas, el código de verificación y los avisos salen como texto y Meta solo los entrega si la persona escribió en las últimas 24 h |
+| Probar con Meta el envío por plantilla | Con las plantillas. El 16-oct-2026 se probó en dev contra Meta: envío de texto, saludo del webhook (`hub.challenge`), firma, número no verificado ignorado, `saldo`/`ayuda` respondidos y estados de entrega hasta *read* |
 | Registrar gastos por chat | Fuera de alcance (OQ-23): el canal solo consulta (`saldo`, `ayuda`) |
 | Ver en la pantalla el estado de entrega de cada mensaje | Sin fecha. Se guarda (enviado, entregado, leído, fallido) y se mide (`whatsapp.deliveries`), pero no se muestra |
-| Purga de `received_webhook_events` y de entregas antiguas | Sin fecha |
 | Tablet y tema claro de la sección WhatsApp | Solo se revisó escritorio y móvil en tema oscuro |
 
 ### Fase 12
@@ -222,6 +222,5 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | `Asset` y `PriceSnapshot` como agregados propios | No hicieron falta: el instrumento (nombre, ticker, institución) va en la posición y cada valuación en `holding_valuations`. Se separan si varias personas siguen el mismo activo con precios compartidos |
 | Ver las inversiones ya rescatadas por completo | Sin fecha. Salen del portafolio; su historial queda y su cuenta del ledger también |
 | Renovar un depósito al vencer | Sin fecha. Se rescata y se abre otro |
-| Patrimonio de Cuentas a valor de mercado | Sin fecha. El resumen de Cuentas cuenta las inversiones por su capital (lo que dice el ledger); el Inicio suma además la ganancia no realizada |
 | Vencimientos de depósitos en el Calendario | Sin fecha. Hoy llegan como aviso una semana antes |
 | Tablet y tema claro de Inversiones | Solo se revisó escritorio y móvil en tema oscuro |

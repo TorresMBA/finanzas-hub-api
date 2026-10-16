@@ -60,6 +60,10 @@ public class InvestmentsTests(ApiFixture api)
         Assert.Equal(["termDeposit", "etf"], summary.GetProperty("distribution").EnumerateArray().Select(share => share.GetProperty("type").GetString()));
         Assert.Equal(20_200m, (await brian.DashboardAsync(Month)).GetProperty("netWorth").Money("amount"));
 
+        // Cuentas shows the same figure as the home page, not the capital alone.
+        var netWorth = await brian.Client.GetFromJsonAsync<JsonElement>(Url(brian, "net-worth"));
+        Assert.Equal((20_200m, 200m), (netWorth.Money("amount"), netWorth.Money("unrealizedGain")));
+
         // Redeeming 600 of the 1 200 takes back 500 of capital and 100 of gain, which is an income of the month.
         var redeemed = await PostAsync(brian, $"holdings/{etfId}/withdrawals", new { amount = 600m, quantity = 1m, occurredOn = Today.ToString("yyyy-MM-dd"), accountId = bcp });
         var withdrawal = redeemed.GetProperty("movements")[0];

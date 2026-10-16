@@ -2703,6 +2703,57 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspaceId}/net-worth": {
+      "get": {
+        "tags": [
+          "Reporting"
+        ],
+        "operationId": "GetNetWorth",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetWorthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/reports/summary": {
       "get": {
         "tags": [
@@ -12382,6 +12433,63 @@
           },
           "preferences": {
             "$ref": "#/components/schemas/PreferencesResponse"
+          }
+        }
+      },
+      "NetWorthResponse": {
+        "required": [
+          "baseCurrency",
+          "amount",
+          "assets",
+          "debts",
+          "unrealizedGain",
+          "missingRates"
+        ],
+        "type": "object",
+        "properties": {
+          "baseCurrency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "assets": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "debts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "unrealizedGain": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "missingRates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

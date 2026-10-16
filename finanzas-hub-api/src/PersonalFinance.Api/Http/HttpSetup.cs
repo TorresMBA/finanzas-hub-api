@@ -5,6 +5,7 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using PersonalFinance.BuildingBlocks.Domain;
 
@@ -84,6 +85,9 @@ internal static class HttpSetup
     public const string AuthRateLimit = "auth";
     public const string WebhookRateLimit = "webhooks";
 
+    /// <summary>Loopback and the private ranges, where the proxies in front of the API live (Docker networks included).</summary>
+    private static readonly string[] TrustedProxyNetworks = ["127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"];
+
     /// <summary>Controllers, error responses, session cookie, authorization and CORS.</summary>
     public static IServiceCollection AddApiHttp(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
@@ -131,6 +135,21 @@ internal static class HttpSetup
             }
         });
         services.AddExceptionHandler<GlobalExceptionHandler>();
+
+        // TLS ends at the proxy (Cloudflare, then nginx of the frontend). The API is reached only from private
+        // networks, so the hops there are trusted: the client address and the scheme come from X-Forwarded-*.
+        // Without this every request would look like it came from nginx, and the login limit would be shared by all.
+        services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.ForwardLimit = null;
+            options.KnownProxies.Clear();
+            options.KnownIPNetworks.Clear();
+            foreach (var network in TrustedProxyNetworks)
+            {
+                options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
+            }
+        });
 
         // Session cookie the browser cannot read from script. An API answers 401/403; it never redirects to a login page.
         services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -185,6 +204,7 @@ internal static class HttpSetup
 
     public static WebApplication UseApiHttp(this WebApplication app)
     {
+        app.UseForwardedHeaders();
         app.UseExceptionHandler();
         app.UseStatusCodePages();
         app.UseMiddleware<CorrelationMiddleware>();
@@ -202,11 +222,9 @@ internal static class HttpSetup
             app.UseHsts();
         }
 
-        // CORS answers the browser preflight before HTTPS redirection would turn it into a redirect.
+        // No HTTPS redirection: the proxy that ends TLS is the one that redirects, and HSTS covers the rest.
         app.UseCors(CorsPolicy);
         app.UseMiddleware<CrossSiteMiddleware>();
-        
-        app.UseHttpsRedirection();
         app.UseAuthentication();
 
         app.UseMiddleware<ActorContextMiddleware>();

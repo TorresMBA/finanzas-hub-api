@@ -1,7 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using PersonalFinance.BuildingBlocks.Application.Messaging;
+using PersonalFinance.Infrastructure.Persistence;
 using PersonalFinance.IntegrationTests.Support;
+using PersonalFinance.Modules.Notifications.Application;
+using PersonalFinance.Modules.Notifications.Contracts;
+using PersonalFinance.Modules.Notifications.Domain;
 
 namespace PersonalFinance.IntegrationTests;
 
@@ -80,5 +87,43 @@ public class NotificationsTests(ApiFixture api)
         Assert.Equal(2, (await NoticesAsync(brian, "?unreadOnly=true")).Count);
         Assert.Equal(HttpStatusCode.NoContent, (await brian.Client.PostAsync($"{Inbox}/read-all", null)).StatusCode);
         Assert.Equal(0, await UnreadAsync(brian));
+    }
+
+    [Fact]
+    public async Task The_purge_removes_only_what_is_old_and_never_a_message_still_waiting_to_go_out()
+    {
+        var userId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var old = now.AddDays(-100);
+        var request = new NotificationRequest(userId, null, NotificationCategory.Shared, NotificationSeverity.Info, "Aviso", "Texto", null, null);
+        var sentLongAgo = Delivery.WhatsApp(userId, "51900000000", DeliveryKind.Notice, "Hola", [], old);
+        sentLongAgo.MarkSent("wamid.old", old);
+        var waitingLongAgo = Delivery.WhatsApp(userId, "51900000000", DeliveryKind.Notice, "Hola", [], old);
+        var eventIds = (Old: $"purge-old-{userId:N}", Recent: $"purge-new-{userId:N}");
+        await api.ExecuteAsync(async services =>
+        {
+            var db = services.GetRequiredService<AppDbContext>();
+            db.Notifications.AddRange(Notification.Create(request, old), Notification.Create(request, now));
+            db.Deliveries.AddRange(sentLongAgo, waitingLongAgo);
+            db.ReceivedWebhookEvents.AddRange(ReceivedWebhookEvent.Status(eventIds.Old, now.AddDays(-40)), ReceivedWebhookEvent.Status(eventIds.Recent, now.AddDays(-1)));
+            return await db.SaveChangesAsync();
+        });
+
+        var purged = await api.ExecuteAsync(services => services
+            .GetRequiredService<ICommandHandler<PurgeNotificationHistoryCommand, PurgeNotificationHistoryResponse>>()
+            .HandleAsync(new PurgeNotificationHistoryCommand(), CancellationToken.None));
+
+        Assert.True(purged.IsSuccess);
+        var left = await api.ExecuteAsync(async services =>
+        {
+            var db = services.GetRequiredService<AppDbContext>();
+            return (
+                Notices: await db.Notifications.Where(notification => notification.UserId == userId).Select(notification => notification.CreatedAt).ToListAsync(),
+                Deliveries: await db.Deliveries.Where(delivery => delivery.UserId == userId).Select(delivery => delivery.Status).ToListAsync(),
+                Events: await db.ReceivedWebhookEvents.Where(received => received.ExternalId.Contains(userId.ToString("N"))).Select(received => received.ExternalId).ToListAsync());
+        });
+        Assert.True(Assert.Single(left.Notices) > now.AddDays(-1));
+        Assert.Equal(DeliveryStatus.Pending, Assert.Single(left.Deliveries));
+        Assert.StartsWith(eventIds.Recent, Assert.Single(left.Events));
     }
 }

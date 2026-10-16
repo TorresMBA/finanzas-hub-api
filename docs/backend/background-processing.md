@@ -21,7 +21,7 @@ Todo lo que corre sin una petición es un job del Worker, en `PersonalFinance.Wo
 
 La evaluación de umbrales de presupuesto no es un job: es una reacción a `OperationPosted` dentro de la transacción del gasto (ver [module-communication.md](module-communication.md)).
 
-Hoy existen los dos primeros, el ciclo de Scheduling y el envío de WhatsApp (`SendWhatsAppJob`); el correo de los avisos va por la cola de correos de la plataforma. Sin servidor SMTP configurado, el de correos escribe cada mensaje como un archivo `.eml` en una carpeta, que es lo que se usa en local y en los tests E2E.
+Hoy existen los dos primeros, el ciclo de Scheduling, el envío de WhatsApp (`SendWhatsAppJob`) y la purga diaria de Notifications (`PurgeNotificationHistoryJob`: avisos de más de 90 días, mensajes de WhatsApp ya enviados de más de 90 días y ids de eventos del webhook de más de 30; nunca un mensaje pendiente). Las invitaciones caducadas no se purgan todavía. El correo de los avisos va por la cola de correos de la plataforma. Sin servidor SMTP configurado, el de correos escribe cada mensaje como un archivo `.eml` en una carpeta, que es lo que se usa en local y en los tests E2E.
 
 ### R.2 Cómo es un job
 

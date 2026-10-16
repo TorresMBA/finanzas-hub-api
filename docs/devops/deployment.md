@@ -42,7 +42,7 @@ Antes de elegir dónde desplegar, comprueba que la plataforma cumple esto:
 
 | Requisito | Por qué |
 |---|---|
-| **HTTPS de cara al navegador** | En Production la cookie de sesión `ph.session` lleva `Secure`: sin HTTPS el navegador no la guarda y nadie puede iniciar sesión. La API escucha en HTTP; el TLS lo termina el proxy |
+| **HTTPS de cara al navegador** | En Production la cookie de sesión `ph.session` lleva `Secure`: sin HTTPS el navegador no la guarda y nadie puede iniciar sesión. La API escucha en HTTP y no redirige; el TLS lo termina el proxy, que debe enviar `X-Forwarded-For` y `X-Forwarded-Proto`. La API solo los acepta de direcciones privadas (loopback, 10/8, 172.16/12, 192.168/16, fc00::/7): de ahí salen la IP del cliente para el límite de intentos de login y el esquema para la cookie |
 | **Frontend y API en el mismo origen** (mismo dominio) | La sesión es una cookie `SameSite=Lax`. Lo más simple es que el navegador solo hable con el frontend y este reenvíe `/api`, `/hubs` y `/webhooks` a la API, como hace la imagen nginx |
 | **WebSockets** hasta la API, con tiempo de espera largo (≥ 1 h) | SignalR (`/hubs/realtime`) para avisos en tiempo real. Si no hay WebSockets, el cliente cae a long polling, que funciona peor |
 | **Peticiones de hasta 11 MB** | Importación de archivos de banco (10 MB más el formulario) |

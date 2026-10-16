@@ -14,6 +14,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHostedService<PurgeExpiredIdempotencyKeysJob>();
 builder.Services.AddHostedService<SendEmailsJob>();
 builder.Services.AddHostedService<SendWhatsAppJob>();
+builder.Services.AddHostedService<PurgeNotificationHistoryJob>();
 builder.Services.AddHostedService<RunDueOccurrencesJob>();
 
 await builder.Build().RunAsync();

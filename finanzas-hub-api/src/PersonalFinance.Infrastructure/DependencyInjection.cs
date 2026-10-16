@@ -58,13 +58,19 @@ public static class DependencyInjection
                     $"ConnectionStrings:{ConnectionStringName} is not configured. Set it with 'dotnet user-secrets' or the ConnectionStrings__{ConnectionStringName} environment variable.");
             }
 
-            return new NpgsqlDataSourceBuilder(connectionString)
-                .UseLoggerFactory(provider.GetRequiredService<ILoggerFactory>())
-                .Build();
+            var builder = new NpgsqlDataSourceBuilder(connectionString);
+
+            // No Kerberos: without this Npgsql first tries GSS encryption and logs a missing libgssapi in the container.
+            builder.ConnectionStringBuilder.GssEncryptionMode = GssEncryptionMode.Disable;
+            return builder.UseLoggerFactory(provider.GetRequiredService<ILoggerFactory>()).Build();
         });
 
+        // An aggregate brings all its owned collections (members, expenses, shares, settlements…). In one query
+        // their rows multiply; one query per collection keeps the result the size of the data.
         services.AddDbContext<AppDbContext>((provider, options) => options
-            .UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>(), npgsql => npgsql.MigrationsHistoryTable(MigrationsHistoryTable, Schemas.Platform))
+            .UseNpgsql(
+                provider.GetRequiredService<NpgsqlDataSource>(),
+                npgsql => npgsql.MigrationsHistoryTable(MigrationsHistoryTable, Schemas.Platform).UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery))
             .UseSnakeCaseNamingConvention());
 
         services.AddScoped<ActorContext>();

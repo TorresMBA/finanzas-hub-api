@@ -1,15 +1,13 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Globalization;
-using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
-using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Budgets.Contracts;
 using PersonalFinance.Modules.Categories.Contracts;
 using PersonalFinance.Modules.Goals.Contracts;
-using PersonalFinance.Modules.Investments.Contracts;
 using PersonalFinance.Modules.Ledger.Contracts;
+using PersonalFinance.Modules.Reporting.Application.NetWorth;
 using PersonalFinance.Modules.Scheduling.Contracts;
 
 namespace PersonalFinance.Modules.Reporting.Application.Dashboard;
@@ -73,8 +71,7 @@ public sealed record GetDashboardQuery(string? Month) : IQuery<DashboardResponse
 /// it reads is already limited to the current person by the modules it asks.
 /// </summary>
 internal sealed class GetDashboardHandler(
-    ILedgerQueries ledger, IBudgetQueries budgets, IScheduleQueries schedule, IGoalQueries goals, ICategoryLookup categories, IPortfolioValuation portfolio,
-    IPersonalSpace workspace, IClock clock)
+    ILedgerQueries ledger, IBudgetQueries budgets, IScheduleQueries schedule, IGoalQueries goals, ICategoryLookup categories, NetWorthCalculator netWorthOf)
     : IQueryHandler<GetDashboardQuery, DashboardResponse>
 {
     private const int CashflowMonths = 6;
@@ -105,14 +102,9 @@ internal sealed class GetDashboardHandler(
         var started = Stopwatch.GetTimestamp();
         var last = first.AddMonths(1).AddDays(-1);
 
-        var netWorth = await ledger.GetNetWorthAsync(last, cancellationToken);
-        var previousNetWorth = await ledger.GetNetWorthAsync(first.AddDays(-1), cancellationToken);
-
-        // The ledger counts the capital of the investments; what they gained on top of it comes from their valuations,
-        // never further than today: the interest of days still to come is not money yet.
-        var invested = await portfolio.GetAsync(last < Today() ? last : Today(), cancellationToken);
-        var previousInvested = await portfolio.GetAsync(first.AddDays(-1), cancellationToken);
-        var (worth, previousWorth) = (netWorth.NetWorth + invested.UnrealizedGain, previousNetWorth.NetWorth + previousInvested.UnrealizedGain);
+        // The same figure as Cuentas: one definition of net worth, with the investments at their market value.
+        var netWorth = await netWorthOf.OnAsync(last, cancellationToken);
+        var previousNetWorth = await netWorthOf.OnAsync(first.AddDays(-1), cancellationToken);
         var flow = await ledger.GetFlowAsync(first.AddMonths(1 - CashflowMonths), last, cancellationToken);
         var totals = await ledger.GetCategoryTotalsAsync(first, last, cancellationToken);
         var movements = await ledger.GetRecentMovementsAsync(first, last, RecentMovements, cancellationToken);
@@ -128,7 +120,8 @@ internal sealed class GetDashboardHandler(
         var response = new DashboardResponse(
             Label(first.Year, first.Month),
             netWorth.BaseCurrency,
-            new DashboardNetWorthResponse(worth, netWorth.Assets + invested.UnrealizedGain, netWorth.Debts, previousWorth, worth - previousWorth),
+            new DashboardNetWorthResponse(
+                netWorth.Amount, netWorth.Assets, netWorth.Debts, previousNetWorth.Amount, netWorth.Amount - previousNetWorth.Amount),
             month.Income,
             month.Expense,
             previous.Income,
@@ -151,7 +144,7 @@ internal sealed class GetDashboardHandler(
             upcoming.Select(payment => new DashboardUpcomingResponse(payment.Date, payment.Description, payment.Amount, payment.Currency, payment.IsCardPayment)).ToList(),
             (await goals.GetActiveAsync(MainGoals, cancellationToken))
                 .Select(goal => new DashboardGoalResponse(goal.Id, goal.Name, goal.Saved, goal.TargetAmount, goal.Currency, goal.Percent, goal.IsShared)).ToList(),
-            netWorth.MissingRates.Union(flow.MissingRates).Union(totals.MissingRates).Union(invested.MissingRates).Order(StringComparer.Ordinal).ToList());
+            netWorth.MissingRates.Union(flow.MissingRates).Union(totals.MissingRates).Order(StringComparer.Ordinal).ToList());
 
         Duration.Record(Stopwatch.GetElapsedTime(started).TotalMilliseconds);
         return response;
@@ -175,10 +168,5 @@ internal sealed class GetDashboardHandler(
 
     private static string Label(int year, int month) => $"{year:D4}-{month:D2}";
 
-    /// <summary>Today in the workspace's time zone: the month does not turn over at midnight UTC.</summary>
-    private DateOnly Today()
-    {
-        var zone = workspace.TimeZone is { } id && TimeZoneInfo.TryFindSystemTimeZoneById(id, out var found) ? found : TimeZoneInfo.Utc;
-        return DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.UtcNow, zone).DateTime);
-    }
+    private DateOnly Today() => netWorthOf.Today();
 }
