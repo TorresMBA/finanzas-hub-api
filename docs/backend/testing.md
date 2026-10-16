@@ -9,7 +9,7 @@
 | Dominio | `UnitTests` | Invariantes de agregados y value objects; funciones puras (reparto, recurrencia, ritmo de presupuesto, proyección de meta, ciclo de tarjeta) con valores `decimal` exactos | Ninguna |
 | Aplicación | `IntegrationTests` | Handlers de punta a punta: filtros de dueño, una transacción por comando, reacciones a eventos, idempotencia, concurrencia | PostgreSQL real: contenedor de Testcontainers, o un servidor existente indicado en `PERSONALFINANCE_TEST_POSTGRES`. Cada test usa usuarios y workspaces nuevos, así que no hace falta limpiar entre tests |
 | Arquitectura | `ArchitectureTests` | Reglas de la sección I y de J.2 | Reflexión |
-| API | `IntegrationTests` | Autenticación, matriz de autorización, forma de `ProblemDetails`, `Idempotency-Key`, `If-Match`, contrato OpenAPI | `WebApplicationFactory` y Testcontainers |
+| API | `IntegrationTests` | Autenticación, matriz de autorización, forma de `ProblemDetails`, `Idempotency-Key`, contrato OpenAPI | `WebApplicationFactory` y Testcontainers |
 | E2E | `finanzas-hub-web/e2e` | Recorridos críticos en 3 viewports | Playwright contra el stack local |
 
 No se usa EF InMemory. V1 lo usaba y su propia documentación reconoce que no valida transacciones, índices únicos ni semántica de fechas.
@@ -37,13 +37,13 @@ Los módulos, controllers y jobs se descubren a partir de los dos hosts, así qu
 | Ninguna propiedad o campo de un módulo es `double` o `float` | Reflexión | `LayeringTests` |
 | Toda entidad `IOwned` tiene filtro global | Modelo EF | `CommandPipelineTests` (integración) |
 | Cada tabla está en el esquema de su módulo | Modelo EF | `CommandPipelineTests` (integración) |
-| Todo comando con efecto financiero implementa `IIdempotentCommand` | Recorrido de tipos con marca | Pendiente: fase 3, con el primer comando financiero |
+| Todo comando con efecto financiero implementa `IIdempotentCommand` | Recorrido de tipos con marca | Sin hacer: hoy se revisa en la revisión de código ([common-bugs.md](common-bugs.md)) |
 
 Además, `AppDbContext` es `internal`: que la API o el Worker lo usen directamente no compila.
 
 Los ejemplos del encargo quedan cubiertos: "Domain no puede referenciar Infrastructure" es la primera fila, y "Accounts no puede acceder al DbContext de Transactions" lo impiden la cuarta fila (no puede usar sus entidades) y que cada módulo solo recibe su propio `IXDb`.
 
-En el frontend, los límites entre `core`, `shared`, `layout` y `features` los comprueba ESLint (ver [architecture/frontend.md](../architecture/frontend.md)).
+En el frontend, los límites entre `core`, `shared`, `layout` y `features` los comprueba ESLint (ver [frontend/architecture.md](../frontend/architecture.md)).
 
 ### Cómo ejecutar
 

@@ -75,7 +75,7 @@ Los correos (confirmación, recuperación de contraseña, invitaciones) los env�
 
 | Tarea | Comando |
 |---|---|
-| Tests del backend | `dotnet test finanzas-hub-api/PersonalFinance.slnx` (ver [testing.md](testing.md)) |
+| Tests del backend | `dotnet test finanzas-hub-api/PersonalFinance.slnx` (ver [testing.md](../backend/testing.md)) |
 | Crear una migración | `finanzas-hub-api/tools/add-migration.ps1 -Name AddLedgerAccounts` |
 | Aplicar migraciones | `finanzas-hub-api/tools/migrate.ps1` |
 | Actualizar el contrato tras cambiar la API | `finanzas-hub-api/tools/update-openapi.ps1` y luego `npm run api:generate` en `finanzas-hub-web` |

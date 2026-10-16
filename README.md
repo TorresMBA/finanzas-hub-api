@@ -24,7 +24,7 @@ npm ci
 npm start                                          # http://localhost:4200
 ```
 
-Detalle y alternativa sin Docker en [docs/development/local-development.md](docs/development/local-development.md).
+Detalle y alternativa sin Docker en [docs/getting-started/local-development.md](docs/getting-started/local-development.md).
 
 ## Estado
 

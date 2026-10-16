@@ -2,7 +2,7 @@
 
 ## N. Backend folder/project structure
 
-Raíz: `finanzas-hub-api/`. El árbol muestra lo que existe tras la fase 4; cada módulo de negocio que se añada repite la forma de `Ledger`.
+Raíz: `finanzas-hub-api/`. El árbol muestra lo que existe tras la fase 13, con los 12 módulos; cada módulo repite la forma de `Ledger`, que se muestra desplegado.
 
 ```text
 finanzas-hub-api/
@@ -16,6 +16,9 @@ finanzas-hub-api/
     migrate.ps1                    aplica las migraciones pendientes
     add-migration.ps1              crea una migración
     update-openapi.ps1             regenera docs/api/openapi.v1.json
+    update-db-docs.mjs             regenera la referencia de docs/backend/database.md
+  Dockerfile                       imagen de API y Worker sobre una carpeta publicada
+  Jenkinsfile                      CI/CD en Mercury (ver docs/devops/ci-cd.md)
   src/
     BuildingBlocks/
       PersonalFinance.BuildingBlocks.Domain/
@@ -26,7 +29,7 @@ finanzas-hub-api/
         Messaging/                 ICommand, IQuery, ICommandHandler, IQueryHandler, IIdempotentCommand, Unit
         Security/                  ICurrentUser, IWorkspaceContext, IWorkspaceAccess, WorkspaceRole
         Events/                    IDomainEventHandler
-        Abstractions/              IClock, IAuditLog, IEmailSender, IAppLinks
+        Abstractions/              IClock, IAuditLog, IEmailSender, IAppLinks, IRealtimeNotifier, ISpreadsheets
     Modules/
       Identity/                    cuentas, sesión, perfil y preferencias (sobre ASP.NET Core Identity)
       Workspaces/                  workspaces, miembros, roles e invitaciones
@@ -43,20 +46,28 @@ finanzas-hub-api/
             Reports/               LedgerQueries: lo que el ledger responde a otros módulos
             LedgerScope.cs         dueño y fecha de hoy de la petición; AccountBalances
           Contracts/               ILedgerQueries y sus tipos: lo que otro módulo puede usar
-      Reporting/                   el Inicio. Sin tablas ni dominio: lee los contratos de Ledger y de Categories
-        PersonalFinance.Modules.Reporting/
-          Application/Dashboard/   GetDashboard
+      Notifications/               bandeja de avisos, preferencias, cola de envíos por WhatsApp, teléfono verificado
+      Budgets/                     presupuestos mensuales por categoría y sus alertas
+      Scheduling/                  movimientos programados, ocurrencias y calendario
+      Goals/                       metas personales y compartidas, aportes y retiros
+      SharedExpenses/              grupos, gastos repartidos y liquidaciones
+      Integrations/                importación de archivos (bancos, Bluecoins), reglas de clasificación, consultas por WhatsApp
+      Investments/                 inversiones, depósitos a plazo, movimientos y valorizaciones
+      Reporting/                   Inicio, reportes, exportación y búsqueda global. Sin tablas ni dominio:
+                                   lee los contratos de Ledger, Categories, Budgets, Goals, Scheduling e Investments
     PersonalFinance.Infrastructure/
       DependencyInjection.cs       AddInfrastructure, MigrateDatabaseAsync; la lista de módulos
       Persistence/
         AppDbContext.cs            el único contexto; filtro por dueño
         Configurations/<Módulo>/   mapeos EF, una carpeta por módulo y otra para Platform
         Migrations/
-      Platform/                    IdempotencyRecord, AuditLogEntry
+      Platform/                    IdempotencyRecord, AuditLogEntry, OutgoingEmail
       Messaging/                   registro de handlers; decoradores de logging, transacción e idempotencia;
-                                   DomainEventDispatcher; limpieza de claves de idempotencia
+                                   DomainEventDispatcher; RealtimeBuffer; limpieza de claves de idempotencia
       Audit/                       AuditLogWriter
-      Email/                       cola de correos y su envío por SMTP
+      Email/                       cola de correos y su envío por SMTP; EmailOptions, FrontendOptions
+      WhatsApp/                    WhatsAppOptions, firma del webhook, envío por la Graph API
+      Spreadsheets/                ClosedXML: lectura de Excel de bancos y exportación de reportes
       Security/                    ActorContext, IActorContextInitializer
       Observability/               OpenTelemetry, Telemetry, CorrelationContext, health checks
     PersonalFinance.Api/
@@ -64,19 +75,27 @@ finanzas-hub-api/
       Controllers/
         ApiControllerBase.cs       Result a respuesta, lectura de Idempotency-Key
         Identity/                  AuthController, MeController
-        Workspaces/                WorkspacesController, MembersController, invitaciones
-        Categories/                CategoriesController, TagsController
-        Ledger/                    AccountsController, TransactionsController, TransfersController,
-                                   ExchangeRatesController: un controller por recurso, en la carpeta de su módulo
-        Reporting/                 DashboardController
+        Workspaces/                WorkspacesController, MembersController
+        Categories/                CategoriesController
+        Ledger/                    AccountsController, TransactionsController, TransfersController
+        Budgets/                   BudgetsController
+        Notifications/             NotificationsController, WhatsAppController (incluye el webhook)
+        Scheduling/                SchedulingController
+        Goals/                     GoalsController
+        SharedExpenses/            SharedGroupsController
+        Integrations/              ImportsController
+        Investments/               InvestmentsController
+        Reporting/                 DashboardController, ReportsController
       Http/                        correlación, contexto de actor, WorkspaceScopeFilter, Result a ProblemDetails,
                                    manejador global de excepciones, cookie de sesión, CORS, origen y límite de peticiones
+      Realtime/                    RealtimeHub (/hubs/realtime) y su transporte SignalR
     PersonalFinance.Worker/
       Program.cs                   registra los jobs
       Jobs/
         PeriodicJob.cs             base de un job periódico
         Platform/                  PurgeExpiredIdempotencyKeysJob, SendEmailsJob
-        <Módulo>/                  jobs de cada módulo
+        Notifications/             SendWhatsAppJob
+        Scheduling/                RunDueOccurrencesJob
   tests/
     PersonalFinance.UnitTests/           dominio y funciones puras, carpeta por módulo
     PersonalFinance.IntegrationTests/    API real sobre PostgreSQL real
@@ -139,16 +158,12 @@ Que un módulo no use las entidades de otro lo garantizan los tests de arquitect
 
 `AddModule` registra los handlers de comando, de consulta y de evento de dominio (cada handler de comando envuelto en los decoradores) y los servicios del módulo: toda clase `internal` de su capa `Application` que no sea un handler, bajo las interfaces que implemente. Así un módulo aporta la implementación de sus `Contracts` sin que nadie de fuera la nombre.
 
-**Paquetes.** EF Core y Npgsql; `EFCore.NamingConventions`; OpenTelemetry con exportador OTLP; `Microsoft.AspNetCore.OpenApi`. Para tests: xUnit, Testcontainers para PostgreSQL y NetArchTest. Previstos: ASP.NET Core Identity (fase 1) y un lector de XLSX en `Integrations` (fase 10).
+**Paquetes.** EF Core y Npgsql; `EFCore.NamingConventions`; ASP.NET Core Identity y Data Protection sobre EF; ClosedXML; OpenTelemetry con exportador OTLP; `Microsoft.AspNetCore.OpenApi` y Scalar. Para tests: xUnit, Testcontainers para PostgreSQL y NetArchTest. La lista completa, con versiones y para qué sirve cada uno, está en [onboarding.md §3](../getting-started/onboarding.md#3-paquetes-nuget).
 
-**Diferido respecto al diseño.** Estas piezas se crean con el primer módulo que las use, no antes:
+**Diferido respecto al diseño.** Piezas del diseño que siguen sin construirse:
 
-| Pieza | Llega en |
+| Pieza | Estado |
 |---|---|
-| Tipos de paginación por cursor | Fase 3 |
-| `ETag` e `If-Match` en la API | Fase 3 |
-| Marca de "comando con efecto financiero" y su test de arquitectura | Fase 3 |
-| `IRealtimeNotifier` y el hub SignalR | Fase 6 |
-| Cola de envíos (`notifications.deliveries`) y su job | Fase 6 |
-| `IFileStorage` | Fase 10 |
-| Controller del webhook de WhatsApp | Fase 11 |
+| `ETag` e `If-Match` en la API | Sin fecha. Los agregados llevan `xmin` y un choque dentro de una petición responde 409, pero la API no expone la versión: entre dos pestañas gana la última escritura. Ver [concurrency.md](concurrency.md) |
+| Test de arquitectura «todo comando con efecto financiero implementa `IIdempotentCommand`» | Sin hacer: hoy se revisa a mano |
+| `IFileStorage` | No hizo falta: las importaciones se leen en memoria y su contenido queda en la base |

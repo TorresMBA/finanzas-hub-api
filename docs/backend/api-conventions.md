@@ -26,7 +26,7 @@
 | Paginación | Cursor (`?cursor=&limit=`) en transacciones, notificaciones y actividad; sin paginar en listas pequeñas |
 | Filtros | Query string; fechas `YYYY-MM-DD`; meses `YYYY-MM` |
 | JSON | Propiedades en camelCase; enumerados como texto |
-| Concurrencia | `ETag` en la respuesta, `If-Match` en `PATCH`, `PUT` y acciones sobre agregados con `xmin` |
+| Concurrencia | Los agregados llevan `xmin`; dos escrituras que chocan dentro de una petición responden 409 `concurrency_conflict`. `ETag` e `If-Match` están diseñados pero **no implementados**: entre dos clientes gana la última escritura ([concurrency.md](concurrency.md)) |
 | Idempotencia | `Idempotency-Key` en POST con efecto financiero |
 | Correlación | `X-Correlation-Id` aceptado y devuelto |
 | Creación | 201 con `Location` y el recurso |

@@ -23,7 +23,7 @@
 
 ### Y.3 Definition of Done por feature
 
-Está en [development/definition-of-done.md](../development/definition-of-done.md).
+Está en [getting-started/definition-of-done.md](../getting-started/definition-of-done.md).
 
 ### Y.4 Fases
 
@@ -90,7 +90,7 @@ Diferencias respecto al diseño original, ya reflejadas en estos documentos:
 | ADR afectados por el rediseño | Reescribirlos | Se marcan como sustituidos por el ADR-019, como pide `adr/README.md` |
 | Controller del webhook de WhatsApp (fase 11) | `Controllers/Webhooks` | `Controllers/Notifications`, para cumplir la regla de un controller por carpeta de módulo |
 
-Piezas que se crean con el primer módulo que las use: ver la tabla final de [architecture/backend-structure.md](../architecture/backend-structure.md).
+Piezas que se crean con el primer módulo que las use: ver la tabla final de [backend/structure.md](../backend/structure.md).
 
 #### Fase 1 — Identity y Workspaces
 

@@ -46,9 +46,9 @@ Los tipos de un módulo son públicos, así que el compilador no impide nada de 
 
 ## Cómo se trabaja
 
-Por porciones verticales, en el orden de [docs/roadmap/implementation-order.md](docs/roadmap/implementation-order.md): dominio y sus tests, handler y su test de integración, configuración EF y migración, controller y contrato OpenAPI, casos de seguridad, pantalla con sus cuatro estados. Cómo se añade un módulo está en [docs/architecture/backend-structure.md](docs/architecture/backend-structure.md).
+Por porciones verticales, en el orden de [docs/roadmap/implementation-order.md](docs/roadmap/implementation-order.md): dominio y sus tests, handler y su test de integración, configuración EF y migración, controller y contrato OpenAPI, casos de seguridad, pantalla con sus cuatro estados. Cómo se añade un módulo está en [docs/backend/structure.md](docs/backend/structure.md).
 
-Una feature está terminada cuando cumple [docs/development/definition-of-done.md](docs/development/definition-of-done.md).
+Una feature está terminada cuando cumple [docs/getting-started/definition-of-done.md](docs/getting-started/definition-of-done.md).
 
 Al empezar y al cerrar una fase se actualiza [docs/roadmap/status.md](docs/roadmap/status.md): el estado de cada fase y lo que cada una dejó pendiente.
 
@@ -60,6 +60,7 @@ dotnet build PersonalFinance.slnx
 dotnet test PersonalFinance.slnx                 # integración: Docker, o PERSONALFINANCE_TEST_POSTGRES
 tools/add-migration.ps1 -Name Nombre
 tools/update-openapi.ps1                         # tras cambiar la API
+node tools/update-db-docs.mjs                    # tras una migración: regenera docs/backend/database.md
 dotnet run --project src/PersonalFinance.Api     # http://localhost:5166
 dotnet run --project src/PersonalFinance.Worker  # jobs
 

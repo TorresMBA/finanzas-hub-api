@@ -2,7 +2,7 @@
 
 - Estado: aceptado
 - Fecha: 2026-10-13
-- Cambia: el alcance de "privado" en [security.md](../architecture/security.md) y la regla de Privacidad de `AGENTS.md`
+- Cambia: el alcance de "privado" en [security.md](../backend/security.md) y la regla de Privacidad de `AGENTS.md`
 
 ## Contexto
 

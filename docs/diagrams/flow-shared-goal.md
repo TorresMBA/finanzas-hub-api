@@ -19,7 +19,7 @@ sequenceDiagram
     H->>H: goal.EnsureCanContribute(Brian)
     H->>LG: EnsureSystemAccount(GoalFund de Brian) si no hay cuenta vinculada
     H->>LG: PostTransfer(BCP → fondo, 500, source = goals/contribution/{cid})
-    H->>H: Añade el aporte; ¿total ≥ objetivo? → Achieved
+    H->>H: Añade el aporte, ¿total ≥ objetivo? → Achieved
     H->>DB: INSERT operation + 2 entries, goal_contribution, audit_log
     H->>R: GoalContributionAdded (en proceso)
     R->>NOT: Publish a Juan ("Brian aportó S/ 500")

@@ -27,7 +27,7 @@ Diagrama: [Dependencias entre proyectos](../diagrams/dependencies.md).
 | 7 | Controller o job de la carpeta `X` → `Modules.X` | Controller o job → EF Core, Npgsql, `IXDb`, otro módulo |
 | 8 | Dependencia de módulo en el sentido del diagrama I.1 | Dependencia en sentido contrario; `Ledger` nunca llama a `Goals` |
 
-Un módulo es un solo proyecto con tipos públicos, así que el compilador no impide la regla 1: la impiden los tests de arquitectura. Todas las reglas se verifican ahí (ver [testing.md](../development/testing.md)); si un test falla se corrige el código, no el test.
+Un módulo es un solo proyecto con tipos públicos, así que el compilador no impide la regla 1: la impiden los tests de arquitectura. Todas las reglas se verifican ahí (ver [testing.md](testing.md)); si un test falla se corrige el código, no el test.
 
 ### I.4 Comunicación entre módulos
 

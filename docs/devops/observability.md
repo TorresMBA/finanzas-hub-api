@@ -16,7 +16,7 @@
 | Trace ID | W3C `traceparent`, generado por la instrumentación de ASP.NET Core |
 | Correlation ID | Cabecera `X-Correlation-Id`; si no llega, se usa el trace id. Se devuelve en la respuesta y se añade como etiqueta |
 | Reacciones a eventos | Corren dentro de la petición, así que quedan en la misma traza, con un span por handler de evento |
-| Trabajo diferido | La cola de envíos guarda el `traceparent` de quien encoló; el job crea un span enlazado (fase 6) |
+| Trabajo diferido | Diseñado: que la cola guarde el `traceparent` de quien encoló y el job cree un span enlazado. **No implementado**: hoy el envío del Worker es una traza aparte |
 | Instrumentación | ASP.NET Core, HttpClient, Npgsql, y un `ActivitySource` común (`PersonalFinance`) con un span por caso de uso etiquetado con `module` y `use_case` |
 | Destino | OTLP. Local: contenedor Aspire Dashboard. Azure: Application Insights |
 
@@ -24,16 +24,24 @@
 
 ### U.3 Métricas y salud
 
-| Métrica | Tipo |
-|---|---|
-| `usecase.duration` por módulo, caso de uso y resultado | Histograma |
-| `webhook.received` por proveedor y resultado | Contador |
-| `notifications.deliveries` por canal y resultado; `notifications.deliveries.pending` | Contador, gauge |
-| `scheduler.occurrences` por resultado | Contador |
-| `ledger.operations.posted` por tipo y origen | Contador |
-| `auth.failed_logins`, `security.forbidden` | Contador |
+Métricas que existen hoy, todas en el `Meter` `PersonalFinance`:
 
-Health checks: `/health/live` (el proceso responde) y `/health/ready` (base de datos alcanzable y migraciones aplicadas). Hoy solo existe la métrica `usecase.duration`; las demás llegan con su módulo.
+| Métrica | Tipo | Dónde |
+|---|---|---|
+| `usecase.duration` por módulo, caso de uso y resultado | Histograma (ms) | `Infrastructure/Observability/Telemetry.cs` |
+| `ledger.operations.posted` por tipo | Contador | Ledger |
+| `scheduler.occurrences` por resultado | Contador | Scheduling |
+| `notifications.published` | Contador | Notifications |
+| `whatsapp.webhook.events` por tipo y resultado | Contador | Notifications |
+| `whatsapp.deliveries` | Contador | Infrastructure (envío) |
+| `imports.records` por destino de cada línea | Contador | Integrations |
+| `investments.operations` | Contador | Investments |
+| `reporting.dashboard.duration`, `reporting.report.duration` | Histograma (ms) | Reporting |
+| `reporting.exports` por formato | Contador | Reporting |
+
+Diseñadas y pendientes: `notifications.deliveries.pending` (gauge de la cola), `auth.failed_logins` y `security.forbidden`.
+
+Health checks: `/health/live` (el proceso responde) y `/health/ready` (base de datos alcanzable y sin migraciones pendientes).
 
 ### U.4 Auditoría financiera
 
@@ -64,4 +72,17 @@ Qué se audita:
 
 La escritura es explícita desde el handler (`IAuditLog.Record(...)`), no un volcado automático de todo cambio de EF, porque lo que interesa es la acción de negocio. El historial de un recurso se consulta con la misma autorización que el recurso. La "Actividad reciente" de un grupo es una lectura de esta tabla filtrada por `scope`.
 
-El rol de base de datos de la aplicación solo tiene `INSERT` y `SELECT` sobre `audit_log`.
+Diseño pendiente: que el rol de base de datos de la aplicación solo tenga `INSERT` y `SELECT` sobre `audit_log`. Hoy las migraciones no conceden permisos y la aplicación se conecta con un rol dueño de la base, así que la auditoría es de solo inserción por convención del código, no porque la base lo impida ([secrets.md](secrets.md#recomendaciones-pendientes)).
+
+## Operación: qué mirar
+
+| Pregunta | Dónde mirar |
+|---|---|
+| ¿Está viva y conectada a la base? | `GET /health/ready` (desde la red interna) |
+| ¿Por qué falló la petición que reporta alguien? | El `traceId` del `ProblemDetails` (o el `X-Correlation-Id`) en los logs y en las trazas |
+| ¿Qué caso de uso es lento? | Histograma `usecase.duration` por `use_case` |
+| ¿Se están enviando los correos y WhatsApp? | Logs del Worker (`Sent N email(s)`, avisos de reintento) y `whatsapp.deliveries` |
+| ¿Corre el calendario? | Logs del Worker (`Schedule cycle: …`) y `scheduler.occurrences` |
+| ¿Quién cambió este dato? | `platform.audit_log` filtrando por `resource_type` y `resource_id` |
+
+En local, todo llega al Aspire Dashboard (`http://localhost:18888`) si `docker compose up` está en marcha. En un servidor sin colector OTLP, los logs quedan en la salida estándar del contenedor (`docker logs finanzas-hub-api-<env>`).

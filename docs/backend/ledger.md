@@ -130,7 +130,7 @@ Las columnas de conversión existen desde la primera migración para incorporar 
 | Tema | Decisión |
 |---|---|
 | Transacciones | Una transacción PostgreSQL por comando, nivel READ COMMITTED, que abarca todo lo que el comando y sus reacciones escriben, sea del módulo que sea |
-| Concurrencia optimista | `xmin` como token en: `Workspace`, `Account`, `Operation`, `Budget`, `Goal`, `SharedGroup`, `SharedExpense`, `Settlement`, `RecurringRule`, `Holding`. La API lo expone como `ETag` y exige `If-Match`; el conflicto responde 409 con código `concurrency_conflict` |
+| Concurrencia optimista | `xmin` como token en: `Workspace`, `Account`, `Operation`, `Budget`, `RecurringRule`, `Goal`, `SharedGroup`, `CategorizationRule`, `ImportSession`, `Holding`. Un choque entre dos escrituras simultáneas responde 409 con código `concurrency_conflict`. La API aún no expone la versión como `ETag` ni exige `If-Match` ([concurrency.md](concurrency.md)) |
 | Dónde no hace falta | Aportes y asientos son inserciones; como el saldo y el progreso se derivan, dos aportes simultáneos no se pisan |
 | Meta alcanzada | La transición `Active → Achieved` actualiza la fila de la meta bajo `xmin`; si dos aportes cruzan el objetivo a la vez, uno gana y el otro reintenta y no hace nada |
 | Idempotencia de API | Cabecera `Idempotency-Key` obligatoria en POST con efecto financiero. Tabla `platform.idempotency_keys` con clave `(user_id, key)`, hash del request y respuesta guardada. Misma clave y mismo cuerpo devuelven la respuesta original; misma clave y otro cuerpo, 422 |
