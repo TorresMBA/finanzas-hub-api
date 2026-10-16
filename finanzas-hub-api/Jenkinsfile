@@ -10,7 +10,7 @@
 // Configuración por ambiente (no versionada), legible por el agente:
 //   /srv/mercury/apps/<env>/finanzas-hub-api.env
 //   /srv/mercury/apps/<env>/finanzas-hub-worker.env
-// Ver docs/development/deployment.md.
+// Ver docs/devops/deployment.md.
 
 // Migra y despliega API y Worker en un ambiente. Necesita REGISTRY (credentials('registry')).
 def deployAll(String targetEnv) {
@@ -18,7 +18,7 @@ def deployAll(String targetEnv) {
     sh '''
       export APPS_DIR="${APPS_DIR:-/srv/mercury/apps}"
       for app in "$APP" "$WORKER_APP"; do
-        [ -r "$APPS_DIR/$TARGET_ENV/$app.env" ] || { echo "Falta $APPS_DIR/$TARGET_ENV/$app.env (ver docs/development/deployment.md)"; exit 1; }
+        [ -r "$APPS_DIR/$TARGET_ENV/$app.env" ] || { echo "Falta $APPS_DIR/$TARGET_ENV/$app.env (ver docs/devops/deployment.md)"; exit 1; }
       done
 
       # Contenedor de un solo uso con el compose de despliegue del servidor: mismo .env (con

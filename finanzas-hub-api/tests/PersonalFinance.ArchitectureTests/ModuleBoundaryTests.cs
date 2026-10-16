@@ -9,7 +9,7 @@ namespace PersonalFinance.ArchitectureTests;
 public class ModuleBoundaryTests
 {
     /// <summary>
-    /// The module graph of the architecture (docs/architecture/module-communication.md). A module may use the
+    /// The module graph of the architecture (docs/backend/module-communication.md). A module may use the
     /// Contracts of the modules listed here and of no other. Adding a module means adding its entry.
     /// </summary>
     private static readonly Dictionary<string, string[]> AllowedDependencies = new(StringComparer.Ordinal)
