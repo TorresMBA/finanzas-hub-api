@@ -86,14 +86,15 @@ public sealed class WhatsAppWebhookController(WhatsAppInbox inbox) : ApiControll
     [HttpPost]
     [RequestSizeLimit(MaxBodyBytes)]
     public async Task<IActionResult> Receive(
-        [FromServices] ICommandHandler<ReceiveWhatsAppWebhookCommand, IReadOnlyList<WhatsAppInboundMessage>> handler, CancellationToken cancellationToken)
+        [FromServices] ICommandHandler<ReceiveWhatsAppWebhookCommand, IReadOnlyList<WhatsAppInboundMessage>> handler,
+        [FromHeader(Name = "X-Hub-Signature-256")] string? signature, CancellationToken cancellationToken)
     {
         using var buffer = new MemoryStream();
         await Request.Body.CopyToAsync(buffer, cancellationToken);
         var body = buffer.ToArray();
 
         // The signature covers the exact bytes sent; nothing is read or stored before it is checked.
-        if (!inbox.IsSigned(Request.Headers["X-Hub-Signature-256"], body))
+        if (!inbox.IsSigned(signature, body))
         {
             return Error.Unauthorized("webhook.signature_invalid", "The signature does not match.").ToProblem(HttpContext);
         }

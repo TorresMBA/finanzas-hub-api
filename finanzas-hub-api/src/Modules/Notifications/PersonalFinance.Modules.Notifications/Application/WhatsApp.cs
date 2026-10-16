@@ -18,13 +18,17 @@ public sealed record WhatsAppChannelResponse(string? Phone, string? PendingPhone
 {
     public bool IsVerified => Phone is not null;
 
-    internal static WhatsAppChannelResponse Of(ChannelEndpoint? endpoint) =>
-        endpoint is null
-            ? new WhatsAppChannelResponse(null, null, null)
-            : new WhatsAppChannelResponse(
-                endpoint.Phone is { } phone ? $"+{phone}" : null,
-                endpoint.PendingPhone is { } pending ? $"+{pending}" : null,
-                endpoint.PendingPhone is null ? null : endpoint.CodeExpiresAt);
+    internal static WhatsAppChannelResponse Of(ChannelEndpoint? endpoint)
+    {
+        if (endpoint is null)
+        {
+            return new WhatsAppChannelResponse(null, null, null);
+        }
+
+        var phone = endpoint.Phone is { } verified ? $"+{verified}" : null;
+        var pending = endpoint.PendingPhone is { } waiting ? $"+{waiting}" : null;
+        return new WhatsAppChannelResponse(phone, pending, endpoint.PendingPhone is null ? null : endpoint.CodeExpiresAt);
+    }
 }
 
 /// <param name="DevelopmentCode">The code itself, only on a development machine without a WhatsApp account. Null everywhere else.</param>
@@ -255,7 +259,11 @@ internal sealed class ReceiveWhatsAppWebhookHandler(INotificationsDb db, WhatsAp
             if (await book.OwnerOfAsync(message.From, cancellationToken) is not { } userId)
             {
                 // Nobody proved this number: whatever it says, it speaks for no one.
-                logger.LogInformation("Ignored WhatsApp message {MessageId} from a number nobody verified", message.Id);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation("Ignored WhatsApp message {MessageId} from a number nobody verified", message.Id);
+                }
+
                 Received.Add(1, Tag("message"), Outcome("unverified"));
                 continue;
             }

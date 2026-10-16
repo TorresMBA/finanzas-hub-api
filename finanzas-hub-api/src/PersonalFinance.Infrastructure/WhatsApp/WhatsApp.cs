@@ -31,6 +31,9 @@ public sealed class WhatsAppOptions
 
     public string? PhoneNumberId { get; set; }
 
+    /// <summary>Where the Graph API answers; the version and the phone number id are appended to it.</summary>
+    public string GraphApiBase { get; set; } = "https://graph.facebook.com/";
+
     public string GraphApiVersion { get; set; } = "v21.0";
 
     /// <summary>

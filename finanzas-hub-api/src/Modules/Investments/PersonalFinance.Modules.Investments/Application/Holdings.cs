@@ -345,24 +345,10 @@ internal sealed class WithdrawFromHoldingHandler(PortfolioReader reader, ILedger
             }
         }
 
-        if (movement.Realized != 0)
+        var realized = await PostRealizedAsync(holding, movement, target.Id, command.OccurredOn, cancellationToken);
+        if (realized.IsFailure)
         {
-            var isLoss = movement.Realized < 0;
-            var category = await categories.EnsureAsync(isLoss ? CategoryUse.Expense : CategoryUse.Income, Category, null, cancellationToken);
-            if (category.IsFailure)
-            {
-                return category.Error;
-            }
-
-            var posted = await ledger.PostTransactionAsync(
-                new LedgerTransactionRequest(
-                    isLoss, target.Id, Math.Abs(movement.Realized), category.Value, command.OccurredOn,
-                    $"{(isLoss ? "Pérdida" : "Ganancia")} de {holding.Name}", $"investments:realized:{movement.Id:N}"),
-                cancellationToken);
-            if (posted.IsFailure)
-            {
-                return posted.Error;
-            }
+            return realized.Error;
         }
 
         InvestmentMetrics.Count(holding.IsClosed ? "redemption_full" : "redemption");
@@ -372,6 +358,29 @@ internal sealed class WithdrawFromHoldingHandler(PortfolioReader reader, ILedger
             After = new { movement.Amount, movement.Capital, movement.Realized, command.OccurredOn, holding.IsClosed }
         });
         return await reader.DetailAsync(holding, cancellationToken);
+    }
+
+    /// <summary>What the redemption earned or lost on top of the capital, as an income or an expense of "Inversiones".</summary>
+    private async Task<Result> PostRealizedAsync(Holding holding, HoldingMovement movement, Guid accountId, DateOnly occurredOn, CancellationToken cancellationToken)
+    {
+        if (movement.Realized == 0)
+        {
+            return Result.Success();
+        }
+
+        var isLoss = movement.Realized < 0;
+        var category = await categories.EnsureAsync(isLoss ? CategoryUse.Expense : CategoryUse.Income, Category, null, cancellationToken);
+        if (category.IsFailure)
+        {
+            return category.Error;
+        }
+
+        var posted = await ledger.PostTransactionAsync(
+            new LedgerTransactionRequest(
+                isLoss, accountId, Math.Abs(movement.Realized), category.Value, occurredOn,
+                $"{(isLoss ? "Pérdida" : "Ganancia")} de {holding.Name}", $"investments:realized:{movement.Id:N}"),
+            cancellationToken);
+        return posted.IsFailure ? posted.Error : Result.Success();
     }
 }
 
@@ -457,7 +466,7 @@ internal sealed class DepositMaturityStep(PortfolioReader reader, INotificationP
                      holding.TermDeposit is { } terms && terms.MaturesOn >= today && terms.MaturesOn <= today.AddDays(NoticeDays)))
         {
             var maturesOn = holding.TermDeposit!.MaturesOn;
-            var when = maturesOn == today ? "hoy" : maturesOn == today.AddDays(1) ? "mañana" : $"el {maturesOn.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}";
+            var when = DueWhen(maturesOn, today);
             var value = holding.ProjectedValue ?? holding.Capital;
             if (await notifications.PublishAsync(
                     new NotificationRequest(
@@ -471,5 +480,15 @@ internal sealed class DepositMaturityStep(PortfolioReader reader, INotificationP
         }
 
         return notices;
+    }
+
+    private static string DueWhen(DateOnly maturesOn, DateOnly today)
+    {
+        if (maturesOn == today)
+        {
+            return "hoy";
+        }
+
+        return maturesOn == today.AddDays(1) ? "mañana" : $"el {maturesOn.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}";
     }
 }

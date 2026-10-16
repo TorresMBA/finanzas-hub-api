@@ -51,8 +51,16 @@ public sealed record ReportPeriod(ReportPeriodKind Kind, DateOnly From, DateOnly
     /// The days the expenses of the period are spread over for a daily average: up to today while the period is
     /// running, none before it starts, all of them once it is over.
     /// </summary>
-    public int DaysUpTo(DateOnly today) =>
-        today < From ? 0 : (today > To ? To : today).DayNumber - From.DayNumber + 1;
+    public int DaysUpTo(DateOnly today)
+    {
+        if (today < From)
+        {
+            return 0;
+        }
+
+        var last = today > To ? To : today;
+        return last.DayNumber - From.DayNumber + 1;
+    }
 
     /// <summary>The months shown as the savings rate, oldest first: the six ending with the period, or the twelve of a year.</summary>
     public DateOnly TrendFrom => Kind == ReportPeriodKind.Year ? From : new DateOnly(To.Year, To.Month, 1).AddMonths(-5);

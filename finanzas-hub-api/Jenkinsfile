@@ -73,9 +73,15 @@ pipeline {
           steps {
             dir('finanzas-hub-api') {
               withSonarQubeEnv('sonarqube') {
+                // tools/** son scripts de mantenimiento (docs, migraciones), no código de la aplicación.
+                // S107 (más de 7 parámetros) se ignora: lo disparan los constructores de DI de los handlers y las
+                // fábricas de dominio, donde un objeto de parámetros solo movería la lista a otro sitio.
                 sh '''
                   dotnet sonarscanner begin /k:"$APP" /d:sonar.host.url="$SONAR_HOST_URL" /d:sonar.token="$SONAR_AUTH_TOKEN" \
-                    /d:sonar.exclusions="**/Migrations/**"
+                    /d:sonar.exclusions="**/Migrations/**,tools/**" \
+                    /d:sonar.issue.ignore.multicriteria=e1 \
+                    /d:sonar.issue.ignore.multicriteria.e1.ruleKey=csharpsquid:S107 \
+                    /d:sonar.issue.ignore.multicriteria.e1.resourceKey="**/*.cs"
                   dotnet restore "$SOLUTION"
                   dotnet build "$SOLUTION" -c Release --no-restore
                   for project in $TEST_PROJECTS; do

@@ -172,10 +172,22 @@ public sealed class Account : AggregateRoot, IOwned
     /// Fails for the fund of a goal: its balance is what the person contributed to the goal, so money enters and
     /// leaves it only as a contribution or a withdrawal.
     /// </summary>
-    public Result EnsureMovedByHand() => IsGoalFund ? ManagedByGoal : IsInvestment ? ManagedByInvestment : EnsureOpen();
+    public Result EnsureMovedByHand()
+    {
+        var managed = EnsureNotManaged();
+        return managed.IsFailure ? managed : EnsureOpen();
+    }
 
     /// <summary>Why an account cannot be moved by hand, or success when it can.</summary>
-    public Result EnsureNotManaged() => IsGoalFund ? ManagedByGoal : IsInvestment ? ManagedByInvestment : Result.Success();
+    public Result EnsureNotManaged()
+    {
+        if (IsGoalFund)
+        {
+            return ManagedByGoal;
+        }
+
+        return IsInvestment ? ManagedByInvestment : Result.Success();
+    }
 
     public static Error ManagedByGoal =>
         Error.BusinessRule("ledger.account.managed_by_goal", "This account holds the money of a goal. Contribute to the goal or withdraw from it instead.");

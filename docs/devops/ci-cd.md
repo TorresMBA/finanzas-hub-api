@@ -27,7 +27,7 @@ flowchart LR
 
 | Etapa | Qué hace | Si falla |
 |---|---|---|
-| Build, test y SonarQube | `dotnet sonarscanner begin`, `restore`, `build -c Release` (avisos = errores), tests **unitarios y de arquitectura**, `sonarscanner end`. Excluye `Migrations/**` del análisis | No sigue |
+| Build, test y SonarQube | `dotnet sonarscanner begin`, `restore`, `build -c Release` (avisos = errores), tests **unitarios y de arquitectura**, `sonarscanner end`. Excluye `Migrations/**` y `tools/**` del análisis ([excepciones](#quality-gate-y-excepciones-de-sonarqube)) | No sigue |
 | Quality gate | Espera el veredicto de SonarQube (10 min) | Aborta el pipeline |
 | Seguridad | `mercury-ci semgrep` (SAST, archiva `semgrep.json`) y `mercury-ci trivy-fs` (dependencias vulnerables) | Aborta |
 | Imágenes | `dotnet publish` de API y Worker sin recompilar, `mercury-ci package dotnet` con la `Dockerfile` del repo, `mercury-ci trivy-image` | Aborta |
@@ -42,12 +42,27 @@ flowchart LR
 | Etapa | Qué hace |
 |---|---|
 | Build, lint y tests | `npm ci`, `npm run lint`, `npm test -- --watch=false` (Vitest + jsdom, sin navegador), `npm run build` |
-| SonarQube | `mercury-ci sonar`, excluyendo `node_modules`, `dist`, `.angular`, `e2e`, `test-results` y el `schema.ts` generado |
+| SonarQube | `mercury-ci sonar`, excluyendo `node_modules`, `dist`, `.angular`, `e2e`, `test-results` y el `schema.ts` generado, con dos reglas de HTML ignoradas ([excepciones](#quality-gate-y-excepciones-de-sonarqube)) |
 | Análisis | Quality gate, Semgrep y Trivy en paralelo |
 | Imagen | `mercury-ci package spa dist/finanzas-hub-web/browser` con la `Dockerfile` del repo, y Trivy sobre la imagen |
 | Deploy dev / Aprobar prod / Deploy prod | `mercury-ci deploy finanzas-hub-web <env>` con 128 MB |
 
 Los E2E de Playwright no corren en el CI.
+
+## Quality gate y excepciones de SonarQube
+
+Los dos proyectos usan el gate **PersonalHub** del servidor, una copia de *Sonar way* **sin la condición de cobertura**: cero problemas nuevos, duplicación ≤ 3 % y hotspots revisados al 100 %. La cobertura no se exige porque el CI solo corre tests unitarios y de arquitectura (los de integración necesitan Docker) y el proyecto mantiene pocos tests clave; un 80 % sobre el código nuevo obligaría a escribir tests por la cifra.
+
+Un problema nuevo se corrige. Lo que se ignora está en el Jenkinsfile, con su motivo:
+
+| Proyecto | Qué | Por qué |
+|---|---|---|
+| API | `tools/**` excluido | Scripts de mantenimiento (`update-db-docs.mjs`…), no código de la aplicación |
+| API | `csharpsquid:S107` (más de 7 parámetros) | Lo disparan los constructores de DI de los handlers y las fábricas de dominio; un objeto de parámetros solo movería la lista |
+| Web | `Web:InputWithoutLabelCheck` en `*.html` | `<app-field>` envuelve el control en su `<label>` mediante `<ng-content>`, que el análisis de HTML no ve |
+| Web | `Web:S6819` en `*.html` | La app usa roles ARIA (`status`, `group`, `img`), válidos, en lugar de `<output>` o `<fieldset>`, que traen estilos propios |
+
+Un caso puntual que no merezca una regla se marca en SonarQube como *Accepted* o *False positive*, con un comentario.
 
 ## Reglas del pipeline
 

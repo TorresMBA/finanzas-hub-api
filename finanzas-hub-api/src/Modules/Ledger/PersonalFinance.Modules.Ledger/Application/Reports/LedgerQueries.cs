@@ -176,11 +176,14 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
     public Task<IReadOnlyList<LedgerMovement>> SearchMovementsAsync(string text, int count, CancellationToken cancellationToken)
     {
         var lowered = text.Trim().ToLowerInvariant();
+        // EF translates ToLower().Contains to lower(...) LIKE in SQL; the StringComparison overload CA1862 asks for is not translatable.
+#pragma warning disable CA1862
         return DescribeAsync(
             Movements().Where(operation =>
                     operation.Description.ToLower().Contains(lowered)
                     || (operation.Merchant != null && operation.Merchant.ToLower().Contains(lowered))
                     || (operation.Note != null && operation.Note.ToLower().Contains(lowered)))
+#pragma warning restore CA1862
                 .OrderByDescending(operation => operation.OccurredOn).ThenByDescending(operation => operation.Id)
                 .Take(Math.Clamp(count, 1, 50)),
             cancellationToken);

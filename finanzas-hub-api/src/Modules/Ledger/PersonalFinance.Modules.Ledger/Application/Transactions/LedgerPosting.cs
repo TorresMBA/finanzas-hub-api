@@ -83,15 +83,25 @@ internal sealed class LedgerPosting(
     {
         var moved = await transfers.PostAsync(
             fromAccountId, toAccountId, amount, null, occurredOn, description, null,
-            (from, to) => from.Currency != to.Currency
-                ? Error.BusinessRule("ledger.investment.currency_mismatch", "The account must have the same currency as the investment.")
-                : from.IsCreditCard || to.IsCreditCard || from.IsGoalFund || to.IsGoalFund
-                    ? Error.BusinessRule("ledger.investment.account_not_allowed", "An investment is funded from an account that holds money, not from a credit card or a goal.")
-                : from.IsInvestment == to.IsInvestment
-                    ? Error.BusinessRule("ledger.investment.account_required", "One side of the movement must be the account of the investment, and only one.")
-                    : Result.Success(),
-            cancellationToken, (InvestmentsModule, "movement", sourceId));
+            InvestmentMoveRule, cancellationToken, (InvestmentsModule, "movement", sourceId));
         return moved.IsFailure ? moved.Error : moved.Value.Id;
+    }
+
+    private static Result InvestmentMoveRule(Account from, Account to)
+    {
+        if (from.Currency != to.Currency)
+        {
+            return Error.BusinessRule("ledger.investment.currency_mismatch", "The account must have the same currency as the investment.");
+        }
+
+        if (from.IsCreditCard || to.IsCreditCard || from.IsGoalFund || to.IsGoalFund)
+        {
+            return Error.BusinessRule("ledger.investment.account_not_allowed", "An investment is funded from an account that holds money, not from a credit card or a goal.");
+        }
+
+        return from.IsInvestment == to.IsInvestment
+            ? Error.BusinessRule("ledger.investment.account_required", "One side of the movement must be the account of the investment, and only one.")
+            : Result.Success();
     }
 
     /// <summary>An account another module opens for itself. Its name is unique among those in use, so a number is added when taken.</summary>
@@ -132,14 +142,24 @@ internal sealed class LedgerPosting(
     {
         var moved = await transfers.PostAsync(
             fromAccountId, toAccountId, amount, null, occurredOn, description, null,
-            (from, to) => from.Currency != to.Currency
-                ? Error.BusinessRule("ledger.goal.currency_mismatch", "The account must have the same currency as the goal.")
-                : from.IsCreditCard || to.IsCreditCard
-                    ? Error.BusinessRule("ledger.goal.card_not_allowed", "A goal is funded from an account that holds money, not from a credit card.")
-                : from.IsGoalFund == to.IsGoalFund
-                    ? Error.BusinessRule("ledger.goal.fund_required", "One side of the movement must be the fund of the goal, and only one.")
-                    : Result.Success(),
-            cancellationToken, (GoalsModule, "contribution", sourceId));
+            GoalMoveRule, cancellationToken, (GoalsModule, "contribution", sourceId));
         return moved.IsFailure ? moved.Error : moved.Value.Id;
+    }
+
+    private static Result GoalMoveRule(Account from, Account to)
+    {
+        if (from.Currency != to.Currency)
+        {
+            return Error.BusinessRule("ledger.goal.currency_mismatch", "The account must have the same currency as the goal.");
+        }
+
+        if (from.IsCreditCard || to.IsCreditCard)
+        {
+            return Error.BusinessRule("ledger.goal.card_not_allowed", "A goal is funded from an account that holds money, not from a credit card.");
+        }
+
+        return from.IsGoalFund == to.IsGoalFund
+            ? Error.BusinessRule("ledger.goal.fund_required", "One side of the movement must be the fund of the goal, and only one.")
+            : Result.Success();
     }
 }

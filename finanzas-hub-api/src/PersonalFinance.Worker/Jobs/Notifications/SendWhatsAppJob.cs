@@ -10,7 +10,7 @@ internal sealed class SendWhatsAppJob(IServiceScopeFactory scopeFactory, ILogger
     protected override async Task RunAsync(IServiceProvider services, CancellationToken cancellationToken)
     {
         var sent = await services.GetRequiredService<IDeliveryDispatcher>().SendPendingAsync(cancellationToken);
-        if (sent > 0)
+        if (sent > 0 && Logger.IsEnabled(LogLevel.Information))
         {
             Logger.LogInformation("Sent {Count} WhatsApp message(s)", sent);
         }

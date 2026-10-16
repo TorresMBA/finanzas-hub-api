@@ -40,6 +40,7 @@ dotnet user-secrets list --project src/PersonalFinance.Api     # muestra los val
 | `WhatsApp:VerifyToken`, `WhatsApp:AppSecret` | vacíos | API | Verificación y firma del webhook |
 | `WhatsApp:AccessToken`, `WhatsApp:PhoneNumberId` | vacíos | Worker | Envío por la Cloud API. Sin ellos WhatsApp queda desconectado |
 | `WhatsApp:NoticeTemplate`, `CodeTemplate`, `TemplateLanguage` (`es`) | vacíos | Worker | Plantillas aprobadas en Meta |
+| `WhatsApp:GraphApiBase` | `https://graph.facebook.com/` | Worker | Dirección de la Graph API |
 | `WhatsApp:GraphApiVersion` | `v21.0` | Worker | Versión de la Graph API |
 | `WhatsApp:OutboxDirectory` | `personal-hub-whatsapp` en la carpeta temporal | Worker | Dónde se escriben los mensajes cuando no hay token |
 | `WhatsApp:ShowCodesWithoutAccount` | `true` en Development | API | Muestra el código de verificación en pantalla. **Nunca `true` fuera de Development** |

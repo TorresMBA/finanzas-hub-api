@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.BuildingBlocks.Application.Security;
@@ -90,7 +91,8 @@ public static class DependencyInjection
 
         services.Configure<WhatsAppOptions>(configuration.GetSection(WhatsAppOptions.SectionName));
         services.AddSingleton<IWhatsAppSetup, WhatsAppSetup>();
-        services.AddHttpClient<IWhatsAppSender, WhatsAppSender>(client => client.BaseAddress = new Uri("https://graph.facebook.com/"));
+        services.AddHttpClient<IWhatsAppSender, WhatsAppSender>((provider, client) =>
+            client.BaseAddress = new Uri(provider.GetRequiredService<IOptions<WhatsAppOptions>>().Value.GraphApiBase));
         services.AddScoped<IDeliveryDispatcher, DeliveryDispatcher>();
 
         AddIdentity(services);

@@ -304,35 +304,37 @@ public sealed record WhatsAppPayload(IReadOnlyList<WhatsAppMessage> Messages, IR
         var statuses = new List<WhatsAppStatusReport>();
         foreach (var value in Values(document.RootElement))
         {
-            foreach (var message in Items(value, "messages"))
-            {
-                if (Text(message, "id") is { Length: > 0 } id
-                    && PhoneNumber.Normalize(Text(message, "from")) is { } from
-                    && message.TryGetProperty("text", out var text) && Text(text, "body") is { } said)
-                {
-                    messages.Add(new WhatsAppMessage(id, from, said));
-                }
-            }
-
-            foreach (var status in Items(value, "statuses"))
-            {
-                var reported = Text(status, "status") switch
-                {
-                    "sent" => DeliveryStatus.Sent,
-                    "delivered" => DeliveryStatus.Delivered,
-                    "read" => DeliveryStatus.Read,
-                    "failed" => DeliveryStatus.Failed,
-                    _ => (DeliveryStatus?)null
-                };
-                if (Text(status, "id") is { Length: > 0 } id && reported is { } known)
-                {
-                    var error = Items(status, "errors").Select(failure => Text(failure, "title") ?? Text(failure, "message")).FirstOrDefault();
-                    statuses.Add(new WhatsAppStatusReport(id, known, error));
-                }
-            }
+            messages.AddRange(Items(value, "messages").Select(Message).OfType<WhatsAppMessage>());
+            statuses.AddRange(Items(value, "statuses").Select(Status).OfType<WhatsAppStatusReport>());
         }
 
         return new WhatsAppPayload(messages, statuses);
+    }
+
+    private static WhatsAppMessage? Message(JsonElement message) =>
+        Text(message, "id") is { Length: > 0 } id
+        && PhoneNumber.Normalize(Text(message, "from")) is { } from
+        && message.TryGetProperty("text", out var text) && Text(text, "body") is { } said
+            ? new WhatsAppMessage(id, from, said)
+            : null;
+
+    private static WhatsAppStatusReport? Status(JsonElement status)
+    {
+        var reported = Text(status, "status") switch
+        {
+            "sent" => DeliveryStatus.Sent,
+            "delivered" => DeliveryStatus.Delivered,
+            "read" => DeliveryStatus.Read,
+            "failed" => DeliveryStatus.Failed,
+            _ => (DeliveryStatus?)null
+        };
+        if (Text(status, "id") is not { Length: > 0 } id || reported is not { } known)
+        {
+            return null;
+        }
+
+        var error = Items(status, "errors").Select(failure => Text(failure, "title") ?? Text(failure, "message")).FirstOrDefault();
+        return new WhatsAppStatusReport(id, known, error);
     }
 
     private static IEnumerable<JsonElement> Values(JsonElement root) =>
@@ -340,7 +342,7 @@ public sealed record WhatsAppPayload(IReadOnlyList<WhatsAppMessage> Messages, IR
             .Where(change => change.ValueKind == JsonValueKind.Object && change.TryGetProperty("value", out var value) && value.ValueKind == JsonValueKind.Object)
             .Select(change => change.GetProperty("value"));
 
-    private static IEnumerable<JsonElement> Items(JsonElement element, string name) =>
+    private static List<JsonElement> Items(JsonElement element, string name) =>
         element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var items) && items.ValueKind == JsonValueKind.Array
             ? items.EnumerateArray().ToList()
             : [];

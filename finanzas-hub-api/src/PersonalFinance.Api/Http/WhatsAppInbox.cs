@@ -37,7 +37,11 @@ public sealed class WhatsAppInbox(IOptions<WhatsAppOptions> options, IServiceSco
             var membership = await services.GetRequiredService<IWorkspaceAccess>().GetPersonalMembershipAsync(message.UserId, cancellationToken);
             if (membership is null)
             {
-                logger.LogInformation("Ignored WhatsApp message {MessageId}: its sender has no personal workspace", message.ExternalId);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation("Ignored WhatsApp message {MessageId}: its sender has no personal workspace", message.ExternalId);
+                }
+
                 continue;
             }
 

@@ -22,7 +22,7 @@ Síntoma, causa y solución. Los problemas de código están en [backend/common-
 | Síntoma | Causa | Solución |
 |---|---|---|
 | El build falla por un aviso | `TreatWarningsAsErrors` | Corrige el aviso; no lo silencies |
-| Quality gate rojo | Cobertura, duplicación o un problema nuevo en SonarQube | Revisa el informe del proyecto en SonarQube |
+| Quality gate rojo | Un problema nuevo, duplicación o un hotspot sin revisar en SonarQube | Revisa el informe del proyecto (filtro *New code*). Corrige el problema; si es un falso positivo, sigue [ci-cd.md § Quality gate y excepciones](ci-cd.md#quality-gate-y-excepciones-de-sonarqube) |
 | Semgrep o Trivy paran el pipeline | Patrón inseguro o dependencia vulnerable | Corrige o actualiza el paquete; si es un falso positivo, documenta la excepción |
 | `Falta /srv/mercury/apps/<env>/<app>.env` | Ambiente sin configurar | Crea el `.env` con las variables de [deployment.md §4](deployment.md#4-configuración-por-contenedor) |
 | Pasa en el CI pero falla en local un test de integración (o al revés) | El CI no corre los de integración | Córrelos en local antes de subir |

@@ -191,9 +191,7 @@ internal sealed class ExportReportHandler(ReportBuilder builder, ILedgerQueries 
 
     private static object?[] Row(LedgerMovement movement, IReadOnlyDictionary<Guid, CategoryInfo> names)
     {
-        var category = movement.CategoryId is { } id && names.TryGetValue(id, out var info)
-            ? info.ParentName is null ? info.Name : $"{info.ParentName} / {info.Name}"
-            : null;
+        var category = movement.CategoryId is { } id && names.TryGetValue(id, out var info) ? CategoryPath(info) : null;
         var kind = movement.Kind switch
         {
             LedgerMovementKind.Income => "Ingreso",
@@ -202,6 +200,8 @@ internal sealed class ExportReportHandler(ReportBuilder builder, ILedgerQueries 
         };
         return [movement.OccurredOn, kind, movement.Description, movement.Merchant, category, movement.AccountName, movement.CounterAccountName, movement.SignedAmount, movement.Currency, movement.Note];
     }
+
+    private static string CategoryPath(CategoryInfo info) => info.ParentName is null ? info.Name : $"{info.ParentName} / {info.Name}";
 
     private static List<IReadOnlyList<object?>> Summary(ReportSummaryResponse report)
     {
