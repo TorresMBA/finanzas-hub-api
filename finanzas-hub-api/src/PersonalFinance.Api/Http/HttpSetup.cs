@@ -211,7 +211,7 @@ internal static class HttpSetup
     /// The answer to a request that breaks the shape rules (required fields, lengths, ranges) of its data annotations.
     /// Errors are reported under the JSON name of the field ("title"), not the C# one ("Title").
     /// </summary>
-    private static IActionResult InvalidRequest(ActionContext context)
+    private static ObjectResult InvalidRequest(ActionContext context)
     {
         var fieldErrors = context.ModelState
             .Where(entry => entry.Value is { Errors.Count: > 0 })
