@@ -153,28 +153,30 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
     {
         var cards = await db.Accounts.AsNoTracking().Where(account => account.ArchivedAt == null && account.Type == AccountType.CreditCard).ToListAsync(cancellationToken);
         var byAccount = await balances.AllAsync(cancellationToken);
-        var dates = new List<LedgerCardDate>();
-        foreach (var card in cards.Where(card => card.CreditCard is not null))
-        {
-            var profile = card.CreditCard!;
-            var debt = -byAccount.GetValueOrDefault(card.Id);
-            var next = profile.NextPaymentDate(today);
-            for (var month = new DateOnly(from.Year, from.Month, 1); month <= to; month = month.AddMonths(1))
-            {
-                if (profile.ClosingDateIn(month.Year, month.Month) is { } closing && closing >= from && closing <= to)
-                {
-                    dates.Add(new LedgerCardDate(card.Id, card.Name, card.Currency, closing, true, null));
-                }
+        return cards
+            .Where(card => card.CreditCard is not null)
+            .SelectMany(card => CardDates(card, -byAccount.GetValueOrDefault(card.Id), from, to, today))
+            .ToList();
+    }
 
-                var payment = profile.PaymentDateIn(month.Year, month.Month);
-                if (payment >= from && payment <= to)
-                {
-                    dates.Add(new LedgerCardDate(card.Id, card.Name, card.Currency, payment, false, payment == next && debt > 0 ? debt : null));
-                }
+    /// <summary>The closings and payment days of one card in a period. Only the next payment carries what the card owes.</summary>
+    private static IEnumerable<LedgerCardDate> CardDates(Account card, decimal debt, DateOnly from, DateOnly to, DateOnly today)
+    {
+        var profile = card.CreditCard!;
+        var next = profile.NextPaymentDate(today);
+        for (var month = new DateOnly(from.Year, from.Month, 1); month <= to; month = month.AddMonths(1))
+        {
+            if (profile.ClosingDateIn(month.Year, month.Month) is { } closing && closing >= from && closing <= to)
+            {
+                yield return new LedgerCardDate(card.Id, card.Name, card.Currency, closing, true, null);
+            }
+
+            var payment = profile.PaymentDateIn(month.Year, month.Month);
+            if (payment >= from && payment <= to)
+            {
+                yield return new LedgerCardDate(card.Id, card.Name, card.Currency, payment, false, payment == next && debt > 0 ? debt : null);
             }
         }
-
-        return dates;
     }
 
     public async Task<decimal?> ToBaseAsync(string currency, decimal amount, CancellationToken cancellationToken) =>

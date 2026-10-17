@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using PersonalFinance.BuildingBlocks.Domain;
 
@@ -104,36 +105,9 @@ internal static class HttpSetup
     /// <summary>Controllers, error responses, session cookie, authorization and CORS.</summary>
     public static IServiceCollection AddApiHttp(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
-        services.AddControllers(options =>
-            {
-                options.Filters.Add<WorkspaceScopeFilter>();
-
-                // The API speaks JSON only. Without this the contract would list text/plain and text/json everywhere.
-                options.OutputFormatters.RemoveType<StringOutputFormatter>();
-                foreach (var formatter in options.InputFormatters.OfType<SystemTextJsonInputFormatter>())
-                {
-                    formatter.SupportedMediaTypes.Remove("text/json");
-                    formatter.SupportedMediaTypes.Remove("application/*+json");
-                }
-
-                foreach (var formatter in options.OutputFormatters.OfType<SystemTextJsonOutputFormatter>())
-                {
-                    formatter.SupportedMediaTypes.Remove("text/json");
-                }
-            })
+        services.AddControllers(ConfigureMvc)
             .AddJsonOptions(options => ConfigureJson(options.JsonSerializerOptions))
-            .ConfigureApiBehaviorOptions(options => options.InvalidModelStateResponseFactory = context =>
-            {
-                // Shape rules (required fields, lengths, ranges) come from the request's data annotations.
-                // Errors are reported under the JSON name of the field ("title"), not the C# one ("Title").
-                var fieldErrors = context.ModelState
-                    .Where(entry => entry.Value is { Errors.Count: > 0 })
-                    .GroupBy(
-                        entry => string.Join('.', entry.Key.Split('.').Select(JsonNamingPolicy.CamelCase.ConvertName)),
-                        entry => entry.Value!.Errors.Select(error => string.IsNullOrEmpty(error.ErrorMessage) ? "Invalid value." : error.ErrorMessage))
-                    .ToDictionary(group => group.Key, group => group.SelectMany(messages => messages).ToArray());
-                return Error.Validation("validation.failed", "One or more fields are not valid.", fieldErrors).ToProblem(context.HttpContext);
-            });
+            .ConfigureApiBehaviorOptions(options => options.InvalidModelStateResponseFactory = InvalidRequest);
 
         // The OpenAPI document builds its schemas from these options, not from MVC's.
         services.ConfigureHttpJsonOptions(options => ConfigureJson(options.SerializerOptions));
@@ -213,6 +187,39 @@ internal static class HttpSetup
             .WithExposedHeaders(CorrelationMiddleware.HeaderName, "ETag", "Location")));
 
         return services;
+    }
+
+    private static void ConfigureMvc(MvcOptions options)
+    {
+        options.Filters.Add<WorkspaceScopeFilter>();
+
+        // The API speaks JSON only. Without this the contract would list text/plain and text/json everywhere.
+        options.OutputFormatters.RemoveType<StringOutputFormatter>();
+        foreach (var formatter in options.InputFormatters.OfType<SystemTextJsonInputFormatter>())
+        {
+            formatter.SupportedMediaTypes.Remove("text/json");
+            formatter.SupportedMediaTypes.Remove("application/*+json");
+        }
+
+        foreach (var formatter in options.OutputFormatters.OfType<SystemTextJsonOutputFormatter>())
+        {
+            formatter.SupportedMediaTypes.Remove("text/json");
+        }
+    }
+
+    /// <summary>
+    /// The answer to a request that breaks the shape rules (required fields, lengths, ranges) of its data annotations.
+    /// Errors are reported under the JSON name of the field ("title"), not the C# one ("Title").
+    /// </summary>
+    private static IActionResult InvalidRequest(ActionContext context)
+    {
+        var fieldErrors = context.ModelState
+            .Where(entry => entry.Value is { Errors.Count: > 0 })
+            .GroupBy(
+                entry => string.Join('.', entry.Key.Split('.').Select(JsonNamingPolicy.CamelCase.ConvertName)),
+                entry => entry.Value!.Errors.Select(error => string.IsNullOrEmpty(error.ErrorMessage) ? "Invalid value." : error.ErrorMessage))
+            .ToDictionary(group => group.Key, group => group.SelectMany(messages => messages).ToArray());
+        return Error.Validation("validation.failed", "One or more fields are not valid.", fieldErrors).ToProblem(context.HttpContext);
     }
 
     public static WebApplication UseApiHttp(this WebApplication app)

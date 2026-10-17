@@ -143,16 +143,7 @@ internal sealed class GetCalendarHandler(ScheduleReader reader, ILedgerQueries l
 
         // What already happened comes from the ledger, the only place where it is written.
         var items = (await ledger.GetRecentMovementsAsync(from, to, MaxMovements, cancellationToken))
-            .Select(movement => new CalendarItemResponse(
-                $"op:{movement.Id}", movement.OccurredOn,
-                movement.Kind switch
-                {
-                    LedgerMovementKind.Income => CalendarItemKind.Income,
-                    LedgerMovementKind.Expense => CalendarItemKind.Expense,
-                    _ => CalendarItemKind.Transfer
-                },
-                CalendarItemStatus.Confirmed, movement.Description, Math.Abs(movement.SignedAmount), movement.Currency, movement.AccountName, null,
-                fromRules.Contains(movement.Id)))
+            .Select(movement => RegisteredItem(movement, fromRules.Contains(movement.Id)))
             .ToList();
 
         var pending = new BaseAmounts(ledger);
@@ -169,11 +160,7 @@ internal sealed class GetCalendarHandler(ScheduleReader reader, ILedgerQueries l
         // carries an amount, what the card owes now, and only that one counts as an expense still to come.
         foreach (var card in await ledger.GetCardCalendarAsync(from, to, today, cancellationToken))
         {
-            var status = card.Date < today ? CalendarItemStatus.Confirmed : CalendarItemStatus.Scheduled;
-            items.Add(new CalendarItemResponse(
-                $"card:{(card.IsClosing ? "closing" : "due")}:{card.AccountId}:{card.Date:yyyy-MM-dd}", card.Date,
-                card.IsClosing ? CalendarItemKind.CardClosing : CalendarItemKind.CardDue, status,
-                card.IsClosing ? $"Corte de {card.Name}" : $"Pago de {card.Name}", card.Debt ?? 0m, card.Currency, card.Name, null, true));
+            items.Add(CardItem(card, today));
             if (card.Debt is { } debt)
             {
                 await pending.AddAsync(false, card.Currency, debt, cancellationToken);
@@ -181,21 +168,40 @@ internal sealed class GetCalendarHandler(ScheduleReader reader, ILedgerQueries l
         }
 
         var flow = await ledger.GetFlowAsync(from, to, cancellationToken);
-        decimal? projected = null;
-        if (today >= from && today <= to)
-        {
-            // Money that can be spent: what a credit card owes is already counted on its due day.
-            var liquid = accounts
-                .Where(account => account.Type != LedgerAccountType.CreditCard && account.IncludeInNetWorth)
-                .Sum(account => account.BaseBalance ?? 0m);
-            projected = liquid + pending.Income - pending.Expense;
-        }
+        decimal? projected = today >= from && today <= to ? Liquid(accounts) + pending.Income - pending.Expense : null;
 
         return new CalendarResponse(
             from, to, today, reader.BaseCurrency, flow.Months.Sum(month => month.Income), pending.Income, pending.Expense, projected,
             items.OrderBy(item => item.Date).ThenBy(item => item.Status).ThenBy(item => item.Description, StringComparer.InvariantCultureIgnoreCase).ToList(),
             flow.MissingRates.Union(pending.Missing).Order(StringComparer.Ordinal).ToList());
     }
+
+    private static CalendarItemResponse RegisteredItem(LedgerMovement movement, bool isRecurring) =>
+        new(
+            $"op:{movement.Id}", movement.OccurredOn,
+            movement.Kind switch
+            {
+                LedgerMovementKind.Income => CalendarItemKind.Income,
+                LedgerMovementKind.Expense => CalendarItemKind.Expense,
+                _ => CalendarItemKind.Transfer
+            },
+            CalendarItemStatus.Confirmed, movement.Description, Math.Abs(movement.SignedAmount), movement.Currency, movement.AccountName, null, isRecurring);
+
+    private static CalendarItemResponse CardItem(LedgerCardDate card, DateOnly today)
+    {
+        var status = card.Date < today ? CalendarItemStatus.Confirmed : CalendarItemStatus.Scheduled;
+        var (kind, slug, description) = card.IsClosing
+            ? (CalendarItemKind.CardClosing, "closing", $"Corte de {card.Name}")
+            : (CalendarItemKind.CardDue, "due", $"Pago de {card.Name}");
+        return new CalendarItemResponse(
+            $"card:{slug}:{card.AccountId}:{card.Date:yyyy-MM-dd}", card.Date, kind, status, description, card.Debt ?? 0m, card.Currency, card.Name, null, true);
+    }
+
+    /// <summary>Money that can be spent: what a credit card owes is already counted on its due day.</summary>
+    private static decimal Liquid(IEnumerable<LedgerAccountBalance> accounts) =>
+        accounts
+            .Where(account => account.Type != LedgerAccountType.CreditCard && account.IncludeInNetWorth)
+            .Sum(account => account.BaseBalance ?? 0m);
 
     /// <summary>Adds what is expected in and out, in the base currency. What cannot be converted is left out and its currency noted.</summary>
     private sealed class BaseAmounts(ILedgerQueries ledger)
