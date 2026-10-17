@@ -67,7 +67,7 @@ La base contiene datos financieros, los hashes de las contraseñas y las claves 
 
 <!-- generated:start -->
 
-> Generado por `finanzas-hub-api/tools/update-db-docs.mjs` desde `AppDbContextModelSnapshot.cs`. No editar a mano entre las marcas. Última migración: `20261015055047_AddInvestments`.
+> Generado por `finanzas-hub-api/tools/update-db-docs.mjs` desde `AppDbContextModelSnapshot.cs`. No editar a mano entre las marcas. Última migración: `20261016223636_AddExpenseFundedByGoal`.
 
 **47 tablas** en 12 esquemas, **55 índices** secundarios, **27 claves foráneas** y **51 restricciones CHECK**.
 
@@ -617,6 +617,7 @@ erDiagram
         uuid category_id "ref"
         timestamptz created_at
         varchar description
+        uuid funded_by_goal_id
         varchar kind
         varchar merchant
         varchar note
@@ -751,6 +752,7 @@ The business fact a person sees as "a transaction". Its entries are what moves t
 | `category_id` | uuid | sí | ref. → `categories.categories` (sin FK) |
 | `created_at` | timestamp with time zone | no |  |
 | `description` | character varying(120) | no |  |
+| `funded_by_goal_id` | uuid | sí |  |
 | `kind` | character varying(16) | no |  |
 | `merchant` | character varying(80) | sí |  |
 | `note` | character varying(500) | sí |  |

@@ -26,13 +26,13 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-16-oct-2026, tras los ajustes de operación y usabilidad (proxy, purga, patrimonio único, filtros de Transacciones). E2E sin repetir desde la fase 13.
+16-oct-2026, tras los ajustes de operación y usabilidad (proxy, purga, patrimonio único, filtros de Transacciones, «Hoy» en el selector de mes, «Usar el dinero» de una meta, fondos de metas en el patrimonio y resumen de presupuestos). E2E sin repetir desde la fase 13.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 282 en verde (168 unitarios, 19 de arquitectura, 95 de integración) |
-| Frontend: build, tests y lint | Build correcto y sin avisos, 129 tests, lint limpio |
+| Backend: tests | 284 en verde (168 unitarios, 19 de arquitectura, 97 de integración) |
+| Frontend: build, tests y lint | Build correcto y sin avisos, 132 tests, lint limpio |
 | E2E en Chrome | 31 en verde el 15-oct-2026; no se repitieron tras estos ajustes |
 
 ## Pendientes que dejaron las fases cerradas
@@ -91,6 +91,8 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Sugerir el límite con el promedio de 3 meses | Sin fecha |
 | Span del cálculo del presupuesto | Sin fecha |
 | Tablet y tema claro de la pantalla de Presupuestos | Sin revisar a ojo; se revisó escritorio y móvil en tema oscuro |
+| Pagos fijos del mes con su vencimiento y «Marcar pagado» (rediseño v2, 17-oct-2026) | Sin fecha. Un presupuesto fijo no está ligado a sus movimientos programados; «Fijos por pagar» es lo que le falta a cada presupuesto fijo para llegar a su límite. Ligarlos pide que Budgets lea los pagos programados de la categoría, pagados y pendientes |
+| Flechas de mes en la cabecera de Presupuestos (rediseño v2) | Sin fecha. El mes se cambia en la barra superior, como en el resto de pantallas |
 
 ### Fase 6
 
@@ -140,7 +142,9 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Elegir a qué gastos va un pago | Sin fecha. Un pago cubre los gastos más antiguos primero |
 | Anular el movimiento del otro lado al anular un pago o cancelar un gasto | Sin fecha. Quien anula se lleva su propio movimiento; al otro lado se le avisa para que anule el suyo, porque nadie escribe en el ledger de otro |
 | Sugerencia de liquidación con menos pagos | Retirada el 13-oct-2026: cada miembro ve solo sus deudas, y la sugerencia exponía las de los demás |
-| Resumen aparte (`W/shared-expenses/summary`) y gastos compartidos en el Inicio | Sin fecha. Los totales vienen en el listado de grupos |
+| Resumen aparte (`W/shared-expenses/summary`) y gastos compartidos en el Inicio | Sin fecha. Los totales vienen en el listado de grupos. Desde el rediseño v2 (17-oct-2026) la pantalla pide el detalle de cada grupo para el resumen por persona y por grupo; si alguien llega a tener muchos grupos, ese resumen pasa a un endpoint |
+| Pagos entre otros miembros y saldo de grupo de cada uno en el rediseño v2 | Por privacidad no se muestran: el mock los tenía, pero cada miembro ve solo lo que es entre él y cada otro. "Quién puso cuánto" cuenta solo los gastos en que participa quien mira |
+| Ícono propio por grupo | Sin fecha. El mock v2 lo tiene, pero el grupo no guarda ícono: todos usan el mismo |
 | Refunds en la pantalla de Transacciones: registrar uno a mano | Sin fecha. Hoy un reembolso solo nace de un cobro de gastos compartidos |
 | Tests de concurrencia y de la señal en tiempo real | Sin fecha |
 | Tablet y tema claro de Gastos compartidos | Solo se revisó escritorio en tema oscuro; en móvil, que no desborda |
@@ -177,6 +181,11 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Importar XLSX | Fase 10 | Fase 12: la primera hoja del libro se lee como la tabla de un CSV de banco |
 | "Ver movimientos" de un presupuesto abre Transacciones filtrado por su categoría | Fase 5 | 16-oct-2026: Transacciones lee `categoryId` de la URL y tiene filtro de categoría |
 | Purga de avisos (90 días), de entregas de WhatsApp ya enviadas (90 días) y de `received_webhook_events` (30 días) | Fases 6 y 11 | 16-oct-2026: `PurgeNotificationHistoryJob`, diario |
+| Gastar lo ahorrado en una meta | Fase 8 | 16-oct-2026: «Usar el dinero» (`POST W/goals/{id}/spend`): retiro y gasto en un paso, marcado `funded_by_goal_id`; Reportes dice cuánto se pagó con metas. El fondo de una meta cuenta en el patrimonio por defecto (ADR-013, actualización) |
+| Fechas de corte y de pago de las tarjetas en el Calendario | Fases 4 y 7 | 16-oct-2026: cada corte y cada pago de las tarjetas en uso, de cualquier mes y deban o no (`GetCardCalendarAsync`); solo el próximo pago lleva la deuda y cuenta como pendiente. Filtro «Tarjetas». Antes solo salía el próximo pago y solo si había deuda |
+| Peticiones abandonadas por el navegador como error 500 en los logs | — | 16-oct-2026: `GlobalExceptionHandler` responde 499 y no las registra como error |
+| Subtotal por subcategoría dentro de un presupuesto | — | 16-oct-2026: acordeón «Ver subcategorías» en cada presupuesto con subcategorías, con lo gastado en cada una y lo registrado en la categoría misma («Sin subcategoría»); usa `category-totals`, sin cambios en la API |
+| Elegir el mes sin pasar por todos, y elegirlo en móvil | — | 16-oct-2026: botón «Hoy» y selector nativo de mes en la barra superior; en móvil no había forma de cambiar de mes |
 | Patrimonio de Cuentas a valor de mercado | Fase 13 | 16-oct-2026: Cuentas e Inicio usan el mismo cálculo (`GET W/net-worth`, en Reporting) |
 
 ### Fase 10

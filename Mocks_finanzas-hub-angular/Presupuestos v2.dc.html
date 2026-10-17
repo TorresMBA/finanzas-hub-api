@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&amp;display=block">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0a111e;-webkit-font-smoothing:antialiased;font-family:Manrope,system-ui,sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;margin:0;cursor:pointer;text-align:inherit}
+button:disabled{cursor:default}
+a{color:#4db6f0;text-decoration:none}a:hover{text-decoration:underline}
+[data-theme="dark"]{color-scheme:dark;--bg:#0a111e;--sf:#101a2b;--sf2:#152137;--sf3:#1c2a45;--bd:rgba(148,163,184,.13);--tx:#e8edf4;--tx2:#c2cbd9;--mu:#8d9ab0;--ac:#1cc28c;--acs:rgba(28,194,140,.14);--onac:#03281b;--bl:#4db6f0;--bls:rgba(77,182,240,.14);--rd:#f25b7d;--rds:rgba(242,91,125,.14);--am:#f0b43f;--ams:rgba(240,180,63,.15);--vi:#a093f7;--vis:rgba(160,147,247,.16);--sh:0 1px 2px rgba(0,0,0,.35)}
+</style>
+</helmet>
+<div data-theme="dark" data-screen-label="Presupuestos v2" style="min-height:100vh;background:var(--bg);color:var(--tx);padding:28px clamp(16px,3vw,32px) 48px;display:flex;flex-direction:column;gap:20px;max-width:1280px;margin:0 auto">
+
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px">
+    <div style="flex:1 1 320px;min-width:0">
+      <div style="display:flex;align-items:center;gap:6px">
+        <button style="width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--mu);font-family:'Material Symbols Rounded';font-size:18px;line-height:1" style-hover="background:var(--sf2);color:var(--tx)">chevron_left</button>
+        <div style="font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--mu)">OCTUBRE 2026</div>
+        <button disabled="" style="width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--mu);opacity:.35;font-family:'Material Symbols Rounded';font-size:18px;line-height:1">chevron_right</button>
+      </div>
+      <div style="font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:4px">Presupuestos</div>
+      <div style="font-size:13.5px;color:var(--mu);margin-top:4px;text-wrap:pretty">Cuánto puedes gastar por categoría y a qué ritmo vas este mes.</div>
+    </div>
+    <button style="height:40px;display:flex;align-items:center;gap:8px;padding:0 16px;border-radius:10px;background:var(--ac);color:var(--onac);font-weight:800;font-size:13px"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1">add</span>Nuevo presupuesto</button>
+  </div>
+
+  <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--sh);padding:20px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px 20px">
+      <div style="flex:1 1 280px;min-width:0">
+        <div style="font-size:12.5px;font-weight:700;color:var(--mu)">Te queda para el mes</div>
+        <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;margin-top:2px">
+          <span style="font-size:34px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums">{{ hero.left }}</span>
+          <span style="font-size:14px;color:var(--mu);font-variant-numeric:tabular-nums">de {{ hero.budget }} · gastaste {{ hero.spent }} ({{ hero.pct }})</span>
+        </div>
+      </div>
+      <span style="padding:6px 11px;border-radius:99px;background:var(--sf2);font-size:12px;font-weight:800;color:var(--tx2);display:flex;align-items:center;gap:6px"><span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;color:var(--mu)">calendar_today</span>Día 17 de 31 · quedan 14 días</span>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="position:relative;height:12px;border-radius:99px;background:var(--sf3)">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:{{ hero.spentW }};border-radius:99px;background:{{ hero.fill }}"></div>
+        <div style="position:absolute;top:0;bottom:0;left:{{ hero.spentW }};width:{{ hero.pendW }};border-radius:0 99px 99px 0;background:repeating-linear-gradient(135deg,rgba(240,180,63,.55) 0 4px,rgba(240,180,63,.18) 4px 8px)"></div>
+        <sc-if value="{{ showPace }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;top:-4px;bottom:-4px;left:{{ hero.paceL }};width:2px;border-radius:2px;background:var(--tx)"></div>
+        </sc-if>
+        <div style="position:absolute;top:-6px;bottom:-6px;left:{{ hero.limitL }};width:2px;background:var(--rd)"></div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:11.5px;color:var(--mu);font-weight:600">
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:{{ hero.fill }}"></span>Gastado {{ hero.spent }}</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:repeating-linear-gradient(135deg,rgba(240,180,63,.7) 0 3px,rgba(240,180,63,.2) 3px 6px)"></span>Fijos por pagar {{ hero.pending }}</span>
+        <sc-if value="{{ showPace }}" hint-placeholder-val="{{ true }}">
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:2px;height:12px;background:var(--tx)"></span>Ritmo ideal hoy {{ hero.pace }}</span>
+        </sc-if>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:2px;height:12px;background:var(--rd)"></span>Límite {{ hero.budget }}</span>
+      </div>
+    </div>
+
+    <sc-if value="{{ hero.alert }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:{{ hero.abg }}">
+        <span style="font-family:'Material Symbols Rounded';font-size:20px;line-height:1.1;color:{{ hero.afg }}">{{ hero.aicon }}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:13.5px">{{ hero.atitle }}</div>
+          <div style="font-size:12.5px;color:var(--tx2);margin-top:2px;text-wrap:pretty">{{ hero.atext }}</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">
+      <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+        <div style="padding:12px 14px;border-radius:12px;background:var(--sf2)">
+          <div style="font-size:11.5px;color:var(--mu);font-weight:700">{{ k.l }}</div>
+          <div style="font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px;color:{{ k.c }}">{{ k.v }}</div>
+          <div style="font-size:11px;color:var(--mu);margin-top:2px;text-wrap:pretty">{{ k.s }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
+    <div style="flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;flex-wrap:wrap;gap:4px;padding:4px;background:var(--sf);border:1px solid var(--bd);border-radius:12px;align-self:flex-start">
+        <sc-for list="{{ filters }}" as="f" hint-placeholder-count="5">
+          <button onClick="{{ f.on }}" disabled="{{ f.dis }}" style="height:32px;padding:0 12px;border-radius:9px;font-size:12.5px;font-weight:700;background:{{ f.bg }};color:{{ f.fg }};opacity:{{ f.op }};display:flex;align-items:center;gap:6px">{{ f.l }}<span style="min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:{{ f.cbg }};color:{{ f.cfg }};font-size:11px;display:grid;place-items:center">{{ f.n }}</span></button>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <sc-for list="{{ rows }}" as="r" hint-placeholder-count="2">
+          <div style="background:{{ r.bg }};border:1px solid {{ r.bd }};border-radius:14px;overflow:hidden">
+            <button onClick="{{ r.on }}" style="width:100%;display:flex;gap:14px;padding:16px 18px" style-hover="background:var(--sf2)">
+              <span style="width:40px;height:40px;flex:none;border-radius:11px;display:grid;place-items:center;background:{{ r.ibg }};color:{{ r.ifg }};font-family:'Material Symbols Rounded';font-size:21px;line-height:1">{{ r.icon }}</span>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px">
+                  <span style="font-weight:800;font-size:14.5px">{{ r.name }}</span>
+                  <span style="padding:3px 8px;border-radius:99px;font-size:11px;font-weight:800;background:{{ r.cbg }};color:{{ r.cfg }}">{{ r.chip }}</span>
+                  <span style="flex:1"></span>
+                  <span style="font-size:14px;font-weight:800;font-variant-numeric:tabular-nums">{{ r.spent }}<span style="color:var(--mu);font-weight:600"> / {{ r.budget }}</span></span>
+                </div>
+                <div style="position:relative;height:8px;border-radius:99px;background:var(--sf3)">
+                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ r.okW }};border-radius:99px;background:{{ r.fill }}"></div>
+                  <div style="position:absolute;top:0;bottom:0;left:{{ r.okW }};width:{{ r.overW }};border-radius:0 99px 99px 0;background:var(--rd)"></div>
+                  <div style="position:absolute;top:0;bottom:0;left:{{ r.okW }};width:{{ r.pendW }};border-radius:0 99px 99px 0;background:repeating-linear-gradient(135deg,rgba(240,180,63,.55) 0 4px,rgba(240,180,63,.18) 4px 8px)"></div>
+                  <sc-if value="{{ r.showPace }}" hint-placeholder-val="{{ true }}">
+                    <div style="position:absolute;top:-3px;bottom:-3px;left:{{ r.paceL }};width:2px;background:var(--tx)"></div>
+                  </sc-if>
+                  <sc-if value="{{ r.over }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;top:-4px;bottom:-4px;left:{{ r.limitL }};width:2px;background:var(--tx)"></div>
+                  </sc-if>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;font-size:12px;font-variant-numeric:tabular-nums">
+                  <span style="font-weight:700;color:{{ r.mfg }}">{{ r.msg }}</span>
+                  <span style="color:var(--mu)">{{ r.aux }}</span>
+                </div>
+              </div>
+            </button>
+            <button onClick="{{ r.toggle }}" style="width:100%;display:flex;align-items:center;gap:6px;padding:9px 18px 9px 72px;border-top:1px solid var(--bd);font-size:12px;font-weight:700;color:var(--mu)" style-hover="color:var(--tx);background:var(--sf2)">
+              <span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1">{{ r.chev }}</span>{{ r.subLabel }}
+            </button>
+            <sc-if value="{{ r.open }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:2px 18px 14px 72px;display:flex;flex-direction:column;gap:10px">
+                <sc-for list="{{ r.subs }}" as="s" hint-placeholder-count="2">
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-variant-numeric:tabular-nums">
+                      <span style="flex:1;font-weight:700;color:{{ s.nfg }}">{{ s.n }}</span>
+                      <span style="color:var(--mu)">{{ s.note }}</span>
+                      <span style="min-width:80px;text-align:right;font-weight:800;color:{{ s.nfg }}">{{ s.v }}</span>
+                    </div>
+                    <div style="height:4px;border-radius:99px;background:var(--sf3)"><div style="height:100%;width:{{ s.w }};border-radius:99px;background:{{ s.c }}"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+        <sc-if value="{{ empty }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:28px;border:1px dashed var(--bd);border-radius:14px;text-align:center;font-size:13px;color:var(--mu)">No hay categorías en este estado.</div>
+        </sc-if>
+      </div>
+    </div>
+
+    <div style="flex:1 1 340px;max-width:440px;min-width:0;position:sticky;top:16px;background:var(--sf);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--sh);overflow:hidden">
+      <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px;border-bottom:1px solid var(--bd)">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="width:42px;height:42px;flex:none;border-radius:12px;display:grid;place-items:center;background:{{ d.ibg }};color:{{ d.ifg }};font-family:'Material Symbols Rounded';font-size:22px;line-height:1">{{ d.icon }}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:17px;font-weight:800">{{ d.name }}</div>
+            <div style="font-size:12px;color:var(--mu)">{{ d.meta }}</div>
+          </div>
+          <span style="padding:4px 9px;border-radius:99px;font-size:11.5px;font-weight:800;background:{{ d.cbg }};color:{{ d.cfg }}">{{ d.chip }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+          <sc-for list="{{ d.metrics }}" as="m" hint-placeholder-count="3">
+            <div style="padding:10px 12px;border-radius:10px;background:var(--sf2)">
+              <div style="font-size:11px;color:var(--mu);font-weight:700">{{ m.l }}</div>
+              <div style="font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px;color:{{ m.c }}">{{ m.v }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border-radius:10px;background:{{ d.abg }}">
+          <span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1.1;color:{{ d.afg }}">{{ d.aicon }}</span>
+          <div style="font-size:12.5px;color:var(--tx2);text-wrap:pretty;flex:1">{{ d.atext }}</div>
+        </div>
+        <sc-if value="{{ d.suggest }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ d.onSuggest }}" style="height:34px;padding:0 12px;border-radius:9px;background:var(--acs);color:var(--ac);font-weight:800;font-size:12.5px;display:flex;align-items:center;gap:6px;align-self:flex-start" style-hover="background:var(--sf3)"><span style="font-family:'Material Symbols Rounded';font-size:17px;line-height:1">tune</span>{{ d.suggestLabel }}</button>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ d.hasChart }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1;font-weight:800;font-size:13.5px">{{ d.chartTitle }}</div>
+            <div style="display:flex;gap:2px;padding:3px;background:var(--sf2);border-radius:8px">
+              <sc-for list="{{ chartModes }}" as="cm" hint-placeholder-count="2">
+                <button onClick="{{ cm.on }}" style="height:24px;padding:0 9px;border-radius:6px;font-size:11.5px;font-weight:700;background:{{ cm.bg }};color:{{ cm.fg }}">{{ cm.l }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="position:relative;height:110px;display:flex;align-items:flex-end;gap:2px;border-bottom:1px solid var(--bd)">
+            <sc-for list="{{ d.bars }}" as="b" hint-placeholder-count="31">
+              <div style="flex:1;min-width:0;height:{{ b.h }};min-height:2px;border-radius:2px 2px 0 0;background:{{ b.c }};opacity:{{ b.op }}"></div>
+            </sc-for>
+            <sc-if value="{{ d.showLimit }}" hint-placeholder-val="{{ true }}">
+              <div style="position:absolute;left:0;right:0;bottom:{{ d.limitB }};border-top:1px dashed var(--rd)"></div>
+              <div style="position:absolute;right:0;bottom:{{ d.limitB }};padding:0 0 3px;font-size:10.5px;font-weight:800;color:var(--rd)">Límite {{ d.budget }}</div>
+            </sc-if>
+            <div style="position:absolute;top:0;bottom:-4px;left:{{ d.todayL }};width:1px;background:var(--tx2);opacity:.6"></div>
+          </div>
+          <div style="position:relative;height:14px;font-size:10.5px;color:var(--mu);font-weight:700">
+            <span style="position:absolute;left:0">1 oct</span>
+            <span style="position:absolute;left:{{ d.todayL }};transform:translateX(-50%);color:var(--tx2)">Hoy</span>
+            <span style="position:absolute;right:0">31 oct</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ d.hasBills }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:14px 20px 6px;font-weight:800;font-size:13.5px">Pagos fijos del mes</div>
+        <sc-for list="{{ d.bills }}" as="bl" hint-placeholder-count="2">
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 20px;border-top:1px solid var(--bd)">
+            <span style="width:32px;height:32px;flex:none;border-radius:9px;display:grid;place-items:center;background:{{ bl.ibg }};color:{{ bl.ifg }};font-family:'Material Symbols Rounded';font-size:18px;line-height:1">{{ bl.icon }}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:800;font-size:13px">{{ bl.n }}</div>
+              <div style="font-size:11.5px;color:{{ bl.sfg }}">{{ bl.sub }}</div>
+            </div>
+            <span style="font-weight:800;font-size:13px;font-variant-numeric:tabular-nums">{{ bl.a }}</span>
+            <sc-if value="{{ bl.pending }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ bl.on }}" style="height:30px;padding:0 10px;border-radius:8px;background:var(--acs);color:var(--ac);font-weight:800;font-size:12px" style-hover="background:var(--sf3)">Marcar pagado</button>
+            </sc-if>
+          </div>
+        </sc-for>
+      </sc-if>
+
+      <div style="display:flex;align-items:center;padding:14px 20px 6px">
+        <div style="flex:1;font-weight:800;font-size:13.5px">Últimos movimientos</div>
+        <sc-if value="{{ d.hasMov }}" hint-placeholder-val="{{ true }}">
+          <button style="font-size:12px;font-weight:800;color:var(--bl)" style-hover="text-decoration:underline">Ver todos ({{ d.movCount }})</button>
+        </sc-if>
+      </div>
+      <sc-for list="{{ d.mov }}" as="mv" hint-placeholder-count="4">
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 20px;border-top:1px solid var(--bd)">
+          <div style="width:34px;flex:none;text-align:center;line-height:1.1">
+            <div style="font-size:15px;font-weight:800;font-variant-numeric:tabular-nums">{{ mv.d }}</div>
+            <div style="font-size:10px;font-weight:800;color:var(--mu);letter-spacing:.06em">OCT</div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ mv.t }}</div>
+            <div style="font-size:11.5px;color:var(--mu)">{{ mv.sub }}</div>
+          </div>
+          <span style="font-weight:800;font-size:13px;font-variant-numeric:tabular-nums">{{ mv.a }}</span>
+        </div>
+      </sc-for>
+      <sc-if value="{{ d.noMov }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:6px 20px 16px;font-size:12.5px;color:var(--mu)">Aún no hay movimientos este mes.</div>
+      </sc-if>
+
+      <div style="display:flex;align-items:center;gap:8px;padding:14px 20px;border-top:1px solid var(--bd);margin-top:6px">
+        <button style="height:36px;padding:0 14px;border-radius:9px;background:var(--sf3);font-weight:800;font-size:12.5px;display:flex;align-items:center;gap:6px" style-hover="background:var(--sf2)"><span style="font-family:'Material Symbols Rounded';font-size:17px;line-height:1">edit</span>Editar presupuesto</button>
+        <span style="flex:1"></span>
+        <button title="Eliminar presupuesto" style="height:36px;padding:0 12px;border-radius:9px;color:var(--mu);font-weight:700;font-size:12.5px;display:flex;align-items:center;gap:6px" style-hover="color:var(--rd);background:var(--rds)"><span style="font-family:'Material Symbols Rounded';font-size:17px;line-height:1">delete</span>Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showPace&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;chartMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Acumulado&quot;,&quot;Diario&quot;],&quot;default&quot;:&quot;Acumulado&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  state = {
+    sel: 'edu', filt: 'all', open: { edu: true }, mode: null,
+    cats: [
+      { id: 'edu', name: 'Educación', icon: 'school', ibg: 'var(--bls)', ifg: 'var(--bl)', budget: 500, fixed: false, subs: ['Cursos', 'Sin subcategoría'], bills: [],
+        mov: [{ t: 'Certificación Azure', a: 400, d: 13, acc: 'AMEX Black', s: 'Cursos' }, { t: 'Curso Udemy', a: 55, d: 13, acc: 'Cuenta Sueldo', s: 'Sin subcategoría' }, { t: 'asdfasdf', a: 140, d: 12, acc: 'Cuenta Sueldo', s: 'Cursos' }, { t: 'Certificación PMP', a: 5, d: 9, acc: 'Cuenta Sueldo', s: 'Cursos' }] },
+      { id: 'sus', name: 'Suscripciones y ocio', icon: 'movie', ibg: 'var(--vis)', ifg: 'var(--vi)', budget: 120, fixed: true, subs: ['Streaming', 'Cine'],
+        bills: [{ n: 'Streaming', a: 45, due: 20, s: 'Streaming', icon: 'live_tv' }, { n: 'Cine · pase mensual', a: 75, due: 28, s: 'Cine', icon: 'theaters' }], mov: [] }
+    ]
+  };
+  DAY = 17; DAYS = 31;
+  m(n) { return 'S/ ' + Math.abs(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  p(x) { return Math.max(0, Math.min(100, x)).toFixed(2) + '%'; }
+  info(c) {
+    const pace = this.DAY / this.DAYS, spent = c.mov.reduce((s, x) => s + x.a, 0);
+    const paidS = new Set(c.mov.map(x => x.bill).filter(Boolean));
+    const bills = c.bills.map(b => ({ ...b, paid: paidS.has(b.n) }));
+    const pending = bills.filter(b => !b.paid).reduce((s, b) => s + b.a, 0);
+    let st;
+    if (spent > c.budget + .005) st = 'over';
+    else if (c.fixed) st = 'fixed';
+    else if (spent / c.budget > pace + .15) st = 'risk';
+    else st = 'ok';
+    return { spent, pending, bills, st, pace, idealNow: c.budget * pace };
+  }
+  bill(cid, b) {
+    this.setState(s => ({ cats: s.cats.map(c => c.id !== cid ? c : { ...c, mov: [{ t: b.n, a: b.a, d: this.DAY, acc: 'Cuenta Sueldo', s: b.s, bill: b.n }, ...c.mov] }) }));
+  }
+  setBudget(cid, v) { this.setState(s => ({ cats: s.cats.map(c => c.id !== cid ? c : { ...c, budget: v }) })); }
+  renderVals() {
+    const showPace = this.props.showPace ?? true;
+    const mode = this.state.mode || (this.props.chartMode ?? 'Acumulado');
+    const { DAY, DAYS } = this;
+    const all = this.state.cats.map(c => ({ c, i: this.info(c) }));
+    const B = all.reduce((s, x) => s + x.c.budget, 0), S = all.reduce((s, x) => s + x.i.spent, 0), P = all.reduce((s, x) => s + x.i.pending, 0);
+    const pace = DAY / DAYS, left = B - S, proj = B - S - P;
+    const scale = Math.max(B, S + P) || 1;
+    const behind = S - B * pace;
+    const fill = S > B ? 'var(--rd)' : S > B * pace * 1.15 ? 'var(--am)' : 'var(--ac)';
+    const nextBill = all.flatMap(x => x.i.bills.filter(b => !b.paid)).sort((a, b) => a.due - b.due)[0];
+    const hero = { left: (left < 0 ? '−' : '') + this.m(left), budget: this.m(B), spent: this.m(S), pct: Math.round(S / B * 100) + '%', pending: this.m(P), pace: this.m(B * pace),
+      spentW: this.p(Math.min(S, scale) / scale * 100), pendW: this.p(P / scale * 100), paceL: this.p(B * pace / scale * 100), limitL: 'calc(' + this.p(B / scale * 100) + ' - 1px)', fill, alert: true };
+    if (proj < 0) Object.assign(hero, { abg: 'var(--rds)', afg: 'var(--rd)', aicon: 'error', atitle: 'Tus fijos pendientes no entran en lo que te queda',
+      atext: 'Te quedan ' + this.m(left) + ' y aún debes pagar ' + this.m(P) + ' en fijos. Si no ajustas, cerrarás el mes ' + this.m(proj) + ' por encima del presupuesto' + (behind > 0 ? ' (hoy vas ' + this.m(behind) + ' sobre el ritmo ideal).' : '.') });
+    else if (behind > 0) Object.assign(hero, { abg: 'var(--ams)', afg: 'var(--am)', aicon: 'speed', atitle: 'Vas ' + this.m(behind) + ' por encima del ritmo ideal', atext: 'Para terminar dentro del límite, gasta como máximo ' + this.m(proj / (DAYS - DAY)) + ' por día hasta fin de mes.' });
+    else Object.assign(hero, { abg: 'var(--acs)', afg: 'var(--ac)', aicon: 'check_circle', atitle: 'Vas dentro del ritmo', atext: 'Puedes gastar hasta ' + this.m(proj / (DAYS - DAY)) + ' por día y cerrar el mes en tu límite.' });
+    const alerts = all.filter(x => x.i.st === 'over' || x.i.st === 'risk').length;
+    const kpis = [
+      { l: 'Presupuestado', v: this.m(B), s: all.length + ' categorías', c: 'var(--tx)' },
+      { l: 'Fijos por pagar', v: this.m(P), s: nextBill ? 'Próximo: ' + nextBill.n + ' · ' + nextBill.due + ' oct' : 'Todo pagado', c: P > 0 ? 'var(--am)' : 'var(--tx)' },
+      { l: 'Cierre estimado', v: (proj < 0 ? '−' : '') + this.m(proj), s: proj < 0 ? 'Sobre el límite tras pagar fijos' : 'Libre tras pagar fijos', c: proj < 0 ? 'var(--rd)' : 'var(--ac)' },
+      { l: 'Disponible por día', v: proj > 0 ? this.m(proj / (DAYS - DAY)) : 'S/ 0.00', s: proj > 0 ? 'Durante los próximos ' + (DAYS - DAY) + ' días' : 'Ya no hay margen este mes', c: proj > 0 ? 'var(--tx)' : 'var(--mu)' }
+    ];
+    const chips = { over: ['Excedido', 'var(--rds)', 'var(--rd)'], risk: ['En riesgo', 'var(--ams)', 'var(--am)'], ok: ['En ritmo', 'var(--acs)', 'var(--ac)'], fixed: ['Fijo', 'var(--bls)', 'var(--bl)'] };
+    const cnt = k => all.filter(x => k === 'all' ? true : k === 'fixed' ? x.c.fixed : x.i.st === k).length;
+    const filt = this.state.filt;
+    const filters = [['all', 'Todos'], ['over', 'Excedidos'], ['risk', 'En riesgo'], ['ok', 'En ritmo'], ['fixed', 'Fijos']].map(([id, l]) => { const n = cnt(id), on = filt === id, alertish = (id === 'over' || id === 'risk') && n > 0;
+      return { l, n, dis: n === 0 && !on, op: n === 0 && !on ? .45 : 1, bg: on ? 'var(--sf3)' : 'transparent', fg: on ? 'var(--tx)' : 'var(--mu)', cbg: alertish ? (id === 'over' ? 'var(--rds)' : 'var(--ams)') : 'var(--sf2)', cfg: alertish ? (id === 'over' ? 'var(--rd)' : 'var(--am)') : 'var(--mu)', on: () => this.setState({ filt: id }) }; });
+    const vis = all.filter(x => filt === 'all' || (filt === 'fixed' ? x.c.fixed : x.i.st === filt));
+    const sel = this.state.sel;
+    const rows = vis.map(({ c, i }) => {
+      const sc = Math.max(c.budget, i.spent + i.pending), ch = chips[i.st], open = !!this.state.open[c.id];
+      const over = i.spent > c.budget;
+      let msg, mfg, aux;
+      if (over) { msg = Math.round(i.spent / c.budget * 100) + '% usado · ' + this.m(i.spent - c.budget) + ' sobre el límite'; mfg = 'var(--rd)'; aux = 'Ritmo ideal hoy: ' + this.m(i.idealNow); }
+      else if (c.fixed) { const nb = i.bills.filter(b => !b.paid).sort((a, b) => a.due - b.due)[0]; msg = i.pending > 0 ? 'Por pagar ' + this.m(i.pending) : 'Todo pagado este mes'; mfg = i.pending > 0 ? 'var(--am)' : 'var(--ac)'; aux = nb ? 'Próximo: ' + nb.n + ' · ' + nb.due + ' oct' : this.m(c.budget - i.spent) + ' libres'; }
+      else { msg = 'Te quedan ' + this.m(c.budget - i.spent); mfg = i.st === 'risk' ? 'var(--am)' : 'var(--tx2)'; aux = Math.round(i.spent / c.budget * 100) + '% usado · ideal hoy ' + Math.round(i.pace * 100) + '%'; }
+      const bySub = {}; c.subs.forEach(s => bySub[s] = 0); c.mov.forEach(x => bySub[x.s] = (bySub[x.s] || 0) + x.a);
+      const subs = Object.keys(bySub).map(s => { const v = bySub[s], bl = i.bills.find(b => b.s === s);
+        return { n: s, v: this.m(v), w: i.spent ? this.p(v / i.spent * 100) : '0%', c: over ? 'var(--rd)' : 'var(--ac)', nfg: v ? 'var(--tx)' : 'var(--mu)',
+          note: bl ? (bl.paid ? 'Pagado' : 'Vence ' + bl.due + ' oct · ' + this.m(bl.a)) : (i.spent ? Math.round(v / i.spent * 100) + '% de la categoría' : '') }; });
+      return { name: c.name, icon: c.icon, ibg: c.ibg, ifg: c.ifg, chip: ch[0], cbg: ch[1], cfg: ch[2], spent: this.m(i.spent), budget: this.m(c.budget),
+        okW: this.p(Math.min(i.spent, c.budget) / sc * 100), overW: over ? this.p((i.spent - c.budget) / sc * 100) : '0%', pendW: this.p(i.pending / sc * 100),
+        fill: i.st === 'risk' ? 'var(--am)' : 'var(--ac)', over, limitL: 'calc(' + this.p(c.budget / sc * 100) + ' - 1px)', showPace: showPace && !c.fixed && !over, paceL: this.p(i.idealNow / sc * 100),
+        msg, mfg, aux, open, chev: open ? 'expand_less' : 'expand_more', subLabel: (open ? 'Ocultar ' : 'Ver ') + c.subs.length + ' subcategorías', subs,
+        bg: sel === c.id ? 'var(--sf2)' : 'var(--sf)', bd: sel === c.id ? 'var(--ac)' : 'var(--bd)',
+        on: () => this.setState({ sel: c.id }), toggle: () => this.setState(s => ({ open: { ...s.open, [c.id]: !s.open[c.id] } })) };
+    });
+    const cur = all.find(x => x.c.id === sel) || all[0];
+    const { c, i } = cur, ch = chips[i.st];
+    const cum = mode === 'Acumulado';
+    const daily = Array.from({ length: DAYS }, (_, k) => c.mov.filter(x => x.d === k + 1).reduce((s, x) => s + x.a, 0));
+    let run = 0; const series = daily.map(v => cum ? (run += v) : v);
+    const mx = Math.max(cum ? c.budget : 0, ...series) * 1.12 || 1;
+    let acc = 0;
+    const bars = series.map((v, k) => { acc += daily[k]; const fut = k + 1 > DAY;
+      return { h: fut ? '0%' : this.p(v / mx * 100), c: acc > c.budget ? 'var(--rd)' : 'var(--ac)', op: fut ? .25 : (v ? 1 : .4) }; });
+    const peak = daily.indexOf(Math.max(...daily));
+    let atext, abg, afg, aicon;
+    if (i.st === 'over') { abg = 'var(--rds)'; afg = 'var(--rd)'; aicon = 'error'; let r = 0, dx = 0; for (let k = 0; k < DAYS; k++) { r += daily[k]; if (r > c.budget) { dx = k + 1; break; } }
+      atext = 'Superaste el límite el ' + dx + ' oct, con ' + (DAYS - DAY) + ' días aún por delante. El mayor gasto fue el ' + (peak + 1) + ' oct (' + this.m(daily[peak]) + ').'; }
+    else if (c.fixed) { abg = 'var(--bls)'; afg = 'var(--bl)'; aicon = 'event_repeat'; atext = i.pending > 0 ? 'Presupuesto de pagos recurrentes. Quedan ' + this.m(i.pending) + ' por pagar este mes; ya están reservados en tu cierre estimado.' : 'Todos los pagos fijos del mes están registrados.'; }
+    else if (i.st === 'risk') { abg = 'var(--ams)'; afg = 'var(--am)'; aicon = 'speed'; atext = 'Gastaste más rápido de lo previsto. Te quedan ' + this.m((c.budget - i.spent) / (DAYS - DAY)) + ' por día.'; }
+    else { abg = 'var(--acs)'; afg = 'var(--ac)'; aicon = 'check_circle'; atext = 'Vas en ritmo. Puedes gastar ' + this.m((c.budget - i.spent) / (DAYS - DAY)) + ' por día.'; }
+    const sugV = Math.ceil(i.spent / 10) * 10;
+    const movs = [...c.mov].sort((a, b) => b.d - a.d);
+    const d = { name: c.name, icon: c.icon, ibg: c.ibg, ifg: c.ifg, chip: ch[0], cbg: ch[1], cfg: ch[2], budget: this.m(c.budget),
+      meta: c.mov.length + (c.mov.length === 1 ? ' movimiento' : ' movimientos') + ' · octubre 2026',
+      metrics: [
+        { l: 'Gastado', v: this.m(i.spent), c: i.st === 'over' ? 'var(--rd)' : 'var(--tx)' },
+        { l: 'Límite', v: this.m(c.budget), c: 'var(--tx)' },
+        c.fixed ? { l: 'Por pagar', v: this.m(i.pending), c: i.pending ? 'var(--am)' : 'var(--tx)' } : { l: i.spent > c.budget ? 'Excedido' : 'Te queda', v: this.m(c.budget - i.spent), c: i.spent > c.budget ? 'var(--rd)' : 'var(--ac)' }
+      ], atext, abg, afg, aicon,
+      suggest: i.st === 'over', suggestLabel: 'Subir límite a ' + this.m(sugV), onSuggest: () => this.setBudget(c.id, sugV),
+      hasChart: c.mov.length > 0, chartTitle: cum ? 'Gasto acumulado vs. límite' : 'Gasto por día', showLimit: cum, limitB: this.p(c.budget / mx * 100),
+      todayL: this.p((DAY - .5) / DAYS * 100), bars,
+      hasBills: c.bills.length > 0, bills: i.bills.map(b => ({ n: b.n, a: this.m(b.a), icon: b.icon, pending: !b.paid, ibg: b.paid ? 'var(--acs)' : 'var(--sf3)', ifg: b.paid ? 'var(--ac)' : 'var(--tx2)',
+        sub: b.paid ? 'Pagado' : (b.due - DAY <= 3 ? 'Vence en ' + (b.due - DAY) + ' días · ' + b.due + ' oct' : 'Vence el ' + b.due + ' oct'), sfg: b.paid ? 'var(--ac)' : b.due - DAY <= 3 ? 'var(--am)' : 'var(--mu)', on: () => this.bill(c.id, b) })),
+      mov: movs.slice(0, 5).map(x => ({ d: x.d, t: x.t, a: '−' + this.m(x.a), sub: x.s + ' · ' + x.acc })), movCount: c.mov.length, hasMov: c.mov.length > 0, noMov: c.mov.length === 0 };
+    const chartModes = ['Acumulado', 'Diario'].map(l => ({ l, bg: mode === l ? 'var(--sf3)' : 'transparent', fg: mode === l ? 'var(--tx)' : 'var(--mu)', on: () => this.setState({ mode: l }) }));
+    return { hero, kpis, filters, rows, empty: rows.length === 0, d, chartModes, showPace };
+  }
+}
+</script>
+</body>
+</html>

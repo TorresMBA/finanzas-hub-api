@@ -24,8 +24,11 @@ public enum CalendarItemKind
     Expense,
     Transfer,
 
-    /// <summary>What a credit card owes on the day its payment is due.</summary>
-    CardDue
+    /// <summary>The day the payment of a credit card is due; with what it owes when it is the next one.</summary>
+    CardDue,
+
+    /// <summary>The day the statement of a credit card closes. A date, never an amount.</summary>
+    CardClosing
 }
 
 public enum CalendarItemStatus
@@ -42,7 +45,7 @@ public enum CalendarItemStatus
 
 /// <summary>One thing on one day of the calendar. Nothing here is stored for the calendar: it is read or calculated each time.</summary>
 /// <param name="Id">Unique within an answer; not an id to send back.</param>
-/// <param name="Amount">Positive, in <paramref name="Currency"/>.</param>
+/// <param name="Amount">Positive, in <paramref name="Currency"/>; 0 for a day of a card that carries no amount (a closing, a payment that is not the next one, or a card that owes nothing).</param>
 /// <param name="RuleId">Set when it comes from a rule; with the date, what confirm and skip need.</param>
 public sealed record CalendarItemResponse(
     string Id, DateOnly Date, CalendarItemKind Kind, CalendarItemStatus Status, string Description, decimal Amount, string Currency, string AccountName, Guid? RuleId,
@@ -162,14 +165,18 @@ internal sealed class GetCalendarHandler(ScheduleReader reader, ILedgerQueries l
             await pending.AddAsync(rule.Type == RuleType.Income, rule.Currency, rule.Amount, cancellationToken);
         }
 
-        if (to >= today)
+        // The cycle of every card, owing or not and in any month: when it closes and when it is due. Only the next payment
+        // carries an amount, what the card owes now, and only that one counts as an expense still to come.
+        foreach (var card in await ledger.GetCardCalendarAsync(from, to, today, cancellationToken))
         {
-            foreach (var card in (await ledger.GetCardDueDatesAsync(today, cancellationToken)).Where(card => card.DueOn >= from && card.DueOn <= to))
+            var status = card.Date < today ? CalendarItemStatus.Confirmed : CalendarItemStatus.Scheduled;
+            items.Add(new CalendarItemResponse(
+                $"card:{(card.IsClosing ? "closing" : "due")}:{card.AccountId}:{card.Date:yyyy-MM-dd}", card.Date,
+                card.IsClosing ? CalendarItemKind.CardClosing : CalendarItemKind.CardDue, status,
+                card.IsClosing ? $"Corte de {card.Name}" : $"Pago de {card.Name}", card.Debt ?? 0m, card.Currency, card.Name, null, true));
+            if (card.Debt is { } debt)
             {
-                items.Add(new CalendarItemResponse(
-                    $"card:{card.AccountId}:{card.DueOn:yyyy-MM-dd}", card.DueOn, CalendarItemKind.CardDue, CalendarItemStatus.Scheduled, $"Pago de {card.Name}",
-                    card.Debt, card.Currency, card.Name, null, true));
-                await pending.AddAsync(false, card.Currency, card.Debt, cancellationToken);
+                await pending.AddAsync(false, card.Currency, debt, cancellationToken);
             }
         }
 

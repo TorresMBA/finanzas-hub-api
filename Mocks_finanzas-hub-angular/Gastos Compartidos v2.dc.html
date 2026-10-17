@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&amp;display=block">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0a111e;-webkit-font-smoothing:antialiased;font-family:Manrope,system-ui,sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;margin:0;cursor:pointer;text-align:inherit}
+a{color:#4db6f0;text-decoration:none}a:hover{text-decoration:underline}
+[data-theme="dark"]{color-scheme:dark;--bg:#0a111e;--sf:#101a2b;--sf2:#152137;--sf3:#1c2a45;--bd:rgba(148,163,184,.13);--tx:#e8edf4;--tx2:#c2cbd9;--mu:#8d9ab0;--ac:#1cc28c;--acs:rgba(28,194,140,.14);--onac:#03281b;--bl:#4db6f0;--bls:rgba(77,182,240,.14);--rd:#f25b7d;--rds:rgba(242,91,125,.14);--am:#f0b43f;--ams:rgba(240,180,63,.15);--vi:#a093f7;--vis:rgba(160,147,247,.16);--sh:0 1px 2px rgba(0,0,0,.35)}
+</style>
+</helmet>
+<div data-theme="dark" data-screen-label="Gastos compartidos v2" style="min-height:100vh;background:var(--bg);color:var(--tx);padding:28px clamp(16px,3vw,32px) 48px;display:flex;flex-direction:column;gap:20px;max-width:1280px;margin:0 auto">
+
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px">
+    <div style="flex:1 1 320px;min-width:0">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--mu)">COMPARTIR</div>
+      <div style="font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:4px">Gastos compartidos</div>
+      <div style="font-size:13.5px;color:var(--mu);margin-top:4px;text-wrap:pretty">Tu situación con cada grupo y cada persona, en un vistazo.</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button style="height:40px;display:flex;align-items:center;gap:8px;padding:0 14px;border-radius:10px;background:var(--sf);border:1px solid var(--bd);font-weight:700;font-size:13px" style-hover="background:var(--sf2)"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1">group_add</span>Nuevo grupo</button>
+      <button style="height:40px;display:flex;align-items:center;gap:8px;padding:0 16px;border-radius:10px;background:var(--ac);color:var(--onac);font-weight:800;font-size:13px"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1">add</span>Nuevo gasto</button>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px">
+    <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+      <div style="background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--sh)">
+        <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mu);font-weight:700">
+          <span style="width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:{{ k.bg }};color:{{ k.fg }};font-family:'Material Symbols Rounded';font-size:17px;line-height:1">{{ k.icon }}</span>{{ k.l }}
+        </div>
+        <div style="font-size:24px;font-weight:800;letter-spacing:-.015em;font-variant-numeric:tabular-nums;color:{{ k.vc }}">{{ k.v }}</div>
+        <div style="font-size:12px;color:var(--mu);text-wrap:pretty">{{ k.s }}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
+
+    <div style="flex:1 1 260px;max-width:340px;min-width:0;display:flex;flex-direction:column;gap:8px">
+      <button onClick="{{ selOverview }}" style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;background:{{ ovBg }};border:1px solid {{ ovBd }}" style-hover="background:var(--sf2)">
+        <span style="width:36px;height:36px;flex:none;border-radius:10px;display:grid;place-items:center;background:var(--sf3);font-family:'Material Symbols Rounded';font-size:20px;line-height:1;color:var(--tx2)">dashboard</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:14px">Resumen general</div>
+          <div style="font-size:12px;color:var(--mu)">Todos tus grupos y personas</div>
+        </div>
+      </button>
+      <div style="font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--mu);padding:10px 4px 2px">TUS GRUPOS · {{ groupCount }}</div>
+      <sc-for list="{{ groupCards }}" as="g" hint-placeholder-count="2">
+        <button onClick="{{ g.on }}" style="display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:14px;background:{{ g.bg }};border:1px solid {{ g.bd }}" style-hover="background:var(--sf2)">
+          <div style="display:flex;align-items:center;gap:12px;width:100%">
+            <span style="width:36px;height:36px;flex:none;border-radius:10px;display:grid;place-items:center;background:var(--sf3);font-family:'Material Symbols Rounded';font-size:20px;line-height:1;color:var(--tx2)">{{ g.icon }}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:800;font-size:14px">{{ g.name }}</div>
+              <div style="font-size:12px;color:var(--mu)">{{ g.meta }}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;width:100%">
+            <div>
+              <div style="font-size:11px;color:var(--mu);font-weight:600">Total del grupo</div>
+              <div style="font-size:15px;font-weight:800;font-variant-numeric:tabular-nums">{{ g.total }}</div>
+            </div>
+            <span style="padding:4px 9px;border-radius:99px;font-size:12px;font-weight:800;background:{{ g.cbg }};color:{{ g.cfg }};font-variant-numeric:tabular-nums;white-space:nowrap">{{ g.chip }}</span>
+          </div>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:16px">
+
+      <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+        <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--sh);overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--bd)">
+            <div style="font-weight:800;font-size:15px">Por persona</div>
+            <div style="font-size:12.5px;color:var(--mu);margin-top:2px">Lo que te deben o debes a cada uno, sumando todos los grupos.</div>
+          </div>
+          <sc-for list="{{ people }}" as="p" hint-placeholder-count="2">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;padding:14px 20px;border-bottom:1px solid var(--bd)">
+              <span style="width:38px;height:38px;flex:none;border-radius:50%;display:grid;place-items:center;background:{{ p.abg }};color:{{ p.afg }};font-weight:800;font-size:14px">{{ p.ini }}</span>
+              <div style="flex:1 1 200px;min-width:0">
+                <div style="font-weight:800;font-size:14px">{{ p.name }}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+                  <sc-for list="{{ p.parts }}" as="pt" hint-placeholder-count="2">
+                    <span style="padding:3px 8px;border-radius:7px;background:var(--sf2);font-size:11.5px;color:var(--tx2);font-variant-numeric:tabular-nums">{{ pt }}</span>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:11.5px;font-weight:700;color:{{ p.fg }}">{{ p.label }}</div>
+                <div style="font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;color:{{ p.fg }}">{{ p.amt }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--sh);overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--bd)">
+            <div style="font-weight:800;font-size:15px">Por grupo</div>
+            <div style="font-size:12.5px;color:var(--mu);margin-top:2px">Balance = lo que pagaste − tu parte ± pagos entre miembros.</div>
+          </div>
+          <div style="overflow-x:auto">
+            <div style="min-width:560px">
+              <div style="display:grid;grid-template-columns:minmax(120px,1.4fr) repeat(4,minmax(90px,1fr));gap:12px;padding:10px 20px;font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--mu);background:var(--sf2)">
+                <div>GRUPO</div><div style="text-align:right">TOTAL GASTADO</div><div style="text-align:right">TU PARTE</div><div style="text-align:right">PAGASTE</div><div style="text-align:right">TU BALANCE</div>
+              </div>
+              <sc-for list="{{ groupRows }}" as="r" hint-placeholder-count="2">
+                <button onClick="{{ r.on }}" style="width:100%;display:grid;grid-template-columns:minmax(120px,1.4fr) repeat(4,minmax(90px,1fr));gap:12px;align-items:center;padding:13px 20px;border-bottom:1px solid var(--bd);font-size:13.5px;font-variant-numeric:tabular-nums" style-hover="background:var(--sf2)">
+                  <div style="display:flex;align-items:center;gap:8px;font-weight:800"><span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1;color:var(--mu)">{{ r.icon }}</span>{{ r.name }}</div>
+                  <div style="text-align:right;font-weight:700">{{ r.total }}</div>
+                  <div style="text-align:right;color:var(--tx2)">{{ r.share }}</div>
+                  <div style="text-align:right;color:var(--tx2)">{{ r.paid }}</div>
+                  <div style="text-align:right;font-weight:800;color:{{ r.fg }}">{{ r.bal }}</div>
+                </button>
+              </sc-for>
+              <div style="display:grid;grid-template-columns:minmax(120px,1.4fr) repeat(4,minmax(90px,1fr));gap:12px;padding:13px 20px;font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums">
+                <div>Total</div>
+                <div style="text-align:right">{{ tot.total }}</div>
+                <div style="text-align:right">{{ tot.share }}</div>
+                <div style="text-align:right">{{ tot.paid }}</div>
+                <div style="text-align:right;color:{{ tot.fg }}">{{ tot.bal }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isGroup }}" hint-placeholder-val="{{ false }}">
+        <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--sh);padding:18px 20px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px">
+            <span style="width:44px;height:44px;flex:none;border-radius:12px;display:grid;place-items:center;background:var(--sf3);font-family:'Material Symbols Rounded';font-size:22px;line-height:1;color:var(--tx2)">{{ g.icon }}</span>
+            <div style="flex:1 1 200px;min-width:0">
+              <div style="font-size:19px;font-weight:800">{{ g.name }}</div>
+              <div style="font-size:12.5px;color:var(--mu)">{{ g.memberNames }}</div>
+            </div>
+            <span style="padding:6px 12px;border-radius:99px;font-size:13px;font-weight:800;background:{{ g.cbg }};color:{{ g.cfg }};font-variant-numeric:tabular-nums">{{ g.chip }}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">
+            <sc-for list="{{ g.metrics }}" as="m" hint-placeholder-count="4">
+              <div style="padding:12px 14px;border-radius:12px;background:var(--sf2)">
+                <div style="font-size:11.5px;color:var(--mu);font-weight:700">{{ m.l }}</div>
+                <div style="font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px;color:{{ m.c }}">{{ m.v }}</div>
+                <div style="font-size:11px;color:var(--mu);margin-top:2px">{{ m.s }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:4px;padding:4px;background:var(--sf);border:1px solid var(--bd);border-radius:12px;align-self:flex-start">
+          <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+            <button onClick="{{ t.on }}" style="height:34px;padding:0 14px;border-radius:9px;font-size:13px;font-weight:700;background:{{ t.bg }};color:{{ t.fg }};display:flex;align-items:center;gap:6px">{{ t.l }}<sc-if value="{{ t.n }}" hint-placeholder-val="{{ false }}"><span style="min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--rds);color:var(--rd);font-size:11px;display:grid;place-items:center">{{ t.n }}</span></sc-if></button>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ tabSaldos }}" hint-placeholder-val="{{ true }}">
+          <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--sh);overflow:hidden">
+            <div style="padding:16px 20px;border-bottom:1px solid var(--bd)">
+              <div style="font-weight:800;font-size:15px">Pagos para quedar a mano</div>
+              <div style="font-size:12.5px;color:var(--mu);margin-top:2px">El mínimo de transferencias para saldar el grupo.</div>
+            </div>
+            <sc-for list="{{ settles }}" as="s" hint-placeholder-count="2">
+              <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--bd);background:{{ s.rowBg }}">
+                <div style="display:flex;align-items:center;gap:8px;flex:1 1 240px;min-width:0">
+                  <span style="width:32px;height:32px;flex:none;border-radius:50%;display:grid;place-items:center;background:{{ s.fbg }};color:{{ s.ffg }};font-weight:800;font-size:12px">{{ s.fi }}</span>
+                  <span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1;color:var(--mu)">arrow_forward</span>
+                  <span style="width:32px;height:32px;flex:none;border-radius:50%;display:grid;place-items:center;background:{{ s.tbg }};color:{{ s.tfg }};font-weight:800;font-size:12px">{{ s.ti }}</span>
+                  <div style="min-width:0;margin-left:4px">
+                    <div style="font-weight:800;font-size:13.5px">{{ s.text }}</div>
+                    <div style="font-size:12px;color:var(--mu)">{{ s.sub }}</div>
+                  </div>
+                </div>
+                <div style="font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;color:{{ s.fg }}">{{ s.amt }}</div>
+                <sc-if value="{{ s.mine }}" hint-placeholder-val="{{ true }}">
+                  <button onClick="{{ s.on }}" style="height:34px;padding:0 12px;border-radius:9px;background:var(--acs);color:var(--ac);font-weight:800;font-size:12.5px;display:flex;align-items:center;gap:6px" style-hover="background:var(--sf3)"><span style="font-family:'Material Symbols Rounded';font-size:17px;line-height:1">check</span>{{ s.cta }}</button>
+                </sc-if>
+              </div>
+            </sc-for>
+            <sc-if value="{{ settled }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:28px 20px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center">
+                <span style="font-family:'Material Symbols Rounded';font-size:28px;line-height:1;color:var(--ac)">verified</span>
+                <div style="font-weight:800">Todos están a mano</div>
+                <div style="font-size:12.5px;color:var(--mu)">Nadie le debe nada a nadie en este grupo.</div>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--sh);padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <div style="font-weight:800;font-size:15px">Quién puso cuánto</div>
+              <div style="font-size:12.5px;color:var(--mu);margin-top:2px">Cada uno debería aportar {{ g.perHead }}. La línea marca esa parte.</div>
+            </div>
+            <sc-for list="{{ contrib }}" as="c" hint-placeholder-count="3">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px">
+                  <span style="width:26px;height:26px;flex:none;border-radius:50%;display:grid;place-items:center;background:{{ c.abg }};color:{{ c.afg }};font-weight:800;font-size:11px">{{ c.ini }}</span>
+                  <span style="flex:1;font-weight:700">{{ c.name }}</span>
+                  <span style="color:var(--mu);font-variant-numeric:tabular-nums">Pagó {{ c.paid }}</span>
+                  <span style="min-width:110px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:{{ c.fg }}">{{ c.bal }}</span>
+                </div>
+                <div style="position:relative;height:8px;border-radius:99px;background:var(--sf3)">
+                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ c.w }};border-radius:99px;background:{{ c.afg }}"></div>
+                  <div style="position:absolute;top:-3px;bottom:-3px;left:{{ c.mark }};width:2px;background:var(--tx)"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ tabAct }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--sh);overflow:hidden">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--bd)">
+              <div style="flex:1;font-weight:800;font-size:15px">Actividad</div>
+              <div style="display:flex;gap:2px;padding:3px;background:var(--sf2);border-radius:9px">
+                <sc-for list="{{ actFilters }}" as="f" hint-placeholder-count="3">
+                  <button onClick="{{ f.on }}" style="height:28px;padding:0 10px;border-radius:7px;font-size:12px;font-weight:700;background:{{ f.bg }};color:{{ f.fg }}">{{ f.l }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <sc-for list="{{ days }}" as="d" hint-placeholder-count="2">
+              <div>
+                <div style="padding:8px 20px;font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--mu);background:var(--sf2)">{{ d.label }}</div>
+                <sc-for list="{{ d.items }}" as="it" hint-placeholder-count="2">
+                  <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--bd);opacity:{{ it.op }}">
+                    <span style="width:36px;height:36px;flex:none;border-radius:10px;display:grid;place-items:center;background:{{ it.ibg }};color:{{ it.ifg }};font-family:'Material Symbols Rounded';font-size:19px;line-height:1">{{ it.icon }}</span>
+                    <div style="flex:1;min-width:0">
+                      <div style="font-weight:800;font-size:13.5px;text-decoration:{{ it.deco }}">{{ it.title }}</div>
+                      <div style="font-size:12px;color:var(--mu)">{{ it.sub }}</div>
+                    </div>
+                    <div style="text-align:right">
+                      <div style="font-weight:800;font-size:14px;font-variant-numeric:tabular-nums">{{ it.amt }}</div>
+                      <div style="font-size:11.5px;font-weight:700;color:{{ it.efg }};font-variant-numeric:tabular-nums">{{ it.effect }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+            <div style="padding:12px 20px;font-size:11.5px;color:var(--mu);display:flex;gap:6px;align-items:flex-start">
+              <span style="font-family:'Material Symbols Rounded';font-size:15px;line-height:1.2">info</span>
+              <span style="text-wrap:pretty">{{ voidNote }}</span>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ tabMem }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--sh);overflow:hidden">
+            <sc-for list="{{ contrib }}" as="c" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--bd)">
+                <span style="width:36px;height:36px;flex:none;border-radius:50%;display:grid;place-items:center;background:{{ c.abg }};color:{{ c.afg }};font-weight:800;font-size:13px">{{ c.ini }}</span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:800;font-size:13.5px">{{ c.name }}</div>
+                  <div style="font-size:12px;color:var(--mu)">{{ c.role }}</div>
+                </div>
+                <span style="font-weight:800;font-size:13px;font-variant-numeric:tabular-nums;color:{{ c.fg }}">{{ c.bal }}</span>
+              </div>
+            </sc-for>
+            <div style="display:flex;gap:16px;padding:14px 20px">
+              <button style="font-size:12.5px;font-weight:800;color:var(--ac)">Invitar miembro</button>
+              <button style="font-size:12.5px;font-weight:800;color:var(--mu)">Archivar grupo</button>
+            </div>
+          </div>
+        </sc-if>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showVoided&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = {
+    sel: 'overview', tab: 'saldos', filt: 'all',
+    groups: [
+      { id: 'comida', name: 'Comida', icon: 'restaurant', members: ['b', 'a', 't'],
+        exp: [{ t: 'Chifita', a: 180, by: 'b', d: 6 }, { t: 'Cumpleaños', a: 85, by: 'a', d: 11 }, { t: 'Cena', a: 100, by: 'b', d: 13 }, { t: 'Parque', a: 379, by: 't', d: 13 }, { t: 'Test', a: 100, by: 'b', d: 13 }],
+        pay: [{ f: 'a', to: 'b', a: 75, d: 13 }, { f: 'b', to: 'a', a: 42.5, d: 13, v: true }] },
+      { id: 'depa', name: 'Depa', icon: 'home', members: ['b', 't', 'a'],
+        exp: [{ t: 'Alquiler octubre', a: 1800, by: 't', d: 1 }, { t: 'Luz', a: 120, by: 'b', d: 5 }, { t: 'Internet', a: 99, by: 'a', d: 8 }],
+        pay: [{ f: 'b', to: 't', a: 300, d: 10 }, { f: 't', to: 'b', a: 50, d: 10, v: true }] }
+    ]
+  };
+  P = { b: { n: 'Brian', fg: 'var(--vi)', bg: 'var(--vis)' }, a: { n: 'Anthony', fg: 'var(--bl)', bg: 'var(--bls)' }, t: { n: 'Torres', fg: 'var(--am)', bg: 'var(--ams)' } };
+  ME = 'b';
+  calc(g) {
+    const bal = {}, paid = {}; g.members.forEach(m => { bal[m] = 0; paid[m] = 0; });
+    let total = 0;
+    g.exp.forEach(e => { total += e.a; paid[e.by] += e.a; const s = e.a / g.members.length; g.members.forEach(m => bal[m] -= s); bal[e.by] += e.a; });
+    g.pay.filter(p => !p.v).forEach(p => { bal[p.f] += p.a; bal[p.to] -= p.a; });
+    const share = total / g.members.length;
+    const cr = [], db = [];
+    Object.keys(bal).forEach(k => { const v = Math.round(bal[k] * 100) / 100; if (v > 0.005) cr.push([k, v]); else if (v < -0.005) db.push([k, -v]); });
+    cr.sort((x, y) => y[1] - x[1]); db.sort((x, y) => y[1] - x[1]);
+    const st = []; let i = 0, j = 0;
+    while (i < db.length && j < cr.length) { const x = Math.min(db[i][1], cr[j][1]); st.push({ f: db[i][0], to: cr[j][0], a: Math.round(x * 100) / 100 }); db[i][1] -= x; cr[j][1] -= x; if (db[i][1] < 0.005) i++; if (cr[j][1] < 0.005) j++; }
+    return { bal, paid, total, share, st };
+  }
+  m(n) { return 'S/ ' + Math.abs(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  chip(v) {
+    if (v > 0.005) return { chip: 'Te deben ' + this.m(v), cbg: 'var(--acs)', cfg: 'var(--ac)', fg: 'var(--ac)', sign: '+' + this.m(v) };
+    if (v < -0.005) return { chip: 'Debes ' + this.m(v), cbg: 'var(--rds)', cfg: 'var(--rd)', fg: 'var(--rd)', sign: '−' + this.m(v) };
+    return { chip: 'A mano', cbg: 'var(--sf3)', cfg: 'var(--mu)', fg: 'var(--mu)', sign: 'S/ 0.00' };
+  }
+  record(gid, s) {
+    this.setState(st => ({ groups: st.groups.map(g => g.id !== gid ? g : { ...g, pay: [...g.pay, { f: s.f, to: s.to, a: s.a, d: 16 }] }) }));
+  }
+  renderVals() {
+    const { P, ME } = this, showVoid = this.props.showVoided ?? false;
+    const gs = this.state.groups.map(g => ({ g, c: this.calc(g) }));
+    let owed = 0, owe = 0, myShare = 0, allTot = 0, myPaid = 0;
+    const credPeople = new Set(), debtPeople = new Set(), per = {};
+    gs.forEach(({ g, c }) => {
+      const b = c.bal[ME]; if (b > 0) owed += b; else owe -= b;
+      myShare += c.share; allTot += c.total; myPaid += c.paid[ME];
+      c.st.forEach(s => {
+        if (s.to === ME) { credPeople.add(s.f); (per[s.f] = per[s.f] || []).push({ g: g.name, v: s.a }); }
+        if (s.f === ME) { debtPeople.add(s.to); (per[s.to] = per[s.to] || []).push({ g: g.name, v: -s.a }); }
+      });
+    });
+    const net = owed - owe, nc = this.chip(net);
+    const kpis = [
+      { l: 'Balance neto', icon: 'account_balance_wallet', bg: 'var(--sf3)', fg: 'var(--tx2)', v: nc.sign, vc: nc.fg, s: net < 0 ? 'Si todos saldan hoy, pagarías esto en total.' : 'Si todos saldan hoy, recibirías esto en total.' },
+      { l: 'Te deben', icon: 'south_west', bg: 'var(--acs)', fg: 'var(--ac)', v: this.m(owed), vc: 'var(--tx)', s: credPeople.size ? credPeople.size + (credPeople.size > 1 ? ' personas' : ' persona') + ' te debe' + (credPeople.size > 1 ? 'n' : '') : 'Nadie te debe' },
+      { l: 'Debes', icon: 'north_east', bg: 'var(--rds)', fg: 'var(--rd)', v: this.m(owe), vc: 'var(--tx)', s: debtPeople.size ? 'A ' + [...debtPeople].map(k => P[k].n).join(', ') : 'No le debes a nadie' },
+      { l: 'Tu parte del gasto · oct', icon: 'pie_chart', bg: 'var(--vis)', fg: 'var(--vi)', v: this.m(myShare), vc: 'var(--tx)', s: 'De ' + this.m(allTot) + ' gastados en ' + gs.length + ' grupos' }
+    ];
+    const sel = this.state.sel;
+    const groupCards = gs.map(({ g, c }) => ({ ...this.chip(c.bal[ME]), name: g.name, icon: g.icon, meta: g.members.length + ' miembros · ' + g.exp.length + ' gastos', total: this.m(c.total), bg: sel === g.id ? 'var(--sf2)' : 'var(--sf)', bd: sel === g.id ? 'var(--ac)' : 'var(--bd)', on: () => this.setState({ sel: g.id, tab: 'saldos' }) }));
+    const people = Object.keys(per).map(k => { const v = per[k].reduce((s, x) => s + x.v, 0), ch = this.chip(v); return { name: P[k].n, ini: P[k].n[0], abg: P[k].bg, afg: P[k].fg, fg: ch.fg, amt: this.m(v), label: v > 0 ? 'Te debe' : v < 0 ? 'Le debes' : 'A mano', parts: per[k].map(x => x.g + ': ' + (x.v > 0 ? 'te debe ' : 'le debes ') + this.m(x.v)) }; });
+    const groupRows = gs.map(({ g, c }) => { const ch = this.chip(c.bal[ME]); return { name: g.name, icon: g.icon, total: this.m(c.total), share: this.m(c.share), paid: this.m(c.paid[ME]), bal: ch.sign, fg: ch.fg, on: () => this.setState({ sel: g.id, tab: 'saldos' }) }; });
+    const tch = this.chip(net);
+    const tot = { total: this.m(allTot), share: this.m(myShare), paid: this.m(myPaid), bal: tch.sign, fg: tch.fg };
+
+    const cur = gs.find(x => x.g.id === sel);
+    let gv = {}, settles = [], contrib = [], days = [], tabs = [], actFilters = [], voidNote = '';
+    if (cur) {
+      const { g, c } = cur, ch = this.chip(c.bal[ME]);
+      const mineSt = c.st.filter(s => s.f === ME || s.to === ME).length;
+      gv = { ...ch, name: g.name, icon: g.icon, perHead: this.m(c.share), memberNames: g.members.map(k => k === ME ? P[k].n + ' (tú)' : P[k].n).join(', '),
+        metrics: [
+          { l: 'Total del grupo', v: this.m(c.total), s: g.exp.length + ' gastos', c: 'var(--tx)' },
+          { l: 'Tu parte', v: this.m(c.share), s: 'Dividido entre ' + g.members.length, c: 'var(--tx)' },
+          { l: 'Pagaste', v: this.m(c.paid[ME]), s: 'De tu bolsillo', c: 'var(--tx)' },
+          { l: 'Tu balance', v: ch.sign, s: c.bal[ME] > 0 ? 'Te deben' : c.bal[ME] < 0 ? 'Debes' : 'A mano', c: ch.fg }
+        ] };
+      settles = c.st.map(s => { const mine = s.f === ME || s.to === ME; const youPay = s.f === ME;
+        return { fi: P[s.f].n[0], ffg: P[s.f].fg, fbg: P[s.f].bg, ti: P[s.to].n[0], tfg: P[s.to].fg, tbg: P[s.to].bg,
+          text: youPay ? 'Tú le pagas a ' + P[s.to].n : s.to === ME ? P[s.f].n + ' te paga' : P[s.f].n + ' le paga a ' + P[s.to].n,
+          sub: mine ? (youPay ? 'Pendiente de tu parte' : 'Pendiente de cobro') : 'Entre otros miembros · no te afecta',
+          amt: this.m(s.a), fg: youPay ? 'var(--rd)' : s.to === ME ? 'var(--ac)' : 'var(--tx2)', rowBg: mine ? 'transparent' : 'transparent',
+          mine, cta: youPay ? 'Registrar pago' : 'Marcar recibido', on: () => this.record(g.id, s) }; });
+      const max = Math.max(...g.members.map(k => c.paid[k]), c.share) || 1;
+      contrib = g.members.map(k => { const b = this.chip(c.bal[k]); return { name: k === ME ? P[k].n + ' (tú)' : P[k].n, ini: P[k].n[0], abg: P[k].bg, afg: P[k].fg, paid: this.m(c.paid[k]), w: (c.paid[k] / max * 100) + '%', mark: (c.share / max * 100) + '%',
+        fg: b.fg, bal: c.bal[k] > 0.005 ? 'Le deben ' + this.m(c.bal[k]) : c.bal[k] < -0.005 ? 'Debe ' + this.m(c.bal[k]) : 'A mano', role: k === g.members[0] ? 'Creó el grupo' : 'Miembro' }; });
+      const tab = this.state.tab;
+      tabs = [['saldos', 'Saldos', mineSt], ['act', 'Actividad', 0], ['mem', 'Miembros', 0]].map(([id, l, n]) => ({ l, n: n || false, bg: tab === id ? 'var(--sf3)' : 'transparent', fg: tab === id ? 'var(--tx)' : 'var(--mu)', on: () => this.setState({ tab: id }) }));
+      const filt = this.state.filt;
+      actFilters = [['all', 'Todo'], ['exp', 'Gastos'], ['pay', 'Pagos']].map(([id, l]) => ({ l, bg: filt === id ? 'var(--sf3)' : 'transparent', fg: filt === id ? 'var(--tx)' : 'var(--mu)', on: () => this.setState({ filt: id }) }));
+      const items = [];
+      if (filt !== 'pay') g.exp.forEach(e => { const s = e.a / g.members.length, you = e.by === ME;
+        items.push({ d: e.d, icon: 'receipt_long', ibg: 'var(--sf3)', ifg: 'var(--tx2)', title: e.t, sub: (you ? 'Pagaste tú' : 'Pagó ' + P[e.by].n) + ' · tu parte ' + this.m(s), amt: this.m(e.a),
+          effect: you ? 'Prestaste ' + this.m(e.a - s) : 'Debes ' + this.m(s), efg: you ? 'var(--ac)' : 'var(--rd)', op: 1, deco: 'none' }); });
+      if (filt !== 'exp') g.pay.filter(p => showVoid || !p.v).forEach(p => { const inv = p.f === ME || p.to === ME;
+        items.push({ d: p.d, icon: 'swap_horiz', ibg: 'var(--bls)', ifg: 'var(--bl)', title: (p.f === ME ? 'Tú' : P[p.f].n) + ' → ' + (p.to === ME ? 'ti' : P[p.to].n), sub: p.v ? 'Pago anulado' : 'Pago registrado', amt: this.m(p.a),
+          effect: p.v ? 'Sin efecto' : !inv ? 'No te afecta' : p.f === ME ? 'Saldaste ' + this.m(p.a) : 'Recibiste ' + this.m(p.a), efg: p.v || !inv ? 'var(--mu)' : 'var(--ac)', op: p.v ? .55 : 1, deco: p.v ? 'line-through' : 'none' }); });
+      const byDay = {}; items.forEach(it => (byDay[it.d] = byDay[it.d] || []).push(it));
+      days = Object.keys(byDay).map(Number).sort((a, b) => b - a).map(d => ({ label: (d === 16 ? 'HOY · ' : '') + d + ' OCT', items: byDay[d] }));
+      const nv = g.pay.filter(p => p.v).length;
+      voidNote = (showVoid ? '' : (nv ? nv + ' pago anulado oculto. ' : '')) + 'Puedes anular un pago hasta 1 día después de registrarlo (máx. 3 al día).';
+    }
+    return { kpis, groupCards, groupCount: gs.length, people, groupRows, tot,
+      isOverview: !cur, isGroup: !!cur, g: gv, settles, settled: cur ? settles.length === 0 : false, contrib, tabs, actFilters, days, voidNote,
+      tabSaldos: this.state.tab === 'saldos', tabAct: this.state.tab === 'act', tabMem: this.state.tab === 'mem',
+      ovBg: sel === 'overview' ? 'var(--sf2)' : 'var(--sf)', ovBd: sel === 'overview' ? 'var(--ac)' : 'var(--bd)',
+      selOverview: () => this.setState({ sel: 'overview' }) };
+  }
+}
+</script>
+</body>
+</html>

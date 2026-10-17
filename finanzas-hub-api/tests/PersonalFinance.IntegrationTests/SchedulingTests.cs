@@ -114,4 +114,31 @@ public class SchedulingTests(ApiFixture api)
             return (await services.GetRequiredService<ICommandHandler<RunScheduleCommand, RunScheduleResponse>>().HandleAsync(new RunScheduleCommand(), CancellationToken.None)).Value;
         }));
     }
+
+    [Fact]
+    public async Task The_calendar_shows_every_closing_and_payment_day_of_the_cards_and_only_the_next_payment_carries_the_debt()
+    {
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var visa = await brian.Client.PostWithKeyAsync(Books.AccountsUrl(brian.PersonalWorkspaceId), new
+        {
+            name = "Visa", type = "creditCard", currency = "PEN", openingBalance = -300m, creditCard = new { creditLimit = 5000m, paymentDay = 5, closingDay = 25 }
+        });
+        Assert.Equal(HttpStatusCode.Created, visa.StatusCode);
+        await brian.OpenCardAsync("Amex", 3000m, paymentDay: 15);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-5));
+
+        // A month gone by still shows the cycle, as dates: nothing is owed on a past day.
+        var past = new DateOnly(today.Year, today.Month, 1).AddMonths(-2);
+        var before = await CalendarAsync(brian, past, past.AddMonths(1).AddDays(-1));
+        Assert.Equal((0m, "confirmed"), (Item(before, "Pago de Visa")!.Value.Money("amount"), Item(before, "Pago de Visa")!.Value.GetProperty("status").GetString()));
+        Assert.Equal("cardClosing", Item(before, "Corte de Visa")!.Value.GetProperty("kind").GetString());
+        Assert.NotNull(Item(before, "Pago de Amex"));
+
+        // From today on: the next payment of the Visa carries its debt and is the only one that counts as to be paid.
+        var coming = await CalendarAsync(brian, today, today.AddDays(40));
+        var payments = coming.GetProperty("items").EnumerateArray().Where(item => item.GetProperty("description").GetString() == "Pago de Visa").ToList();
+        Assert.Equal(300m, payments.First().Money("amount"));
+        Assert.All(payments.Skip(1), item => Assert.Equal(0m, item.Money("amount")));
+        Assert.Equal(300m, coming.Money("pendingExpenses"));
+    }
 }

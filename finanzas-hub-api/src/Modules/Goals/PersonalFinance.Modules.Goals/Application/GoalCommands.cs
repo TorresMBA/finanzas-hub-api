@@ -287,6 +287,63 @@ internal sealed class WithdrawFromGoalHandler(GoalReader reader, ILedgerPosting 
     }
 }
 
+/// <param name="Description">What was bought; the name of the goal when left out.</param>
+public sealed record SpendFromGoalCommand(
+    Guid GoalId, decimal Amount, Guid AccountId, Guid CategoryId, string? Description, DateOnly? OccurredOn, string IdempotencyKey)
+    : ICommand<GoalResponse>, IIdempotentCommand;
+
+/// <summary>
+/// Spends what the current person saved for the goal, in one step: the money leaves the fund to the account that
+/// pays (a transfer, as any withdrawal) and the expense is registered there. Putting money aside was not an expense;
+/// spending it is, in the month it is spent, marked as paid with the goal.
+/// </summary>
+internal sealed class SpendFromGoalHandler(GoalReader reader, ILedgerPosting ledger, GoalNotifier notifier, IAuditLog audit, IClock clock)
+    : ICommandHandler<SpendFromGoalCommand, GoalResponse>
+{
+    public async Task<Result<GoalResponse>> HandleAsync(SpendFromGoalCommand command, CancellationToken cancellationToken)
+    {
+        if (reader.Owner is not var (_, userId) || await reader.FindAsync(command.GoalId, cancellationToken) is not { } goal)
+        {
+            return GoalErrors.NotFound;
+        }
+
+        var allowed = goal.CanWithdraw(userId, command.Amount);
+        if (allowed.IsFailure)
+        {
+            return allowed.Error;
+        }
+
+        var contributionId = Guid.CreateVersion7();
+        var occurredOn = command.OccurredOn ?? reader.Today();
+        var description = string.IsNullOrWhiteSpace(command.Description) ? goal.Name : command.Description.Trim();
+        var moved = await ledger.MoveGoalMoneyAsync(
+            allowed.Value.FundAccountId!.Value, command.AccountId, command.Amount, occurredOn, $"Retiro de {goal.Name}", contributionId, cancellationToken);
+        if (moved.IsFailure)
+        {
+            return moved.Error;
+        }
+
+        var spent = await ledger.PostTransactionAsync(
+            new LedgerTransactionRequest(
+                true, command.AccountId, command.Amount, command.CategoryId, occurredOn, description, $"goals:spend:{command.IdempotencyKey}", goal.Id),
+            cancellationToken);
+        if (spent.IsFailure)
+        {
+            return spent.Error;
+        }
+
+        goal.Record(contributionId, userId, ContributionType.Withdrawal, command.Amount, occurredOn, moved.Value, clock.UtcNow);
+        audit.Record(new AuditEntry("goals", "goals.contribution.spent", "goal", goal.Id)
+        {
+            ScopeType = "goal",
+            ScopeId = goal.Id,
+            After = new { ContributionId = contributionId, command.Amount, goal.Currency, occurredOn, OperationId = moved.Value, ExpenseId = spent.Value, command.CategoryId }
+        });
+        notifier.Signal(goal, userId);
+        return await reader.DescribeAsync(goal, cancellationToken);
+    }
+}
+
 /// <param name="Cancel">True to give the goal up; false to archive one that is done.</param>
 public sealed record CloseGoalCommand(Guid GoalId, bool Cancel) : ICommand<GoalResponse>;
 

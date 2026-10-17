@@ -57,6 +57,28 @@ public sealed class GoalMoneyRequest
     public DateOnly? OccurredOn { get; init; }
 }
 
+public sealed class GoalSpendRequest
+{
+    /// <summary>Positive, in the currency of the goal; at most what the person asking put in.</summary>
+    [Required]
+    public decimal? Amount { get; init; }
+
+    /// <summary>The account of the person asking that pays, in the currency of the goal.</summary>
+    [Required]
+    public Guid? AccountId { get; init; }
+
+    /// <summary>An expense category of the person asking.</summary>
+    [Required]
+    public Guid? CategoryId { get; init; }
+
+    /// <summary>What was bought. The name of the goal when left out.</summary>
+    [StringLength(200)]
+    public string? Description { get; init; }
+
+    /// <summary>Today when left out.</summary>
+    public DateOnly? OccurredOn { get; init; }
+}
+
 /// <summary>
 /// The goals the signed-in person takes part in. A goal is shared by participation: a member of the workspace
 /// who is not one of its participants gets a 404, as if it did not exist.
@@ -157,6 +179,31 @@ public sealed class GoalsController : ApiControllerBase
 
         return ToActionResult(
             await handler.HandleAsync(new WithdrawFromGoalCommand(goalId, request.Amount!.Value, request.AccountId!.Value, request.OccurredOn, key), cancellationToken),
+            goal => Created($"/api/v1/workspaces/{workspaceId}/goals/{goal.Id}", goal));
+    }
+
+    /// <summary>
+    /// Spends what the person asking saved for the goal: it comes back to one of their accounts and is registered there
+    /// as an expense of that day, marked as paid with the goal.
+    /// </summary>
+    [HttpPost("{goalId:guid}/spend", Name = "SpendFromGoal")]
+    [ProducesResponseType<GoalResponse>(StatusCodes.Status201Created)]
+    [Problem(StatusCodes.Status400BadRequest)]
+    [Problem(StatusCodes.Status409Conflict)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Spend(
+        Guid workspaceId, Guid goalId, GoalSpendRequest request, [FromHeader(Name = IdempotencyKeyHeader)] string? idempotencyKey,
+        [FromServices] ICommandHandler<SpendFromGoalCommand, GoalResponse> handler, CancellationToken cancellationToken)
+    {
+        if (!TryReadIdempotencyKey(idempotencyKey, out var key, out var problem))
+        {
+            return problem;
+        }
+
+        return ToActionResult(
+            await handler.HandleAsync(
+                new SpendFromGoalCommand(goalId, request.Amount!.Value, request.AccountId!.Value, request.CategoryId!.Value, request.Description, request.OccurredOn, key),
+                cancellationToken),
             goal => Created($"/api/v1/workspaces/{workspaceId}/goals/{goal.Id}", goal));
     }
 

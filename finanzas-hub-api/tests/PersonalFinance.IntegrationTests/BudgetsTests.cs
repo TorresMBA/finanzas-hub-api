@@ -60,7 +60,11 @@ public class BudgetsTests(ApiFixture api)
         Assert.Equal(("paid", 1800m), (rows["Vivienda"].GetProperty("status").GetString(), rows["Vivienda"].Money("spent")));
 
         var detail = await brian.Client.GetFromJsonAsync<JsonElement>($"{Url(brian.PersonalWorkspaceId)}/{groceries.Id()}");
-        Assert.Equal(["Mercado", "Wong"], detail.GetProperty("movements").EnumerateArray().Select(row => row.GetProperty("description").GetString()).Order());
+        // Each movement says the subcategory it went on, none when it went on the category itself.
+        Assert.Equal(
+            [("Mercado", "Despensa"), ("Wong", null)],
+            detail.GetProperty("movements").EnumerateArray()
+                .Select(row => (row.GetProperty("description").GetString(), row.GetProperty("subcategoryName").GetString())).Order());
         var daily = detail.GetProperty("daily").EnumerateArray().ToList();
         Assert.Equal((DateTime.DaysInMonth(Month.Year, Month.Month), 498m), (daily.Count, daily[0].Money("amount")));
 

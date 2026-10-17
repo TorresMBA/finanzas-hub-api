@@ -27,7 +27,8 @@ public enum LedgerMovementKind
 public sealed record LedgerNetWorth(string? BaseCurrency, decimal NetWorth, decimal Assets, decimal Debts, IReadOnlyList<string> MissingRates);
 
 /// <summary>Income and expenses of one calendar month, in the base currency.</summary>
-public sealed record LedgerMonthFlow(int Year, int Month, decimal Income, decimal Expense);
+/// <param name="GoalFundedExpense">The part of <paramref name="Expense"/> paid with the savings of a goal.</param>
+public sealed record LedgerMonthFlow(int Year, int Month, decimal Income, decimal Expense, decimal GoalFundedExpense = 0);
 
 public sealed record LedgerFlow(IReadOnlyList<LedgerMonthFlow> Months, IReadOnlyList<string> MissingRates);
 
@@ -57,16 +58,24 @@ public sealed record LedgerMerchantTotals(IReadOnlyList<LedgerMerchantTotal> Mer
 
 /// <summary>One expense, as a budget lists it.</summary>
 /// <param name="Amount">Positive, in the currency of the account.</param>
+/// <param name="CategoryId">The category it went on, which may be a subcategory of the one asked for.</param>
 /// <param name="BaseAmount">In the base currency; null when there is no rate for its currency.</param>
-public sealed record LedgerExpense(Guid Id, DateOnly OccurredOn, string Description, string AccountName, decimal Amount, string Currency, decimal? BaseAmount);
+public sealed record LedgerExpense(
+    Guid Id, DateOnly OccurredOn, string Description, Guid CategoryId, string AccountName, decimal Amount, string Currency, decimal? BaseAmount);
 
 /// <param name="Debt">Positive, in the currency of the card.</param>
 public sealed record LedgerCardDue(Guid AccountId, string Name, string Currency, decimal Debt, DateOnly DueOn);
 
+/// <summary>A day of the cycle of a credit card: the statement closes, or the payment is due.</summary>
+/// <param name="Debt">Positive, in the currency of the card; only on the next payment and while the card owes something.</param>
+public sealed record LedgerCardDate(Guid AccountId, string Name, string Currency, DateOnly Date, bool IsClosing, decimal? Debt);
+
 /// <summary>An income or an expense another module asks the ledger to register for the current person.</summary>
 /// <param name="IdempotencyKey">The same key registers once, however many times it is sent.</param>
+/// <param name="FundedByGoalId">The goal whose savings paid the expense, so the reports can tell.</param>
 public sealed record LedgerTransactionRequest(
-    bool IsExpense, Guid AccountId, decimal Amount, Guid CategoryId, DateOnly OccurredOn, string Description, string IdempotencyKey);
+    bool IsExpense, Guid AccountId, decimal Amount, Guid CategoryId, DateOnly OccurredOn, string Description, string IdempotencyKey,
+    Guid? FundedByGoalId = null);
 
 /// <summary>
 /// How other modules register money in the ledger. It runs the same use case as a person registering it by
@@ -140,6 +149,12 @@ public interface ILedgerQueries
 
     /// <summary>The credit cards that owe something, each with the next day a payment is due, today included.</summary>
     Task<IReadOnlyList<LedgerCardDue>> GetCardDueDatesAsync(DateOnly today, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Every payment day and closing day of the cards in use between two days, owing or not, past or to come. Only the
+    /// next payment, today included, carries what the card owes now: the others are dates, not amounts.
+    /// </summary>
+    Task<IReadOnlyList<LedgerCardDate>> GetCardCalendarAsync(DateOnly from, DateOnly to, DateOnly today, CancellationToken cancellationToken);
 
     /// <summary>An amount in the base currency at the latest rate; null when its currency has no rate.</summary>
     Task<decimal?> ToBaseAsync(string currency, decimal amount, CancellationToken cancellationToken);

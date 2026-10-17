@@ -33,11 +33,12 @@ public sealed record TransferResponse(
 /// </param>
 /// <param name="IsEditable">True only for an income or an expense that is not voided.</param>
 /// <param name="Transfer">Present exactly when the kind is Transfer.</param>
+/// <param name="FundedByGoal">An expense paid with what was saved for a goal.</param>
 public sealed record TransactionResponse(
     Guid Id, OperationKind Kind, OperationStatus Status, DateOnly OccurredOn, string Description, string? Merchant, string? Note,
     decimal Amount, decimal SignedAmount, string Currency, Guid AccountId, string AccountName,
     TransactionCategoryResponse? Category, IReadOnlyList<string> Tags, bool IsEditable, DateTimeOffset CreatedAt, string? VoidReason,
-    TransferResponse? Transfer);
+    TransferResponse? Transfer, bool FundedByGoal = false);
 
 /// <summary>Describes operations for the API: joins the names a person reads, each from the module that owns it.</summary>
 internal sealed class TransactionReader(ILedgerDb db, ICategoryLookup categories, ITagLookup tags)
@@ -91,7 +92,7 @@ internal sealed class TransactionReader(ILedgerDb db, ICategoryLookup categories
                 category,
                 operation.Tags.Where(tag => tagNames.ContainsKey(tag.TagId)).Select(tag => tagNames[tag.TagId]).Order(StringComparer.Ordinal).ToList(),
                 operation is { IsTransaction: true, IsEffective: true, SourceModule: null },
-                operation.CreatedAt, operation.VoidReason, transfer);
+                operation.CreatedAt, operation.VoidReason, transfer, operation.FundedByGoalId != null);
         }).ToList();
     }
 

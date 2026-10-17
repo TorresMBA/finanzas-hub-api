@@ -21,8 +21,10 @@ internal sealed class GetBudgetsHandler(BudgetReader reader) : IQueryHandler<Get
     }
 }
 
+/// <param name="SubcategoryName">The subcategory it went on; null when it went on the category of the budget itself.</param>
 /// <param name="Amount">Positive, in the currency of the account it left.</param>
-public sealed record BudgetMovementResponse(Guid Id, DateOnly OccurredOn, string Description, string AccountName, decimal Amount, string Currency);
+public sealed record BudgetMovementResponse(
+    Guid Id, DateOnly OccurredOn, string Description, string? SubcategoryName, string AccountName, decimal Amount, string Currency);
 
 /// <param name="Amount">Spent that day, in the base currency.</param>
 public sealed record BudgetDayResponse(DateOnly Day, decimal Amount);
@@ -54,11 +56,13 @@ internal sealed class GetBudgetDetailHandler(IBudgetsDb db, BudgetReader reader,
 
         var (first, last) = (month.Value, month.Value.AddMonths(1).AddDays(-1));
         var expenses = await ledger.GetExpensesAsync(await categories.WithSubcategoriesAsync(budget.CategoryId, cancellationToken), first, last, cancellationToken);
+        var names = await categories.GetAsync(expenses.Select(expense => expense.CategoryId).Where(id => id != budget.CategoryId).Distinct().ToList(), cancellationToken);
         var byDay = expenses.GroupBy(expense => expense.OccurredOn).ToDictionary(group => group.Key, group => group.Sum(expense => expense.BaseAmount ?? 0m));
         return new BudgetDetailResponse(
             await reader.DescribeAsync(budget, first, cancellationToken),
             expenses.Select(expense => new BudgetMovementResponse(
-                expense.Id, expense.OccurredOn, expense.Description, expense.AccountName, expense.Amount, expense.Currency)).ToList(),
+                expense.Id, expense.OccurredOn, expense.Description, names.GetValueOrDefault(expense.CategoryId)?.Name, expense.AccountName, expense.Amount,
+                expense.Currency)).ToList(),
             Enumerable.Range(0, last.Day).Select(offset => first.AddDays(offset)).Select(day => new BudgetDayResponse(day, byDay.GetValueOrDefault(day))).ToList());
     }
 }

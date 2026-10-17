@@ -33,16 +33,18 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
                 operation.OccurredOn.Year,
                 operation.OccurredOn.Month,
                 entry.Currency,
+                FromGoal = operation.FundedByGoalId != null,
                 Amount = operation.Kind == OperationKind.Refund ? -entry.Amount : entry.Amount,
                 BaseAmount = operation.Kind == OperationKind.Refund ? -entry.BaseAmount : entry.BaseAmount
             })
-            .GroupBy(row => new { row.Kind, row.Year, row.Month, row.Currency })
+            .GroupBy(row => new { row.Kind, row.Year, row.Month, row.Currency, row.FromGoal })
             .Select(group => new
             {
                 group.Key.Kind,
                 group.Key.Year,
                 group.Key.Month,
                 group.Key.Currency,
+                group.Key.FromGoal,
                 Valued = group.Sum(row => row.BaseAmount ?? 0m),
                 Unvalued = group.Sum(row => row.BaseAmount == null ? row.Amount : 0m)
             })
@@ -53,15 +55,19 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
         var months = new List<LedgerMonthFlow>();
         for (var month = new DateOnly(from.Year, from.Month, 1); month <= to; month = month.AddMonths(1))
         {
-            var (income, expense) = (new BaseSum(table), new BaseSum(table));
+            var (income, expense, fromGoals) = (new BaseSum(table), new BaseSum(table), new BaseSum(table));
             foreach (var row in rows.Where(row => row.Year == month.Year && row.Month == month.Month))
             {
                 (row.Kind == OperationKind.Income ? income : expense).Add(row.Currency, row.Unvalued, row.Valued);
+                if (row.Kind != OperationKind.Income && row.FromGoal)
+                {
+                    fromGoals.Add(row.Currency, row.Unvalued, row.Valued);
+                }
             }
 
             missing.UnionWith(income.Missing);
             missing.UnionWith(expense.Missing);
-            months.Add(new LedgerMonthFlow(month.Year, month.Month, income.Total, expense.Total));
+            months.Add(new LedgerMonthFlow(month.Year, month.Month, income.Total, expense.Total, fromGoals.Total));
         }
 
         return new LedgerFlow(months, [.. missing]);
@@ -115,7 +121,8 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
             .Where(operation => operation.Kind == OperationKind.Expense && operation.CategoryId != null && categoryIds.Contains(operation.CategoryId.Value))
             .SelectMany(operation => operation.Entries, (operation, entry) => new
             {
-                operation.Id, operation.OccurredOn, operation.Description, entry.AccountId, entry.Amount, entry.Currency, entry.BaseAmount
+                operation.Id, operation.OccurredOn, operation.Description, CategoryId = operation.CategoryId!.Value, entry.AccountId, entry.Amount, entry.Currency,
+                entry.BaseAmount
             })
             .ToListAsync(cancellationToken);
         var accountIds = rows.Select(row => row.AccountId).Distinct().ToList();
@@ -127,7 +134,7 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
             .OrderByDescending(row => row.OccurredOn)
             .ThenByDescending(row => row.Id)
             .Select(row => new LedgerExpense(
-                row.Id, row.OccurredOn, row.Description, names.GetValueOrDefault(row.AccountId, string.Empty), row.Amount, row.Currency,
+                row.Id, row.OccurredOn, row.Description, row.CategoryId, names.GetValueOrDefault(row.AccountId, string.Empty), row.Amount, row.Currency,
                 row.BaseAmount ?? table.ToBase(row.Currency, row.Amount)))
             .ToList();
     }
@@ -140,6 +147,34 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
             .Where(card => card.CreditCard is not null && byAccount.GetValueOrDefault(card.Id) < 0)
             .Select(card => new LedgerCardDue(card.Id, card.Name, card.Currency, -byAccount.GetValueOrDefault(card.Id), card.CreditCard!.NextPaymentDate(today)))
             .ToList();
+    }
+
+    public async Task<IReadOnlyList<LedgerCardDate>> GetCardCalendarAsync(DateOnly from, DateOnly to, DateOnly today, CancellationToken cancellationToken)
+    {
+        var cards = await db.Accounts.AsNoTracking().Where(account => account.ArchivedAt == null && account.Type == AccountType.CreditCard).ToListAsync(cancellationToken);
+        var byAccount = await balances.AllAsync(cancellationToken);
+        var dates = new List<LedgerCardDate>();
+        foreach (var card in cards.Where(card => card.CreditCard is not null))
+        {
+            var profile = card.CreditCard!;
+            var debt = -byAccount.GetValueOrDefault(card.Id);
+            var next = profile.NextPaymentDate(today);
+            for (var month = new DateOnly(from.Year, from.Month, 1); month <= to; month = month.AddMonths(1))
+            {
+                if (profile.ClosingDateIn(month.Year, month.Month) is { } closing && closing >= from && closing <= to)
+                {
+                    dates.Add(new LedgerCardDate(card.Id, card.Name, card.Currency, closing, true, null));
+                }
+
+                var payment = profile.PaymentDateIn(month.Year, month.Month);
+                if (payment >= from && payment <= to)
+                {
+                    dates.Add(new LedgerCardDate(card.Id, card.Name, card.Currency, payment, false, payment == next && debt > 0 ? debt : null));
+                }
+            }
+        }
+
+        return dates;
     }
 
     public async Task<decimal?> ToBaseAsync(string currency, decimal amount, CancellationToken cancellationToken) =>

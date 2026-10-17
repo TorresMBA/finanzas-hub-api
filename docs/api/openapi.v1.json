@@ -7601,6 +7601,113 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspaceId}/goals/{goalId}/spend": {
+      "post": {
+        "tags": [
+          "Goals"
+        ],
+        "operationId": "SpendFromGoal",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "goalId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalSpendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/goals/{goalId}/archive": {
       "post": {
         "tags": [
@@ -9131,6 +9238,7 @@
           "id",
           "occurredOn",
           "description",
+          "subcategoryName",
           "accountName",
           "amount",
           "currency"
@@ -9147,6 +9255,12 @@
           },
           "description": {
             "type": "string"
+          },
+          "subcategoryName": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "accountName": {
             "type": "string"
@@ -9401,7 +9515,8 @@
           "income",
           "expense",
           "transfer",
-          "cardDue"
+          "cardDue",
+          "cardClosing"
         ]
       },
       "CalendarItemResponse": {
@@ -11295,6 +11410,54 @@
               "string"
             ],
             "format": "uuid"
+          }
+        }
+      },
+      "GoalSpendRequest": {
+        "required": [
+          "amount",
+          "accountId",
+          "categoryId"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "accountId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "categoryId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "description": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "occurredOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
           }
         }
       },
@@ -13592,7 +13755,8 @@
           "savings",
           "savingsRate",
           "dailyExpense",
-          "days"
+          "days",
+          "goalFundedExpense"
         ],
         "type": "object",
         "properties": {
@@ -13644,6 +13808,14 @@
               "string"
             ],
             "format": "int32"
+          },
+          "goalFundedExpense": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -14729,6 +14901,10 @@
                 "$ref": "#/components/schemas/TransferResponse"
               }
             ]
+          },
+          "fundedByGoal": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

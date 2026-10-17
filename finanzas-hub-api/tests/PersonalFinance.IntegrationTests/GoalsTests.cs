@@ -42,13 +42,13 @@ public class GoalsTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.Created, (await MoveAsync(brian, workspaceId, goalId, "contributions", 500m, bcp.Id(), key)).StatusCode);
         Assert.Equal(1500m, await brian.BalanceAsync(bcp.Id()));
 
-        // In his ledger it is a transfer to his own fund, not an expense; the fund is outside his net worth until he says otherwise.
+        // In his ledger it is a transfer to his own fund, not an expense; the fund counts in his net worth, so it does not go down.
         var transfer = Assert.Single((await brian.TransactionsAsync("?type=transfer")).GetProperty("items").EnumerateArray());
         Assert.Equal(("Aporte a Viaje Japón", "BCP", "Meta: Viaje Japón", 500m), (
             transfer.GetProperty("description").GetString(), transfer.GetProperty("transfer").GetProperty("fromAccountName").GetString(),
             transfer.GetProperty("transfer").GetProperty("toAccountName").GetString(), transfer.Money("amount")));
         Assert.Empty((await brian.TransactionsAsync("?type=expense")).GetProperty("items").EnumerateArray());
-        Assert.Equal(1500m, (await brian.SummaryAsync()).Money("netWorth"));
+        Assert.Equal(2000m, (await brian.SummaryAsync()).Money("netWorth"));
         var fundId = (await GoalAsync(brian, workspaceId, goalId)).GetProperty("myFundAccountId").GetGuid();
         Assert.Equal(500m, await brian.BalanceAsync(fundId));
 
@@ -93,5 +93,40 @@ public class GoalsTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.OK, (await brian.Client.PostAsJsonAsync(Url(workspaceId, $"/{goalId}/participants"), new { userId = pedro.UserId })).StatusCode);
         Assert.Equal(800m, (await GoalAsync(pedro, workspaceId, goalId)).Money("saved"));
         Assert.Contains((await brian.DashboardAsync(DateTime.UtcNow.ToString("yyyy-MM"))).GetProperty("goals").EnumerateArray(), goal => goal.GetProperty("name").GetString() == "Viaje Japón");
+    }
+
+    [Fact]
+    public async Task Saving_1000_for_a_trip_keeps_the_net_worth_and_spending_it_is_an_expense_of_the_month_marked_as_paid_with_the_goal()
+    {
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var workspaceId = brian.PersonalWorkspaceId;
+        var juanEmail = Accounts.NewEmail("juan");
+        var juan = await api.RegisterAsync("Juan", invitationToken: await api.InviteAsync(brian, workspaceId, juanEmail), email: juanEmail);
+        var bcp = (await brian.OpenAccountAsync("BCP", 2000m)).Id();
+        var created = await brian.Client.PostAsJsonAsync(Url(workspaceId), new { name = "Viaje Cusco", targetAmount = 1000m, participantUserIds = new[] { juan.UserId } });
+        var goalId = (await created.Content.ReadFromJsonAsync<JsonElement>()).Id();
+
+        Assert.Equal(HttpStatusCode.Created, (await MoveAsync(brian, workspaceId, goalId, "contributions", 1000m, bcp)).StatusCode);
+        Assert.Equal((1000m, 2000m), (await brian.BalanceAsync(bcp), (await brian.SummaryAsync()).Money("netWorth")));
+
+        // Juan put nothing in: there is nothing of his to spend.
+        var leisure = await brian.CategoryIdAsync("Suscripciones y ocio");
+        var juansBank = (await juan.OpenAccountAsync("Interbank", 500m, workspaceId: workspaceId)).Id();
+        var byJuan = await juan.Client.PostWithKeyAsync(
+            Url(workspaceId, $"/{goalId}/spend"), new { amount = 100m, accountId = juansBank, categoryId = leisure });
+        Assert.False(byJuan.IsSuccessStatusCode);
+
+        // Brian spends all of it on the trip: the fund empties, BCP is where it was and the month has an expense of 1 000.
+        var spent = await brian.Client.PostWithKeyAsync(Url(workspaceId, $"/{goalId}/spend"), new { amount = 1000m, accountId = bcp, categoryId = leisure, description = "Pasajes a Cusco" });
+        Assert.Equal(HttpStatusCode.Created, spent.StatusCode);
+        Assert.Equal(0m, (await GoalAsync(brian, workspaceId, goalId)).Money("mySaved"));
+        Assert.Equal((1000m, 1000m), (await brian.BalanceAsync(bcp), (await brian.SummaryAsync()).Money("netWorth")));
+        var expense = Assert.Single((await brian.TransactionsAsync("?type=expense")).GetProperty("items").EnumerateArray());
+        Assert.Equal(("Pasajes a Cusco", 1000m, true, true), (
+            expense.GetProperty("description").GetString(), expense.Money("amount"), expense.GetProperty("fundedByGoal").GetBoolean(), expense.GetProperty("isEditable").GetBoolean()));
+
+        var month = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-5)).ToString("yyyy-MM");
+        var report = await brian.Client.GetFromJsonAsync<JsonElement>($"/api/v1/workspaces/{workspaceId}/reports/summary?period=month&anchor={month}");
+        Assert.Equal((1000m, 1000m), (report.GetProperty("current").Money("expense"), report.GetProperty("current").Money("goalFundedExpense")));
     }
 }

@@ -17,7 +17,7 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -1288,6 +1288,10 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)")
                         .HasColumnName("description");
+
+                    b.Property<Guid?>("FundedByGoalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("funded_by_goal_id");
 
                     b.Property<string>("Kind")
                         .IsRequired()

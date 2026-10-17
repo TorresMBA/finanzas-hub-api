@@ -31,7 +31,17 @@ internal sealed class LedgerPosting(
                 request.IsExpense ? TransactionType.Expense : TransactionType.Income, request.AccountId, request.Amount, request.CategoryId, request.OccurredOn,
                 request.Description, null, null, null, false, request.IdempotencyKey),
             cancellationToken);
-        return posted.IsFailure ? posted.Error : posted.Value.Id;
+        if (posted.IsFailure)
+        {
+            return posted.Error;
+        }
+
+        if (request.FundedByGoalId is { } goalId && await db.Operations.FindAsync([posted.Value.Id], cancellationToken) is { } operation)
+        {
+            operation.MarkFundedByGoal(goalId);
+        }
+
+        return posted.Value.Id;
     }
 
     public async Task<Result> VoidAsync(Guid operationId, string reason, CancellationToken cancellationToken)
@@ -73,7 +83,8 @@ internal sealed class LedgerPosting(
     }
 
     public Task<Result<Guid>> OpenGoalFundAsync(string goalName, string currency, CancellationToken cancellationToken) =>
-        OpenManagedAsync($"Meta: {goalName}", AccountType.GoalFund, currency, includeInNetWorth: false, cancellationToken);
+        // The money of a goal is still the person's: putting it aside does not lower the net worth, spending it does.
+        OpenManagedAsync($"Meta: {goalName}", AccountType.GoalFund, currency, includeInNetWorth: true, cancellationToken);
 
     public Task<Result<Guid>> OpenInvestmentAccountAsync(string investmentName, string currency, CancellationToken cancellationToken) =>
         OpenManagedAsync($"Inversión: {investmentName}", AccountType.Investment, currency, includeInNetWorth: true, cancellationToken);

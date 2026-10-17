@@ -71,5 +71,12 @@ public sealed class CreditCardProfile
         return DayIn(next.Year, next.Month);
     }
 
+    /// <summary>The day the payment is due in a month; in a shorter month, its last day.</summary>
+    public DateOnly PaymentDateIn(int year, int month) => DayIn(year, month);
+
+    /// <summary>The day the statement closes in a month, when the person said which; in a shorter month, its last day.</summary>
+    public DateOnly? ClosingDateIn(int year, int month) =>
+        ClosingDay is { } day ? new DateOnly(year, month, Math.Min(day, DateTime.DaysInMonth(year, month))) : null;
+
     private DateOnly DayIn(int year, int month) => new(year, month, Math.Min(PaymentDay, DateTime.DaysInMonth(year, month)));
 }

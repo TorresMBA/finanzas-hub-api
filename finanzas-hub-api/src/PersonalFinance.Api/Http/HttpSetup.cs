@@ -16,6 +16,19 @@ internal sealed class GlobalExceptionHandler(IProblemDetailsService problemDetai
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
+        // The browser gave the request up (a page that reloads cancels what it was still waiting for). Nothing failed
+        // and nobody reads the answer: it is not logged as an error.
+        if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
+        {
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug("Request abandoned by the client: {Method} {Path}", httpContext.Request.Method, httpContext.Request.Path);
+            }
+
+            httpContext.Response.StatusCode = StatusCodes.Status499ClientClosedRequest;
+            return true;
+        }
+
         var (status, title) = exception switch
         {
             BadHttpRequestException badRequest => (badRequest.StatusCode, "The request is not valid."),

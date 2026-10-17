@@ -16,7 +16,9 @@ namespace PersonalFinance.Modules.Reporting.Application.Reports;
 /// <param name="SavingsRate">What was left of the income, from 0 to 100; negative when more was spent than earned. Null without income.</param>
 /// <param name="DailyExpense">The expenses spread over the days of the period gone by.</param>
 /// <param name="Days">The days that average counts.</param>
-public sealed record ReportTotalsResponse(decimal Income, decimal Expense, decimal Savings, decimal? SavingsRate, decimal DailyExpense, int Days);
+/// <param name="GoalFundedExpense">The part of the expenses paid with what was saved for goals: real spending, saved up for before.</param>
+public sealed record ReportTotalsResponse(
+    decimal Income, decimal Expense, decimal Savings, decimal? SavingsRate, decimal DailyExpense, int Days, decimal GoalFundedExpense);
 
 /// <summary>What a category and everything under it spent, against the period before.</summary>
 /// <param name="Share">Its part of the period's expenses, from 0 to 100.</param>
@@ -101,7 +103,8 @@ internal sealed class ReportBuilder(ILedgerQueries ledger, ICategoryLookup categ
     {
         var list = months.ToList();
         var (income, expense) = (list.Sum(month => month.Income), list.Sum(month => month.Expense));
-        return new ReportTotalsResponse(income, expense, income - expense, Rate(income, expense), days > 0 ? decimal.Round(expense / days, 2) : 0, days);
+        return new ReportTotalsResponse(
+            income, expense, income - expense, Rate(income, expense), days > 0 ? decimal.Round(expense / days, 2) : 0, days, list.Sum(month => month.GoalFundedExpense));
     }
 
     private static decimal? Rate(decimal income, decimal expense) => income > 0 ? decimal.Round((income - expense) / income * 100, 1) : null;

@@ -177,6 +177,6 @@ Decisión del dueño del 13-oct-2026 (OQ-26).
 |---|---|
 | En uso (banco, efectivo, billetera, tarjeta) | Sí, salvo que la persona desmarque "Incluir en mi patrimonio" |
 | Archivada | Nunca, tenga o no saldo, diga lo que diga su casilla |
-| De una meta (`GoalFund`, fase 8) | No, salvo que la persona marque la casilla |
+| De una meta (`GoalFund`, fase 8) | Sí, salvo que la persona desmarque la casilla (desde el 16-oct-2026; antes no contaba, ver ADR-013) |
 
 Nada financiero se borra, así que no existe la cuenta eliminada. La casilla es la columna `include_in_net_worth` de `accounts`: no cambia el saldo ni lo que se puede hacer con la cuenta, solo si suma en el total. Una tarjeta cuenta como deuda. Mover dinero a una cuenta que no cuenta baja el patrimonio mostrado; el dinero sigue en la cuenta.

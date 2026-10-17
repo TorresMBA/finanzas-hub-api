@@ -77,6 +77,12 @@ public sealed class Operation : AggregateRoot, IOwned
 
     public Guid? SourceId { get; private set; }
 
+    /// <summary>
+    /// The goal whose savings paid this expense, by id: it belongs to another module. Unlike a source it does not lock
+    /// the expense; the person edits or voids it like any other.
+    /// </summary>
+    public Guid? FundedByGoalId { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset? VoidedAt { get; private set; }
@@ -101,6 +107,15 @@ public sealed class Operation : AggregateRoot, IOwned
         SourceModule = module;
         SourceType = type;
         SourceId = id;
+    }
+
+    /// <summary>Says the expense was paid with what was saved for a goal. Only an expense can be.</summary>
+    public void MarkFundedByGoal(Guid goalId)
+    {
+        if (Kind == OperationKind.Expense)
+        {
+            FundedByGoalId = goalId;
+        }
     }
 
     /// <summary>
