@@ -110,14 +110,16 @@ pipeline {
                 dir('finanzas-hub-api') {
                   // gitleaks sobre los archivos (no sobre el historial): un secreto en el código para el despliegue.
                   // Usa el binario del agente si lo tiene; si no, la imagen oficial con versión fija.
+                  // El agente usa el Docker del host: `-v "$PWD:..."` montaría una carpeta vacía del host, así que
+                  // la imagen hereda el workspace del agente con --volumes-from, como hace mercury-ci con sus escáneres.
                   sh '''
                     mercury-ci semgrep
                     mercury-ci trivy-fs
                     if command -v gitleaks >/dev/null 2>&1; then
                       gitleaks detect --no-git --source . --config .gitleaks.toml --redact --no-banner
                     else
-                      docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.21.2 \
-                        detect --no-git --source /repo --config /repo/.gitleaks.toml --redact --no-banner
+                      docker run --rm --volumes-from "$(hostname)" -w "$PWD" zricethezav/gitleaks:v8.21.2 \
+                        detect --no-git --source . --config .gitleaks.toml --redact --no-banner
                     fi
                   '''
                 }
