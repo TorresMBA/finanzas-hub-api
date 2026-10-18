@@ -6,7 +6,11 @@ title = "PersonalHub API"
 useDefault = true
 
 [allowlist]
-description = "Salidas de compilación"
+description = "Salidas de compilación y de los análisis del CI"
 paths = [
   '''(^|/)(bin|obj|publish|TestResults)/''',
+  # Lo que escribe el scanner de SonarQube entre begin y end, con el informe del análisis
+  '''(^|/)\.sonarqube/''',
+  # Los informes de Semgrep y de gitleaks, que citan el código que señalan
+  '''^(semgrep|gitleaks)\.json$''',
 ]

@@ -112,15 +112,17 @@ pipeline {
                   // Usa el binario del agente si lo tiene; si no, la imagen oficial con versión fija.
                   // El agente usa el Docker del host: `-v "$PWD:..."` montaría una carpeta vacía del host, así que
                   // la imagen hereda el workspace del agente con --volumes-from, como hace mercury-ci con sus escáneres.
+                  // Si encuentra algo, lista regla y archivo de cada hallazgo (el secreto va redactado en gitleaks.json).
                   sh '''
                     mercury-ci semgrep
                     mercury-ci trivy-fs
+                    set -- detect --no-git --source . --config .gitleaks.toml --redact --no-banner \
+                      --report-format json --report-path gitleaks.json
                     if command -v gitleaks >/dev/null 2>&1; then
-                      gitleaks detect --no-git --source . --config .gitleaks.toml --redact --no-banner
+                      gitleaks "$@"
                     else
-                      docker run --rm --volumes-from "$(hostname)" -w "$PWD" zricethezav/gitleaks:v8.21.2 \
-                        detect --no-git --source . --config .gitleaks.toml --redact --no-banner
-                    fi
+                      docker run --rm --volumes-from "$(hostname)" -w "$PWD" zricethezav/gitleaks:v8.21.2 "$@"
+                    fi || { jq -r '.[] | "\\(.RuleID)\\t\\(.File):\\(.StartLine)"' gitleaks.json; exit 1; }
                   '''
                 }
               }
@@ -153,7 +155,7 @@ pipeline {
       }
       post {
         always {
-          archiveArtifacts artifacts: 'finanzas-hub-api/semgrep.json', allowEmptyArchive: true
+          archiveArtifacts artifacts: 'finanzas-hub-api/semgrep.json, finanzas-hub-api/gitleaks.json', allowEmptyArchive: true
         }
       }
     }
