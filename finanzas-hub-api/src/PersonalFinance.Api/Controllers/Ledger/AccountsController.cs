@@ -68,7 +68,8 @@ public sealed class UpdateAccountRequest
 
 public sealed class SetAccountFavoriteRequest
 {
-    public bool IsFavorite { get; init; }
+    [Required]
+    public bool? IsFavorite { get; init; }
 }
 
 public sealed class PayCreditCardRequest
@@ -170,7 +171,7 @@ public sealed class AccountsController : ApiControllerBase
     public async Task<IActionResult> SetFavorite(
         Guid workspaceId, Guid accountId, SetAccountFavoriteRequest request, [FromServices] ICommandHandler<SetAccountFavoriteCommand, AccountResponse> handler,
         CancellationToken cancellationToken) =>
-        ToActionResult(await handler.HandleAsync(new SetAccountFavoriteCommand(accountId, request.IsFavorite), cancellationToken), Ok);
+        ToActionResult(await handler.HandleAsync(new SetAccountFavoriteCommand(accountId, request.IsFavorite!.Value), cancellationToken), Ok);
 
     /// <summary>The account stops being offered. Its movements and its balance stay.</summary>
     [HttpPost("{accountId:guid}/archive", Name = "ArchiveAccount")]

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Caveat:wght@600;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&amp;display=block">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0a111e;-webkit-font-smoothing:antialiased;font-family:Manrope,system-ui,sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;margin:0;cursor:pointer}
+input{font:inherit;color:inherit}
+input::placeholder{color:var(--mu)}
+a{color:var(--ac);text-decoration:none;font-weight:700}a:hover{text-decoration:underline}
+[data-theme="dark"]{color-scheme:dark;--bg:#0a111e;--sf:#101a2b;--sf2:#131f33;--sf3:#1c2a45;--bd:rgba(148,163,184,.14);--bd2:rgba(148,163,184,.24);--tx:#e8edf4;--tx2:#c2cbd9;--mu:#8d9ab0;--ac:#1cc28c;--acs:rgba(28,194,140,.14);--onac:#03140d;--rd:#f0506e;--rds:rgba(240,80,110,.14);--bl:#4ea8ff;--bls:rgba(78,168,255,.14);--am:#f5a524;--ams:rgba(245,165,36,.14);--vi:#a78bfa;--vis:rgba(167,139,250,.14);--te:#2dd4bf;--tes:rgba(45,212,191,.12);--glow1:rgba(28,194,140,.10);--glow2:rgba(78,168,255,.07);--card:rgba(16,26,43,.82);--sh:0 30px 80px rgba(0,0,0,.45)}
+[data-theme="light"]{color-scheme:light;--bg:#f3f5f8;--sf:#ffffff;--sf2:#f6f8fb;--sf3:#e5eaf1;--bd:rgba(15,23,42,.09);--bd2:rgba(15,23,42,.16);--tx:#0e1626;--tx2:#334155;--mu:#5a6577;--ac:#08805a;--acs:rgba(8,128,90,.1);--onac:#ffffff;--rd:#c8284a;--rds:rgba(200,40,74,.1);--bl:#1570c9;--bls:rgba(21,112,201,.1);--am:#b26b00;--ams:rgba(178,107,0,.1);--vi:#6d4fd6;--vis:rgba(109,79,214,.1);--te:#0d8a7c;--tes:rgba(13,138,124,.1);--glow1:rgba(8,128,90,.08);--glow2:rgba(21,112,201,.06);--card:rgba(255,255,255,.92);--sh:0 30px 70px rgba(15,23,42,.10)}
+</style>
+</helmet>
+<div data-theme="{{ theme }}" style="min-height:100vh;position:relative;overflow:hidden;display:flex;flex-direction:column;background:radial-gradient(900px 600px at 18% 8%,var(--glow1),transparent 70%),radial-gradient(800px 600px at 85% 90%,var(--glow2),transparent 70%),var(--bg);color:var(--tx)">
+
+  <svg viewBox="0 0 800 800" preserveAspectRatio="none" style="position:absolute;right:0;bottom:56px;width:48%;height:78%;pointer-events:none;opacity:.9">
+    <defs>
+      <linearGradient id="lg-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1cc28c" stop-opacity=".16"></stop><stop offset="1" stop-color="#1cc28c" stop-opacity="0"></stop></linearGradient>
+      <linearGradient id="lg-line" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0ea5b7" stop-opacity=".2"></stop><stop offset=".5" stop-color="#14b8a6"></stop><stop offset="1" stop-color="#1cc28c"></stop></linearGradient>
+    </defs>
+    <g fill="#94a3b8" fill-opacity=".05">
+      <rect x="250" y="500" width="40" height="300" rx="14"></rect>
+      <rect x="340" y="430" width="40" height="370" rx="14"></rect>
+      <rect x="430" y="470" width="40" height="330" rx="14"></rect>
+      <rect x="520" y="330" width="40" height="470" rx="14"></rect>
+      <rect x="610" y="250" width="40" height="550" rx="14"></rect>
+      <rect x="700" y="160" width="40" height="640" rx="14"></rect>
+    </g>
+    <path d="M0 720 C 160 660, 260 600, 380 500 S 600 300, 690 250 S 780 130, 800 60 L 800 800 L 0 800 Z" fill="url(#lg-area)"></path>
+    <path d="M0 720 C 160 660, 260 600, 380 500 S 600 300, 690 250 S 780 130, 800 60" fill="none" stroke="url(#lg-line)" stroke-width="5" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
+  </svg>
+
+  <header style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:24px clamp(20px,4vw,48px)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="display:flex;align-items:flex-end;gap:3px;height:22px"><span style="width:4px;height:12px;border-radius:2px;background:var(--bl)"></span><span style="width:4px;height:22px;border-radius:2px;background:var(--ac)"></span><span style="width:4px;height:16px;border-radius:2px;background:var(--bl)"></span></div>
+      <span style="font-size:20px;font-weight:800;letter-spacing:-.02em">FinanzasHub</span>
+    </div>
+    <button onClick="{{ toggleTheme }}" aria-label="Cambiar tema" style="display:flex;align-items:center;gap:2px;padding:3px;border-radius:99px;background:var(--sf);border:1px solid var(--bd)">
+      <span style="width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:{{ sunBg }};color:{{ sunFg }}"><span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1">light_mode</span></span>
+      <span style="width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:{{ moonBg }};color:{{ moonFg }}"><span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1">dark_mode</span></span>
+    </button>
+  </header>
+
+  <main style="position:relative;flex:1;display:flex;align-items:center;justify-content:center;padding:24px clamp(20px,4vw,48px) 48px">
+    <div style="width:100%;max-width:1180px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:clamp(40px,6vw,96px);align-items:center">
+
+      <section style="display:flex;flex-direction:column;gap:28px;min-width:0">
+        <div style="display:flex;flex-direction:column;gap:18px;align-items:flex-start">
+          <span style="padding:6px 14px;border-radius:99px;border:1px solid var(--ac);background:var(--acs);color:var(--ac);font-size:11.5px;font-weight:800;letter-spacing:.08em">FINANZAS MÁS SIMPLES, MEJORES DECISIONES</span>
+          <h1 style="margin:0;font-size:clamp(36px,4.4vw,54px);line-height:1.05;font-weight:800;letter-spacing:-.035em;text-wrap:balance">Tu vida financiera<br><span style="color:var(--ac)">en un solo lugar</span></h1>
+          <p style="margin:0;font-size:17px;line-height:1.5;color:var(--tx2);max-width:460px;text-wrap:pretty">Gestiona, planifica y construye el futuro que quieres.</p>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px">
+          <sc-for list="{{ features }}" as="f" hint-placeholder-count="6">
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;background:var(--card);border:1px solid var(--bd);backdrop-filter:blur(8px)">
+              <div style="width:40px;height:40px;flex:none;border-radius:11px;display:grid;place-items:center;background:{{ f.bg }};color:{{ f.fg }}"><span style="font-family:'Material Symbols Rounded';font-size:21px;line-height:1">{{ f.icon }}</span></div>
+              <div style="min-width:0">
+                <div style="font-size:14px;font-weight:800">{{ f.t }}</div>
+                <div style="font-size:12.5px;line-height:1.4;color:var(--mu);margin-top:2px">{{ f.d }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-start">
+          <span style="font-family:Caveat,cursive;font-size:30px;font-weight:700;color:var(--tx);line-height:1">“Pequeñas decisiones, grandes resultados.”</span>
+          <span style="width:150px;height:3px;border-radius:3px;background:var(--ac);margin:6px 0 0 190px;transform:rotate(-1.5deg)"></span>
+        </div>
+      </section>
+
+      <section style="display:flex;justify-content:center;min-width:0">
+        <div style="width:100%;max-width:440px;padding:36px 34px 30px;border-radius:22px;background:var(--card);border:1px solid var(--bd2);box-shadow:var(--sh);backdrop-filter:blur(14px);display:flex;flex-direction:column;gap:22px">
+
+          <sc-if value="{{ notDone }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center">
+              <h2 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em">Bienvenido de nuevo</h2>
+              <p style="margin:0;font-size:14px;color:var(--mu)">Inicia sesión en tu cuenta</p>
+            </div>
+
+            <div role="tablist" style="display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:12px;background:var(--sf2);border:1px solid var(--bd)">
+              <sc-for list="{{ tabs }}" as="tb" hint-placeholder-count="2">
+                <button role="tab" onClick="{{ tb.on }}" style="height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13.5px;font-weight:700;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }}"><span style="font-family:'Material Symbols Rounded';font-size:17px;line-height:1">{{ tb.icon }}</span>{{ tb.l }}</button>
+              </sc-for>
+            </div>
+
+            <form onSubmit="{{ submit }}" style="display:flex;flex-direction:column;gap:14px">
+              <sc-if value="{{ isEmail }}" hint-placeholder-val="{{ true }}">
+                <label style="display:flex;flex-direction:column;gap:6px">
+                  <span style="font-size:12.5px;font-weight:700;color:var(--tx2)">Correo electrónico</span>
+                  <span style="height:48px;display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:12px;background:var(--sf2);border:1px solid {{ emailBd }}">
+                    <span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;color:var(--mu)">mail</span>
+                    <input type="email" autocomplete="email" value="{{ email }}" onChange="{{ onEmail }}" placeholder="tu@correo.com" style="flex:1;min-width:0;height:100%;border:0;outline:0;background:transparent;font-size:14.5px">
+                  </span>
+                </label>
+              </sc-if>
+              <sc-if value="{{ isPhone }}" hint-placeholder-val="{{ false }}">
+                <label style="display:flex;flex-direction:column;gap:6px">
+                  <span style="font-size:12.5px;font-weight:700;color:var(--tx2)">Número de celular</span>
+                  <span style="height:48px;display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:12px;background:var(--sf2);border:1px solid {{ emailBd }}">
+                    <span style="font-size:14px;font-weight:700;padding-right:10px;border-right:1px solid var(--bd2);color:var(--tx2)">PE +51</span>
+                    <input type="tel" autocomplete="tel" value="{{ phone }}" onChange="{{ onPhone }}" placeholder="987 654 321" style="flex:1;min-width:0;height:100%;border:0;outline:0;background:transparent;font-size:14.5px;letter-spacing:.02em">
+                  </span>
+                </label>
+              </sc-if>
+              <label style="display:flex;flex-direction:column;gap:6px">
+                <span style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+                  <span style="font-size:12.5px;font-weight:700;color:var(--tx2)">Contraseña</span>
+                  <a href="#" style="font-size:12.5px">¿La olvidaste?</a>
+                </span>
+                <span style="height:48px;display:flex;align-items:center;gap:10px;padding:0 6px 0 14px;border-radius:12px;background:var(--sf2);border:1px solid {{ pwBd }}">
+                  <span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1;color:var(--mu)">lock</span>
+                  <input type="{{ pwType }}" autocomplete="current-password" value="{{ pw }}" onChange="{{ onPw }}" placeholder="Tu contraseña" style="flex:1;min-width:0;height:100%;border:0;outline:0;background:transparent;font-size:14.5px">
+                  <button type="button" onClick="{{ togglePw }}" aria-label="Mostrar contraseña" style="width:36px;height:36px;border-radius:9px;display:grid;place-items:center;color:var(--mu)" style-hover="background:var(--sf3)"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1">{{ pwIcon }}</span></button>
+                </span>
+              </label>
+              <sc-if value="{{ error }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:var(--rds);color:var(--rd);font-size:13px;font-weight:600"><span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1">error</span>{{ error }}</div>
+              </sc-if>
+              <button type="button" onClick="{{ toggleRemember }}" style="display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:600;color:var(--tx2);align-self:flex-start;white-space:nowrap;text-align:left">
+                <span style="width:20px;height:20px;border-radius:6px;display:grid;place-items:center;background:{{ chkBg }};border:1.5px solid {{ chkBd }};color:var(--onac)"><span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;font-weight:600;opacity:{{ chkOp }}">check</span></span>
+                Recordarme en este dispositivo
+              </button>
+              <button type="submit" style="height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--ac);color:var(--onac);font-size:15px;font-weight:800;box-shadow:0 10px 30px var(--acs);opacity:{{ btnOp }}" style-hover="filter:brightness(1.08)">
+                {{ btnLabel }}<span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1">{{ btnIcon }}</span>
+              </button>
+            </form>
+
+            <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:var(--mu);font-weight:600"><span style="flex:1;height:1px;background:var(--bd2)"></span>o continúa con<span style="flex:1;height:1px;background:var(--bd2)"></span></div>
+
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+              <button style="height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--sf2);border:1px solid var(--bd2);font-size:13px;font-weight:700" style-hover="background:var(--sf3)"><span style="font-weight:800;font-size:16px;color:#4285f4">G</span>Google</button>
+              <button style="height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--sf2);border:1px solid var(--bd2);font-size:13px;font-weight:700" style-hover="background:var(--sf3)"><span style="display:grid;grid-template-columns:6px 6px;gap:1.5px"><span style="width:6px;height:6px;background:#f25022"></span><span style="width:6px;height:6px;background:#7fba00"></span><span style="width:6px;height:6px;background:#00a4ef"></span><span style="width:6px;height:6px;background:#ffb900"></span></span>Microsoft</button>
+              <button style="height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--sf2);border:1px solid var(--bd2);font-size:13px;font-weight:700" style-hover="background:var(--sf3)"><span style="width:8px;height:8px;border-radius:50%;background:var(--tx)"></span>Apple</button>
+            </div>
+
+            <p style="margin:0;text-align:center;font-size:13.5px;color:var(--mu)">¿No tienes cuenta? <a href="#">Regístrate gratis</a></p>
+          </sc-if>
+
+          <sc-if value="{{ done }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:40px 0">
+              <div style="width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--acs);color:var(--ac)"><span style="font-family:'Material Symbols Rounded';font-size:34px;line-height:1">check</span></div>
+              <h2 style="margin:0;font-size:22px;font-weight:800">¡Listo, ya estás dentro!</h2>
+              <p style="margin:0;font-size:14px;color:var(--mu)">Preparando tu resumen del mes…</p>
+              <button onClick="{{ reset }}" style="font-size:13px;font-weight:700;color:var(--ac)">Volver al login</button>
+            </div>
+          </sc-if>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer style="position:relative;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;padding:16px clamp(20px,4vw,48px);border-top:1px solid var(--bd);font-size:12.5px;color:var(--mu)">
+    <div style="display:flex;align-items:center;gap:10px"><strong style="color:var(--tx)">FinanzasHub</strong><span style="width:1px;height:12px;background:var(--bd2)"></span>Tu historia financiera, un mejor mañana.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:20px;font-weight:600">
+      <span style="display:flex;align-items:center;gap:6px"><span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;color:var(--ac)">verified_user</span>Cifrado de extremo a extremo</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;color:var(--ac)">group</span>Multiusuario</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;color:var(--ac)">devices</span>Web y móvil</span>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;},&quot;defaultTab&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;email&quot;,&quot;phone&quot;],&quot;default&quot;:&quot;email&quot;,&quot;tsType&quot;:&quot;'email'|'phone'&quot;}}">
+class Component extends DCLogic {
+  state = { theme: null, tab: null, showPw: false, remember: true, email: '', phone: '', pw: '', loading: false, error: '', done: false };
+  submit = (e) => {
+    e.preventDefault();
+    const tab = this.state.tab ?? this.props.defaultTab ?? 'email';
+    const id = tab === 'email' ? this.state.email : this.state.phone;
+    if (tab === 'email' && !/^\S+@\S+\.\S+$/.test(id)) return this.setState({ error: 'Ingresa un correo válido.' });
+    if (tab === 'phone' && id.replace(/\D/g, '').length !== 9) return this.setState({ error: 'El celular debe tener 9 dígitos.' });
+    if (this.state.pw.length < 6) return this.setState({ error: 'La contraseña debe tener al menos 6 caracteres.' });
+    this.setState({ error: '', loading: true });
+    setTimeout(() => this.setState({ loading: false, done: true }), 1200);
+  };
+  renderVals() {
+    const s = this.state;
+    const theme = s.theme ?? this.props.theme ?? 'dark';
+    const tab = s.tab ?? this.props.defaultTab ?? 'email';
+    const dark = theme === 'dark';
+    const errId = s.error && !s.error.includes('contraseña');
+    const errPw = s.error && s.error.includes('contraseña');
+    const mk = (id, l, icon) => ({ l, icon, on: () => this.setState({ tab: id, error: '' }), bg: tab === id ? (dark ? 'var(--sf3)' : 'var(--sf)') : 'transparent', fg: tab === id ? 'var(--tx)' : 'var(--mu)', sh: tab === id ? '0 1px 3px rgba(0,0,0,.18)' : 'none' });
+    return {
+      theme,
+      toggleTheme: () => this.setState({ theme: dark ? 'light' : 'dark' }),
+      sunBg: dark ? 'transparent' : 'var(--ac)', sunFg: dark ? 'var(--mu)' : 'var(--onac)',
+      moonBg: dark ? 'var(--ac)' : 'transparent', moonFg: dark ? 'var(--onac)' : 'var(--mu)',
+      features: [
+        { icon: 'account_balance_wallet', t: 'Control total', d: 'Todas tus cuentas en un solo lugar', bg: 'var(--acs)', fg: 'var(--ac)' },
+        { icon: 'monitoring', t: 'Visualiza tu progreso', d: 'Analiza tus finanzas en tiempo real', bg: 'var(--bls)', fg: 'var(--bl)' },
+        { icon: 'flag', t: 'Alcanza tus metas', d: 'Ahorra para lo que realmente importa', bg: 'var(--rds)', fg: 'var(--rd)' },
+        { icon: 'calendar_month', t: 'Planifica tu mes', d: 'Presupuestos y recordatorios', bg: 'var(--ams)', fg: 'var(--am)' },
+        { icon: 'group', t: 'Juntos es mejor', d: 'Comparte gastos, viajes y más', bg: 'var(--vis)', fg: 'var(--vi)' },
+        { icon: 'shield_lock', t: 'Tus datos, siempre tuyos', d: 'Seguros y bajo tu control', bg: 'var(--tes)', fg: 'var(--te)' },
+      ],
+      tabs: [mk('email', 'Correo', 'mail'), mk('phone', 'Celular', 'smartphone')],
+      isEmail: tab === 'email', isPhone: tab === 'phone',
+      email: s.email, phone: s.phone, pw: s.pw,
+      onEmail: e => this.setState({ email: e.target.value, error: '' }),
+      onPhone: e => this.setState({ phone: e.target.value.replace(/[^\d ]/g, '').slice(0, 11), error: '' }),
+      onPw: e => this.setState({ pw: e.target.value, error: '' }),
+      emailBd: errId ? 'var(--rd)' : 'var(--bd2)', pwBd: errPw ? 'var(--rd)' : 'var(--bd2)',
+      pwType: s.showPw ? 'text' : 'password', pwIcon: s.showPw ? 'visibility_off' : 'visibility',
+      togglePw: () => this.setState({ showPw: !s.showPw }),
+      toggleRemember: () => this.setState({ remember: !s.remember }),
+      chkBg: s.remember ? 'var(--ac)' : 'transparent', chkBd: s.remember ? 'var(--ac)' : 'var(--bd2)', chkOp: s.remember ? 1 : 0,
+      error: s.error,
+      btnLabel: s.loading ? 'Ingresando…' : 'Ingresar', btnIcon: s.loading ? 'progress_activity' : 'arrow_forward', btnOp: s.loading ? .75 : 1,
+      submit: this.submit,
+      done: s.done, notDone: !s.done,
+      reset: () => this.setState({ done: false, pw: '' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

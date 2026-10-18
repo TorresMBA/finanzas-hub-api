@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Caveat:wght@600;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&amp;display=block">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0a111e;-webkit-font-smoothing:antialiased;font-family:Manrope,system-ui,sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;margin:0;cursor:pointer}
+a{color:var(--ac);text-decoration:none;font-weight:700}a:hover{text-decoration:underline}
+@keyframes tw{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes qf{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+[data-theme="dark"]{color-scheme:dark;--bg:#0a111e;--sf:#101a2b;--sf2:#152137;--sf3:#1c2a45;--bd:rgba(148,163,184,.13);--tx:#e8edf4;--tx2:#c2cbd9;--mu:#8d9ab0;--ac:#1cc28c;--acs:rgba(28,194,140,.14);--onac:#03140d;--rd:#f0506e;--rds:rgba(240,80,110,.14);--bl:#4ea8ff;--bls:rgba(78,168,255,.14);--am:#f5a524;--ams:rgba(245,165,36,.14);--vi:#a78bfa;--vis:rgba(167,139,250,.14);--sh:none;--hbg:radial-gradient(420px 220px at 86% 0%,rgba(250,214,120,.16),transparent 70%),radial-gradient(700px 260px at 100% 100%,rgba(28,194,140,.30),transparent 70%),linear-gradient(115deg,#0c1528 0%,#14214a 55%,#10314a 100%);--hbd:rgba(148,163,184,.16);--htx:#eef2f8;--htx2:#c2cbd9;--hmu:#9fb1cc;--hchip:rgba(10,17,30,.45);--hchipbd:rgba(148,163,184,.2);--star:#ffffff;--orb:radial-gradient(circle at 40% 40%,#fff6d6,#f5d27a 60%,rgba(245,210,122,0) 72%);--orbop:.85}
+[data-theme="light"]{color-scheme:light;--bg:#f3f5f8;--sf:#ffffff;--sf2:#f1f4f8;--sf3:#e5eaf1;--bd:rgba(15,23,42,.09);--tx:#0e1626;--tx2:#334155;--mu:#5a6577;--ac:#08805a;--acs:rgba(8,128,90,.1);--onac:#ffffff;--rd:#c8284a;--rds:rgba(200,40,74,.1);--bl:#1570c9;--bls:rgba(21,112,201,.1);--am:#b26b00;--ams:rgba(178,107,0,.1);--vi:#6d4fd6;--vis:rgba(109,79,214,.1);--sh:0 1px 2px rgba(15,23,42,.05);--hbg:radial-gradient(380px 200px at 86% 0%,rgba(250,204,21,.22),transparent 70%),radial-gradient(640px 240px at 100% 100%,rgba(45,212,191,.22),transparent 70%),linear-gradient(115deg,#e4e7fd 0%,#eef0fb 50%,#ecf9f3 100%);--hbd:rgba(15,23,42,.07);--htx:#0e1626;--htx2:#475569;--hmu:#5b62a8;--hchip:rgba(255,255,255,.85);--hchipbd:rgba(15,23,42,.06);--star:#64748b;--orb:radial-gradient(circle,rgba(253,224,71,.9),rgba(250,204,21,.35) 45%,rgba(250,204,21,0) 70%);--orbop:.9}
+</style>
+</helmet>
+<div data-theme="{{ theme }}" style="min-height:100vh;background:var(--bg);color:var(--tx);padding:clamp(16px,3vw,36px)">
+  <div style="max-width:1440px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
+
+    <section data-screen-label="Hero" style="position:relative;overflow:hidden;border-radius:20px;padding:clamp(22px,3vw,34px) clamp(22px,3vw,36px);background:var(--hbg);border:1px solid var(--hbd);color:var(--htx);box-shadow:var(--sh);transition:background .4s">
+      {{ stars }}
+      <div style="position:absolute;right:clamp(24px,8vw,120px);top:-34px;width:96px;height:96px;border-radius:50%;background:var(--orb);opacity:var(--orbop);filter:blur(1px)"></div>
+      <div style="position:relative;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:20px 32px">
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+          <span style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:.1em;color:var(--hmu)"><span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;letter-spacing:0">{{ dayIcon }}</span>OCTUBRE 2026 · DÍA 17 DE 31</span>
+          <h1 style="margin:0;font-size:clamp(26px,3vw,34px);font-weight:800;letter-spacing:-.025em">{{ greeting }}, Brian</h1>
+          <p style="margin:0;font-size:14.5px;color:var(--htx2)">Este es el resumen de tu dinero del mes. Solo tú lo ves.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+            <span style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;background:var(--hchip);border:1px solid var(--hchipbd);font-size:12px;font-weight:700;color:var(--htx2)"><span style="width:7px;height:7px;border-radius:50%;background:#f0506e"></span>Gastos 11× tus ingresos</span>
+            <span style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;background:var(--hchip);border:1px solid var(--hchipbd);font-size:12px;font-weight:700;color:var(--htx2)"><span style="width:7px;height:7px;border-radius:50%;background:#1cc28c"></span>Presupuesto al 1%</span>
+            <span style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;background:var(--hchip);border:1px solid var(--hchipbd);font-size:12px;font-weight:700;color:var(--htx2)"><span style="width:7px;height:7px;border-radius:50%;background:#f5a524"></span>14 días para cerrar el mes</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px">
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 18px 8px 10px;border-radius:99px;background:var(--hchip);border:1px solid var(--hchipbd);backdrop-filter:blur(6px)">
+            <span style="width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(28,194,140,.18);color:#1cc28c"><span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1">format_quote</span></span>
+            {{ quoteEl }}
+          </div>
+          
+          <button onClick="{{ toggleTheme }}" aria-label="Cambiar tema" style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--hchip);border:1px solid var(--hchipbd);color:var(--htx2)"><span style="font-family:'Material Symbols Rounded';font-size:20px;line-height:1">{{ themeIcon }}</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <h2 style="margin:0;font-size:15px;font-weight:800;color:var(--tx2)">Resumen del mes</h2>
+        <button onClick="{{ toggleEdit }}" style="height:34px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:10px;background:{{ editBg }};color:{{ editFg }};border:1px solid var(--bd);font-size:13px;font-weight:700"><span style="font-family:'Material Symbols Rounded';font-size:17px;line-height:1">{{ editIcon }}</span>{{ editLabel }}</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));grid-auto-rows:1fr;gap:14px">
+        <sc-for list="{{ stats }}" as="st" hint-placeholder-count="5">
+          <div style="position:relative;background:var(--sf);border:1px solid {{ st.bd }};border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;box-shadow:var(--sh);min-width:0;min-height:132px">
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mu);font-weight:600"><span style="width:28px;height:28px;flex:none;border-radius:8px;display:grid;place-items:center;background:{{ st.ibg }};color:{{ st.ifg }}"><span style="font-family:'Material Symbols Rounded';font-size:17px;line-height:1">{{ st.icon }}</span></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ st.l }}</span>
+              <sc-if value="{{ editing }}" hint-placeholder-val="{{ false }}">
+                <span style="display:flex;gap:2px">
+                  <button onClick="{{ st.left }}" aria-label="Mover a la izquierda" style="width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--sf2);color:var(--tx2)"><span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1">chevron_left</span></button>
+                  <button onClick="{{ st.right }}" aria-label="Mover a la derecha" style="width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--sf2);color:var(--tx2)"><span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1">chevron_right</span></button>
+                  <button onClick="{{ st.remove }}" aria-label="Quitar" style="width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--rds);color:var(--rd)"><span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1">close</span></button>
+                </span>
+              </sc-if>
+            </div>
+            <div style="font-size:23px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:{{ st.vc }}">{{ st.v }}</div>
+            <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+              <sc-if value="{{ st.bar }}" hint-placeholder-val="{{ false }}">
+                <div style="height:6px;border-radius:6px;background:var(--sf3);overflow:hidden"><div style="height:100%;width:{{ st.bar }};min-width:4px;border-radius:6px;background:var(--ac)"></div></div>
+              </sc-if>
+              <div style="font-size:12px;font-weight:600;color:{{ st.sc }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ st.s }}</div>
+            </div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ showAdd }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1.5px dashed var(--bd);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-height:132px">
+            <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--mu)"><span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1">add_circle</span>Agregar indicador</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <sc-for list="{{ hiddenStats }}" as="hs" hint-placeholder-count="3">
+                <button onClick="{{ hs.add }}" style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:99px;background:var(--sf2);border:1px solid var(--bd);font-size:12px;font-weight:700;color:var(--tx2)" style-hover="border-color:var(--ac);color:var(--ac)"><span style="font-family:'Material Symbols Rounded';font-size:15px;line-height:1">{{ hs.icon }}</span>{{ hs.l }}</button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </section>
+
+    <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:18px;align-items:stretch">
+      <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+        <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:20px;box-shadow:var(--sh);display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px">
+            <h2 style="margin:0;font-size:16px;font-weight:800">Flujo de los últimos 6 meses</h2>
+            <div style="display:flex;gap:14px;font-size:12.5px;color:var(--mu);font-weight:600">
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:var(--ac)"></span>Ingresos</span>
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:var(--rd)"></span>Gastos</span>
+            </div>
+          </div>
+          <div style="position:relative;height:220px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));align-items:end;border-bottom:1px solid var(--bd);background:repeating-linear-gradient(to top,transparent 0,transparent 54px,var(--bd) 54px,var(--bd) 55px)">
+            <sc-for list="{{ flow }}" as="m" hint-placeholder-count="6">
+              <div style="height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px">
+                <sc-if value="{{ m.label }}" hint-placeholder-val="{{ false }}"><span style="font-size:11.5px;font-weight:800;color:var(--rd);white-space:nowrap">{{ m.label }}</span></sc-if>
+                <div style="display:flex;align-items:flex-end;gap:5px;height:{{ m.box }}">
+                  <div style="width:clamp(10px,2vw,18px);height:{{ m.i }};min-height:3px;border-radius:5px 5px 2px 2px;background:var(--ac)"></div>
+                  <div style="width:clamp(10px,2vw,18px);height:{{ m.g }};min-height:3px;border-radius:5px 5px 2px 2px;background:var(--rd)"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));margin-top:-8px">
+            <sc-for list="{{ flow }}" as="m" hint-placeholder-count="6"><span style="text-align:center;font-size:12px;color:{{ m.mc }};font-weight:{{ m.mw }}">{{ m.n }}</span></sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--rds);color:var(--rd);font-size:13px;font-weight:600"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1">trending_down</span>Este mes gastaste S/ 2,457.83 más de lo que ingresaste.</div>
+        </div>
+
+        <div style="flex:1;background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:20px;box-shadow:var(--sh);display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><h2 style="margin:0;font-size:16px;font-weight:800">Últimos movimientos</h2><a href="#" style="font-size:13px">Ver todos</a></div>
+          <sc-for list="{{ moves }}" as="t" hint-placeholder-count="10">
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--bd)">
+              <div style="width:38px;height:38px;flex:none;border-radius:11px;display:grid;place-items:center;background:{{ t.bg }};color:{{ t.fg }}"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1">{{ t.icon }}</span></div>
+              <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.d }}</div><div style="font-size:12px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.m }}</div></div>
+              <div style="font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;color:{{ t.ac }};white-space:nowrap">{{ t.a }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+        <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:20px;box-shadow:var(--sh);display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><h2 style="margin:0;font-size:16px;font-weight:800">En qué se fue</h2><a href="#" style="font-size:13px">Categorías</a></div>
+          <sc-for list="{{ cats }}" as="c" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--bd)">
+              <div style="width:38px;height:38px;flex:none;border-radius:11px;display:grid;place-items:center;background:{{ c.bg }};color:{{ c.fg }}"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1">{{ c.icon }}</span></div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
+                <div style="display:flex;justify-content:space-between;gap:10px;font-size:14px"><span style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.n }}</span><span style="font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap">{{ c.v }}</span></div>
+                <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;height:6px;border-radius:6px;background:var(--sf3);overflow:hidden"><div style="height:100%;width:{{ c.w }};border-radius:6px;background:{{ c.fg }}"></div></div><span style="width:44px;text-align:right;font-size:12px;color:var(--mu);font-weight:600;font-variant-numeric:tabular-nums">{{ c.p }}</span></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:20px;box-shadow:var(--sh);display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><h2 style="margin:0;font-size:16px;font-weight:800">Tus metas</h2><a href="#" style="font-size:13px">Ver todas</a></div>
+          <sc-for list="{{ goals }}" as="g" hint-placeholder-count="2">
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--bd)">
+              <div style="width:38px;height:38px;flex:none;border-radius:11px;display:grid;place-items:center;background:var(--vis);color:var(--vi)"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1">flag</span></div>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
+                <div style="display:flex;justify-content:space-between;gap:10px;font-size:14px"><span style="font-weight:700">{{ g.n }}</span><span style="font-weight:800;font-variant-numeric:tabular-nums">{{ g.v }}</span></div>
+                <div style="height:6px;border-radius:6px;background:var(--sf3);overflow:hidden"><div style="height:100%;width:{{ g.w }};border-radius:6px;background:var(--vi)"></div></div>
+                <span style="font-size:12px;color:var(--mu)">{{ g.s }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="flex:1;background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:20px;box-shadow:var(--sh);display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><h2 style="margin:0;font-size:16px;font-weight:800">Tus cuentas</h2><a href="#" style="font-size:13px">Ver todas</a></div>
+          <sc-for list="{{ accts }}" as="a" hint-placeholder-count="2">
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--bd)">
+              <div style="width:38px;height:38px;flex:none;border-radius:11px;display:grid;place-items:center;background:{{ a.bg }};color:{{ a.fg }}"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1">{{ a.icon }}</span></div>
+              <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">{{ a.n }}</div><div style="font-size:12px;color:var(--mu)">{{ a.c }}</div></div>
+              <div style="font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;color:{{ a.vc }}">{{ a.v }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;},&quot;rotateQuote&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;stars&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { theme: null, qi: 0, editing: false, order: (() => { try { return JSON.parse(localStorage.getItem('fh-inicio-stats')) || null; } catch (e) { return null; } })() };
+  setOrder(order) { localStorage.setItem('fh-inicio-stats', JSON.stringify(order)); this.setState({ order }); }
+  quotes = ['“Pequeñas decisiones, grandes resultados.”', '“Cada sol cuenta.”', '“Hoy ahorras, mañana eliges.”', '“Lo que se mide, mejora.”'];
+  stars = (() => { let x = 7; const r = () => (x = (x * 9301 + 49297) % 233280) / 233280; return Array.from({ length: 46 }, () => ({ l: r() * 100, t: r() * 100, s: r() < .15 ? 2.5 : 1.5, d: (r() * 4).toFixed(2), du: (2.5 + r() * 3).toFixed(2) })); })();
+  componentDidMount() { this.iv = setInterval(() => { if (this.props.rotateQuote) this.setState(s => ({ qi: (s.qi + 1) % this.quotes.length })); }, 7000); }
+  componentWillUnmount() { clearInterval(this.iv); }
+  renderVals() {
+    const theme = this.state.theme ?? this.props.theme ?? 'dark';
+    const h = React.createElement;
+    const showStars = this.props.stars ?? true;
+    const ing = [0, 0, 0, 0, 0, 235], gas = [0, 0, 0, 0, 0, 2692.83], max = 2692.83;
+    const names = ['may', 'jun', 'jul', 'ago', 'set', 'oct'];
+    return {
+      theme,
+      themeIcon: theme === 'dark' ? 'light_mode' : 'dark_mode',
+      toggleTheme: () => this.setState({ theme: theme === 'dark' ? 'light' : 'dark' }),
+      stars: showStars ? h('div', { style: { position: 'absolute', inset: 0, pointerEvents: 'none' } }, this.stars.map((s, i) => h('span', { key: i, style: { position: 'absolute', left: s.l + '%', top: s.t + '%', width: s.s, height: s.s, borderRadius: '50%', background: 'var(--star)', animation: `tw ${s.du}s ${s.d}s ease-in-out infinite` } }))) : null,
+      quoteEl: h('span', { key: this.state.qi, style: { fontFamily: 'Caveat,cursive', fontSize: 22, fontWeight: 700, lineHeight: 1, color: 'var(--htx)', whiteSpace: 'nowrap', animation: 'qf .5s ease' } }, this.quotes[this.state.qi]),
+      ...(() => {
+        const all = {
+          pat: { l: 'Patrimonio', icon: 'account_balance', ibg: 'var(--bls)', ifg: 'var(--bl)', v: '−S/ 1,457.83', vc: 'var(--rd)', s: '−S/ 1,457.83 vs. mes anterior', sc: 'var(--rd)' },
+          ing: { l: 'Ingresos', icon: 'south_west', ibg: 'var(--acs)', ifg: 'var(--ac)', v: 'S/ 235.00', vc: 'var(--tx)', s: '+S/ 235.00 vs. mes anterior', sc: 'var(--ac)' },
+          gas: { l: 'Gastos', icon: 'north_east', ibg: 'var(--rds)', ifg: 'var(--rd)', v: 'S/ 2,692.83', vc: 'var(--tx)', s: '+S/ 2,692.83 vs. mes anterior', sc: 'var(--mu)' },
+          tas: { l: 'Tasa de ahorro', icon: 'savings', ibg: 'var(--rds)', ifg: 'var(--rd)', v: '−1045.9%', vc: 'var(--rd)', s: 'Gastaste 11× lo que ingresaste', sc: 'var(--rd)' },
+          pre: { l: 'Presupuesto', icon: 'donut_large', ibg: 'var(--ams)', ifg: 'var(--am)', v: '1% usado', vc: 'var(--tx)', bar: '1%', s: 'S/ 13.00 de S/ 2,090.00', sc: 'var(--mu)' },
+          dia: { l: 'Gasto diario', icon: 'today', ibg: 'var(--vis)', ifg: 'var(--vi)', v: 'S/ 158.40', vc: 'var(--tx)', s: 'Promedio en 17 días', sc: 'var(--mu)' },
+          pag: { l: 'Próximos pagos', icon: 'event_upcoming', ibg: 'var(--ams)', ifg: 'var(--am)', v: 'S/ 320.00', vc: 'var(--tx)', s: '3 pagos esta semana', sc: 'var(--mu)' },
+          deu: { l: 'Deudas', icon: 'credit_card', ibg: 'var(--rds)', ifg: 'var(--rd)', v: 'S/ 0.00', vc: 'var(--tx)', s: 'Sin tarjetas pendientes', sc: 'var(--ac)' },
+          inv: { l: 'Inversiones', icon: 'show_chart', ibg: 'var(--acs)', ifg: 'var(--ac)', v: 'S/ 0.00', vc: 'var(--tx)', s: 'Conecta una cuenta', sc: 'var(--mu)' },
+        };
+        const ed = this.state.editing;
+        const order = (this.state.order || ['pat', 'ing', 'gas', 'tas', 'pre']).filter(k => all[k]);
+        const move = (i, d) => { const o = [...order]; const j = i + d; if (j < 0 || j >= o.length) return; [o[i], o[j]] = [o[j], o[i]]; this.setOrder(o); };
+        return {
+          editing: ed,
+          toggleEdit: () => this.setState({ editing: !ed }),
+          editLabel: ed ? 'Listo' : 'Personalizar', editIcon: ed ? 'check' : 'tune',
+          editBg: ed ? 'var(--ac)' : 'var(--sf)', editFg: ed ? 'var(--onac)' : 'var(--tx2)',
+          stats: order.map((k, i) => ({ ...all[k], bd: ed ? 'var(--ac)' : 'var(--bd)', left: () => move(i, -1), right: () => move(i, 1), remove: () => this.setOrder(order.filter(x => x !== k)) })),
+          hiddenStats: Object.keys(all).filter(k => !order.includes(k)).map(k => ({ l: all[k].l, icon: all[k].icon, add: () => this.setOrder([...order, k]) })),
+          showAdd: ed && Object.keys(all).some(k => !order.includes(k)),
+        };
+      })(),
+      greeting: (() => { const hr = new Date().getHours(); return hr < 12 ? 'Buenos días' : hr < 19 ? 'Buenas tardes' : 'Buenas noches'; })(),
+      dayIcon: theme === 'dark' ? 'bedtime' : 'wb_sunny',
+      flow: names.map((n, i) => ({ n, box: '100%', i: (ing[i] / max * 85) + '%', g: (gas[i] / max * 85) + '%', label: i === 5 ? 'S/ 2.7k' : '', mc: i === 5 ? 'var(--tx)' : 'var(--mu)', mw: i === 5 ? 800 : 600 })),
+      cats: [
+        { n: 'Restaurantes y delivery', icon: 'restaurant', v: 'S/ 2,500.00', p: '92.8%', w: '92.8%', bg: 'var(--ams)', fg: 'var(--am)' },
+        { n: 'Supermercado', icon: 'shopping_cart', v: 'S/ 177.83', p: '6.6%', w: '6.6%', bg: 'var(--acs)', fg: 'var(--ac)' },
+        { n: 'Suscripciones y ocio', icon: 'movie', v: 'S/ 25.00', p: '0.9%', w: '0.9%', bg: 'var(--vis)', fg: 'var(--vi)' },
+        { n: 'Transporte', icon: 'directions_car', v: 'S/ 2.00', p: '0.1%', w: '0.1%', bg: 'var(--bls)', fg: 'var(--bl)' },
+        { n: 'Educación', icon: 'school', v: '−S/ 12.00', p: '−0.4%', w: '0%', bg: 'var(--bls)', fg: 'var(--bl)' },
+      ],
+      moves: [
+        { d: 'Desktop Elevable', m: '17 oct · Delivery · Cuenta Sueldo', a: '−S/ 2,000.00', ac: 'var(--tx)', icon: 'restaurant', bg: 'var(--ams)', fg: 'var(--am)' },
+        { d: 'Aporte a tester', m: '17 oct · Cuenta Sueldo → Meta: tester', a: 'S/ 100.00', ac: 'var(--tx)', icon: 'sync_alt', bg: 'var(--bls)', fg: 'var(--bl)' },
+        { d: 'tetetst', m: '16 oct · Consultoría · Cuenta Sueldo', a: '+S/ 200.00', ac: 'var(--ac)', icon: 'work', bg: 'var(--bls)', fg: 'var(--bl)' },
+        { d: 'test', m: '15 oct · Consultoría · Cuenta Sueldo', a: '+S/ 35.00', ac: 'var(--ac)', icon: 'work', bg: 'var(--bls)', fg: 'var(--bl)' },
+        { d: 'Ram', m: '15 oct · Cafés · Cuenta Sueldo', a: '−S/ 500.00', ac: 'var(--tx)', icon: 'restaurant', bg: 'var(--ams)', fg: 'var(--am)' },
+        { d: 'Plaza Vea', m: '14 oct · Supermercado · Cuenta Sueldo', a: '−S/ 177.83', ac: 'var(--tx)', icon: 'shopping_cart', bg: 'var(--acs)', fg: 'var(--ac)' },
+        { d: 'Netflix', m: '12 oct · Suscripciones · Cuenta Sueldo', a: '−S/ 25.00', ac: 'var(--tx)', icon: 'movie', bg: 'var(--vis)', fg: 'var(--vi)' },
+        { d: 'Aporte a Emprendiendo', m: '10 oct · Cuenta Sueldo → Meta: Emprendiendo', a: 'S/ 250.00', ac: 'var(--tx)', icon: 'sync_alt', bg: 'var(--bls)', fg: 'var(--bl)' },
+        { d: 'Reembolso curso', m: '08 oct · Educación · Cuenta Sueldo', a: '+S/ 12.00', ac: 'var(--ac)', icon: 'school', bg: 'var(--bls)', fg: 'var(--bl)' },
+        { d: 'Pasaje Metropolitano', m: '06 oct · Transporte · Cuenta Sueldo', a: '−S/ 2.00', ac: 'var(--tx)', icon: 'directions_bus', bg: 'var(--bls)', fg: 'var(--bl)' },
+      ],
+      goals: [
+        { n: 'tester', v: 'S/ 100.00', w: '6.7%', s: '6.7% de S/ 1,500.00' },
+        { n: 'metas tester', v: 'S/ 0.00', w: '0%', s: '0% de S/ 2,000.00' },
+      ],
+      accts: [
+        { n: 'Cuenta Sueldo', c: 'PEN', v: '−S/ 1,807.83', vc: 'var(--rd)', icon: 'account_balance', bg: 'var(--bls)', fg: 'var(--bl)' },
+        { n: 'Meta: Emprendiendo', c: 'PEN', v: 'S/ 250.00', vc: 'var(--tx)', icon: 'flag', bg: 'var(--vis)', fg: 'var(--vi)' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

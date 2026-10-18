@@ -105,7 +105,18 @@ public sealed class GoalContribution
     public bool IsVoided => VoidedAt is not null;
 
     /// <summary>What it adds to the goal: negative for a withdrawal, nothing once voided.</summary>
-    public decimal Signed => IsVoided ? 0 : Type == ContributionType.Contribution ? Amount : -Amount;
+    public decimal Signed
+    {
+        get
+        {
+            if (IsVoided)
+            {
+                return 0;
+            }
+
+            return Type == ContributionType.Contribution ? Amount : -Amount;
+        }
+    }
 }
 
 /// <summary>
