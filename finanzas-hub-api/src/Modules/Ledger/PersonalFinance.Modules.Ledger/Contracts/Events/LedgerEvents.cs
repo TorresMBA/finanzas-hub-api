@@ -14,6 +14,7 @@ public enum LedgerOperationChange
 /// raise it: nothing outside the ledger depends on them yet.
 /// </summary>
 /// <param name="Amount">Positive, in <paramref name="Currency"/>, as it stands after the change.</param>
+/// <param name="FundedByGoalId">The goal whose savings paid the expense, if any.</param>
 public sealed record LedgerOperationChanged(
     Guid OperationId, Guid WorkspaceId, Guid OwnerUserId, LedgerOperationChange Change, bool IsExpense, Guid? CategoryId, DateOnly OccurredOn, decimal Amount,
-    string Currency, string Description) : IDomainEvent;
+    string Currency, string Description, Guid? FundedByGoalId = null) : IDomainEvent;

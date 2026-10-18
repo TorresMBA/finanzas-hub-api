@@ -126,7 +126,7 @@ public sealed class Operation : AggregateRoot, IOwned
     {
         if (IsTransaction && _entries is [var entry, ..])
         {
-            Raise(new LedgerOperationChanged(Id, WorkspaceId, OwnerUserId, change, Kind == OperationKind.Expense, CategoryId, OccurredOn, entry.Amount, entry.Currency, Description));
+            Raise(new LedgerOperationChanged(Id, WorkspaceId, OwnerUserId, change, Kind == OperationKind.Expense, CategoryId, OccurredOn, entry.Amount, entry.Currency, Description, FundedByGoalId));
         }
     }
 

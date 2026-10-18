@@ -67,9 +67,9 @@ La base contiene datos financieros, los hashes de las contraseñas y las claves 
 
 <!-- generated:start -->
 
-> Generado por `finanzas-hub-api/tools/update-db-docs.mjs` desde `AppDbContextModelSnapshot.cs`. No editar a mano entre las marcas. Última migración: `20261017224017_AddFavoritesGroupIconsAndVoidedContributions`.
+> Generado por `finanzas-hub-api/tools/update-db-docs.mjs` desde `AppDbContextModelSnapshot.cs`. No editar a mano entre las marcas. Última migración: `20261018210531_GoalSpendExpenseLink`.
 
-**47 tablas** en 12 esquemas, **55 índices** secundarios, **27 claves foráneas** y **51 restricciones CHECK**.
+**47 tablas** en 12 esquemas, **56 índices** secundarios, **27 claves foráneas** y **51 restricciones CHECK**.
 
 ### Tablas por esquema
 
@@ -116,6 +116,7 @@ erDiagram
     categories__categories ||--o{ categories__category_tags : "category_id"
     categories__tags ||--o{ categories__category_tags : "tag_id"
     goals__goals ||--o{ goals__goal_contributions : "goal_id"
+    ledger__operations |o..o{ goals__goal_contributions : "expense_operation_id"
     ledger__operations ||..o{ goals__goal_contributions : "ledger_operation_id"
     goals__goals ||--o{ goals__goal_participants : "goal_id"
     ledger__accounts |o..o{ goals__goal_participants : "fund_account_id"
@@ -1193,6 +1194,7 @@ erDiagram
         uuid id PK
         numeric amount
         timestamptz created_at
+        uuid expense_operation_id "ref"
         uuid goal_id FK
         uuid ledger_operation_id "ref"
         date occurred_on
@@ -1210,6 +1212,7 @@ erDiagram
     }
     identity__users ||..o{ goals__goals : "created_by_user_id"
     goals__goals ||--o{ goals__goal_contributions : "goal_id"
+    ledger__operations |o..o{ goals__goal_contributions : "expense_operation_id"
     ledger__operations ||..o{ goals__goal_contributions : "ledger_operation_id"
     identity__users ||..o{ goals__goal_contributions : "user_id"
     goals__goals ||--o{ goals__goal_participants : "goal_id"
@@ -1255,6 +1258,7 @@ What one participant put into the goal or took out of it. Each is tied to one tr
 | `id` | uuid | no | PK |
 | `amount` | numeric(18,2) | no |  |
 | `created_at` | timestamp with time zone | no |  |
+| `expense_operation_id` | uuid | sí | ref. → `ledger.operations` (sin FK) |
 | `goal_id` | uuid | no | FK → `goals.goals` |
 | `ledger_operation_id` | uuid | no | ref. → `ledger.operations` (sin FK) |
 | `occurred_on` | date | no |  |
@@ -1266,6 +1270,7 @@ What one participant put into the goal or took out of it. Each is tied to one tr
 
 | Nombre | Columnas | Único | Filtro |
 |---|---|---|---|
+| `ix_goal_contributions_expense_operation_id` | `expense_operation_id` | sí | `expense_operation_id IS NOT NULL` |
 | `ix_goal_contributions_ledger_operation_id` | `ledger_operation_id` | sí |  |
 | `ix_goal_contributions_goal_id_occurred_on` | `goal_id`, `occurred_on` | no |  |
 

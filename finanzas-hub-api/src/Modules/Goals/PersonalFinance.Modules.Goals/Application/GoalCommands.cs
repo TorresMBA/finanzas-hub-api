@@ -1,10 +1,13 @@
 using System.Globalization;
+using Microsoft.EntityFrameworkCore;
 using PersonalFinance.BuildingBlocks.Application.Abstractions;
+using PersonalFinance.BuildingBlocks.Application.Events;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Goals.Application.Abstractions;
 using PersonalFinance.Modules.Goals.Domain;
 using PersonalFinance.Modules.Ledger.Contracts;
+using PersonalFinance.Modules.Ledger.Contracts.Events;
 using PersonalFinance.Modules.Notifications.Contracts;
 
 namespace PersonalFinance.Modules.Goals.Application;
@@ -184,7 +187,7 @@ internal sealed class RemoveGoalParticipantHandler(GoalReader reader, GoalNotifi
 public sealed record ContributeToGoalCommand(Guid GoalId, decimal Amount, Guid FromAccountId, DateOnly? OccurredOn, string IdempotencyKey)
     : ICommand<GoalResponse>, IIdempotentCommand;
 
-internal sealed class ContributeToGoalHandler(GoalReader reader, ILedgerPosting ledger, GoalNotifier notifier, IAuditLog audit, IClock clock)
+internal sealed class ContributeToGoalHandler(IGoalsDb db, GoalReader reader, ILedgerPosting ledger, GoalNotifier notifier, IAuditLog audit, IClock clock)
     : ICommandHandler<ContributeToGoalCommand, GoalResponse>
 {
     public async Task<Result<GoalResponse>> HandleAsync(ContributeToGoalCommand command, CancellationToken cancellationToken)
@@ -223,6 +226,9 @@ internal sealed class ContributeToGoalHandler(GoalReader reader, ILedgerPosting 
         }
 
         var reached = goal.Record(contributionId, userId, ContributionType.Contribution, command.Amount, occurredOn, moved.Value, clock.UtcNow);
+        // A contribution is a row of its own, which leaves the goal untouched: two at once would each see room for
+        // themselves and pass the target together. Touching the goal makes the second one conflict (409).
+        db.Goals.Entry(goal).Property(saved => saved.Name).IsModified = true;
         audit.Record(new AuditEntry("goals", "goals.contribution.added", "goal", goal.Id)
         {
             ScopeType = "goal", ScopeId = goal.Id, After = new { ContributionId = contributionId, command.Amount, goal.Currency, occurredOn, OperationId = moved.Value }
@@ -376,6 +382,7 @@ internal sealed class SpendFromGoalHandler(GoalReader reader, ILedgerPosting led
         }
 
         goal.Record(contributionId, userId, ContributionType.Withdrawal, command.Amount, occurredOn, moved.Value, clock.UtcNow);
+        goal.LinkExpense(contributionId, spent.Value);
         audit.Record(new AuditEntry("goals", "goals.contribution.spent", "goal", goal.Id)
         {
             ScopeType = "goal",
@@ -390,7 +397,8 @@ internal sealed class SpendFromGoalHandler(GoalReader reader, ILedgerPosting led
 /// <param name="Cancel">True to give the goal up; false to archive one that is done.</param>
 public sealed record CloseGoalCommand(Guid GoalId, bool Cancel) : ICommand<GoalResponse>;
 
-internal sealed class CloseGoalHandler(GoalReader reader, GoalNotifier notifier, IAuditLog audit) : ICommandHandler<CloseGoalCommand, GoalResponse>
+internal sealed class CloseGoalHandler(GoalReader reader, ILedgerPosting ledger, GoalNotifier notifier, IAuditLog audit, IClock clock)
+    : ICommandHandler<CloseGoalCommand, GoalResponse>
 {
     public async Task<Result<GoalResponse>> HandleAsync(CloseGoalCommand command, CancellationToken cancellationToken)
     {
@@ -399,18 +407,99 @@ internal sealed class CloseGoalHandler(GoalReader reader, GoalNotifier notifier,
             return GoalErrors.NotFound;
         }
 
+        var plan = goal.RefundPlan();
         var closed = goal.Close(userId, command.Cancel ? GoalStatus.Cancelled : GoalStatus.Archived);
         if (closed.IsFailure)
         {
             return closed.Error;
         }
 
-        audit.Record(new AuditEntry("goals", "goals.goal.closed", "goal", goal.Id) { ScopeType = "goal", ScopeId = goal.Id, After = new { Status = goal.Status.ToString() } });
+        // Giving up the goal gives the money back: what each participant still had in it returns to the accounts it
+        // came from, in their own ledger. What came from an account they archived stays in their fund.
+        var kept = new HashSet<Guid>();
+        if (command.Cancel)
+        {
+            var today = reader.Today();
+            foreach (var (from, amount) in plan)
+            {
+                var returnId = Guid.CreateVersion7();
+                var returned = await ledger.ReturnGoalMoneyAsync(
+                    from.LedgerOperationId, from.UserId, amount, today, $"Devolución de {goal.Name}", returnId, cancellationToken);
+                if (returned.IsFailure)
+                {
+                    return returned.Error;
+                }
+
+                if (returned.Value is { } operationId)
+                {
+                    goal.Record(returnId, from.UserId, ContributionType.Withdrawal, amount, today, operationId, clock.UtcNow);
+                }
+                else
+                {
+                    kept.Add(from.UserId);
+                }
+            }
+        }
+
+        audit.Record(new AuditEntry("goals", "goals.goal.closed", "goal", goal.Id)
+        {
+            ScopeType = "goal",
+            ScopeId = goal.Id,
+            After = new { Status = goal.Status.ToString(), Returned = plan.Select(item => new { item.From.UserId, item.Amount, ContributionId = item.From.Id }) }
+        });
         notifier.Signal(goal, userId);
         var others = goal.Participants.Where(other => other.IsActive && other.UserId != userId).Select(other => other.UserId).ToList();
-        await notifier.NotifyAsync(
-            goal, others, NotificationSeverity.Info, $"La meta «{goal.Name}» se {(command.Cancel ? "canceló" : "archivó")}",
-            "Lo que aportaste sigue en tu fondo: puedes retirarlo desde la meta.", $"goal-closed:{goal.Id}", cancellationToken);
+        foreach (var other in others)
+        {
+            await notifier.NotifyAsync(
+                goal, [other], NotificationSeverity.Info, $"La meta «{goal.Name}» se {(command.Cancel ? "canceló" : "archivó")}",
+                !command.Cancel ? "Lo que aportaste sigue en tu fondo: puedes retirarlo desde la meta."
+                : kept.Contains(other) ? "Lo que aportaste volvió a tus cuentas, salvo lo que vino de una cuenta archivada: eso sigue en tu fondo y puedes retirarlo desde la meta."
+                : "Lo que aportaste volvió a las cuentas de donde salió.",
+                $"goal-closed:{goal.Id}", cancellationToken);
+        }
+
         return await reader.DescribeAsync(goal, cancellationToken);
+    }
+}
+
+/// <summary>
+/// The expense paid with a goal was voided in the ledger: it was never spent, so the money goes back to the goal
+/// it came from and what is missing to reach the target grows back with it.
+/// </summary>
+internal sealed class ReturnSpentMoneyToGoal(IGoalsDb db, ILedgerPosting ledger, GoalNotifier notifier, IAuditLog audit, IClock clock)
+    : IDomainEventHandler<LedgerOperationChanged>
+{
+    public async Task HandleAsync(LedgerOperationChanged domainEvent, CancellationToken cancellationToken)
+    {
+        if (domainEvent.Change != LedgerOperationChange.Voided || domainEvent.FundedByGoalId is not { } goalId)
+        {
+            return;
+        }
+
+        // The person voids it from Transacciones whatever workspace they have open, and the filter of goals is that of
+        // the open one. The goal is found by the expense and by its owner, who is who spent from it.
+        var goal = await db.Goals.IgnoreQueryFilters().SingleOrDefaultAsync(
+            candidate => candidate.Id == goalId
+                         && candidate.Contributions.Any(contribution =>
+                             contribution.ExpenseOperationId == domainEvent.OperationId && contribution.UserId == domainEvent.OwnerUserId),
+            cancellationToken);
+        if (goal?.RestoreSpent(domainEvent.OwnerUserId, domainEvent.OperationId, clock.UtcNow) is not { } withdrawal)
+        {
+            return;
+        }
+
+        // A failure here undoes the void of the expense too: the two never part.
+        var undone = await ledger.VoidGoalMoveAsync(withdrawal.LedgerOperationId, $"Gasto anulado: vuelve a {goal.Name}", cancellationToken);
+        if (undone.IsFailure)
+        {
+            throw new InvalidOperationException($"The withdrawal {withdrawal.Id} of goal {goal.Id} could not be voided: {undone.Error.Code}.");
+        }
+
+        audit.Record(new AuditEntry("goals", "goals.contribution.restored", "goal", goal.Id)
+        {
+            ScopeType = "goal", ScopeId = goal.Id, After = new { ContributionId = withdrawal.Id, withdrawal.Amount, goal.Currency, ExpenseId = domainEvent.OperationId }
+        });
+        notifier.Signal(goal, domainEvent.OwnerUserId);
     }
 }

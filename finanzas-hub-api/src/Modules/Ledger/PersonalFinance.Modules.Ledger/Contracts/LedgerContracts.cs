@@ -90,8 +90,27 @@ public interface ILedgerPosting
     /// </summary>
     Task<Result> VoidAsync(Guid operationId, string reason, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Voids the movement another person registered for something both of them share, when the current person
+    /// undoes that shared thing: a payment between them, an expense of a group. The movement stops existing in
+    /// the real world, so leaving it would leave money that is not there. Only the movement with that id and that
+    /// owner is found, and nothing about it is returned. Voiding one already voided succeeds.
+    /// </summary>
+    Task<Result> VoidLinkedAsync(Guid operationId, Guid ownerUserId, string reason, CancellationToken cancellationToken);
+
     /// <summary>Voids a movement registered with <see cref="MoveGoalMoneyAsync"/>. Only a movement of the current person is found.</summary>
     Task<Result> VoidGoalMoveAsync(Guid operationId, string reason, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gives back part of a contribution to a goal that was cancelled: a transfer from the fund it went into to the
+    /// account it came from, in the ledger of its owner, who may not be the current person. Only a contribution of
+    /// that owner registered by the goals is found.
+    /// </summary>
+    /// <param name="contributionOperationId">The transfer of the contribution, as <see cref="MoveGoalMoneyAsync"/> returned it.</param>
+    /// <param name="sourceId">What in the goals this movement is: there is one movement per id.</param>
+    /// <returns>The id of the operation; null when the account the money came from is archived and nothing moved.</returns>
+    Task<Result<Guid?>> ReturnGoalMoneyAsync(
+        Guid contributionOperationId, Guid ownerUserId, decimal amount, DateOnly occurredOn, string description, Guid sourceId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Registers money that comes back to the current person for an expense of a category. It enters the account

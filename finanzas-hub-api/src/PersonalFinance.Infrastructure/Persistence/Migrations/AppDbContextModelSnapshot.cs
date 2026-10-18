@@ -2127,6 +2127,10 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                                 .HasColumnType("timestamp with time zone")
                                 .HasColumnName("created_at");
 
+                            b1.Property<Guid?>("ExpenseOperationId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("expense_operation_id");
+
                             b1.Property<Guid>("GoalId")
                                 .HasColumnType("uuid")
                                 .HasColumnName("goal_id");
@@ -2155,6 +2159,11 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
 
                             b1.HasKey("Id")
                                 .HasName("pk_goal_contributions");
+
+                            b1.HasIndex("ExpenseOperationId")
+                                .IsUnique()
+                                .HasDatabaseName("ix_goal_contributions_expense_operation_id")
+                                .HasFilter("expense_operation_id IS NOT NULL");
 
                             b1.HasIndex("LedgerOperationId")
                                 .IsUnique()

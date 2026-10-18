@@ -37,7 +37,15 @@ public class LayeringTests
     [
         // Seeds the categories of someone who just joined and may not be the one signed in. It filters by that
         // person's workspace and user explicitly.
-        "PersonalFinance.Modules.Categories.Application.Defaults.DefaultCategoriesSeeder"
+        "PersonalFinance.Modules.Categories.Application.Defaults.DefaultCategoriesSeeder",
+        // Voids the movement the other side registered for a shared payment or expense that was just undone
+        // (VoidLinkedAsync). It finds it by the id the shared record keeps and by its owner, and returns nothing of it.
+        // Also gives back the contributions of every participant of a goal that is cancelled (ReturnGoalMoneyAsync),
+        // found by the id the goal keeps, their owner and the goals module.
+        "PersonalFinance.Modules.Ledger.Application.Transactions.LedgerPosting",
+        // Finds the goal an expense voided from Transacciones was paid with, whatever workspace is open: by the
+        // expense and by who spent it, never by the workspace.
+        "PersonalFinance.Modules.Goals.Application.ReturnSpentMoneyToGoal"
     ];
 
     [Fact]

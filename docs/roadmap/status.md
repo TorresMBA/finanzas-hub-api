@@ -124,7 +124,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Editar un gasto compartido | Sin fecha. Se cancela (si nadie pagó aún) y se registra de nuevo |
 | Borrador de un gasto y publicación aparte | Sin fecha. Un gasto se registra ya publicado |
 | Elegir a qué gastos va un pago | Sin fecha. Un pago cubre los gastos más antiguos primero |
-| Anular el movimiento del otro lado al anular un pago o cancelar un gasto | Sin fecha. Quien anula se lleva su propio movimiento; al otro lado se le avisa para que anule el suyo, porque nadie escribe en el ledger de otro |
+| Anular el movimiento del otro lado al anular un pago o cancelar un gasto | Hecho el 18-oct-2026. Dejarlo creaba dinero que no existía en la cuenta del otro. Se anula con `ILedgerPosting.VoidLinkedAsync`, solo el movimiento cuyo id guarda el pago o el gasto, y al otro lado se le avisa |
 | Sugerencia de liquidación con menos pagos | Retirada el 13-oct-2026: cada miembro ve solo sus deudas, y la sugerencia exponía las de los demás |
 | Resumen aparte (`W/shared-expenses/summary`) y gastos compartidos en el Inicio | Sin fecha. Los totales vienen en el listado de grupos. Desde el rediseño v2 (17-oct-2026) la pantalla pide el detalle de cada grupo para el resumen por persona y por grupo; si alguien llega a tener muchos grupos, ese resumen pasa a un endpoint |
 | Pagos entre otros miembros y saldo de grupo de cada uno en el rediseño v2 | Por privacidad no se muestran: el mock los tenía, pero cada miembro ve solo lo que es entre él y cada otro. "Quién puso cuánto" cuenta solo los gastos en que participa quien mira |

@@ -83,6 +83,10 @@ public class GoalsTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.Created, (await MoveAsync(juan, workspaceId, goalId, "contributions", 500m, juansBank.Id())).StatusCode);
         Assert.Equal(("completed", 1000m), ((await GoalAsync(brian, workspaceId, goalId)).GetProperty("health").GetString(), (await GoalAsync(brian, workspaceId, goalId)).Money("saved")));
         Assert.Single(await NoticeTitlesAsync(brian), title => title == "Meta alcanzada: «Viaje Japón»");
+        // The agreed target is respected: nothing more goes in, and it cannot be lowered under what is saved.
+        Assert.Equal("goals.contribution.target_reached", await Accounts.CodeOfAsync(await MoveAsync(brian, workspaceId, goalId, "contributions", 1m, bcp.Id())));
+        Assert.Equal("goals.target_below_saved", await Accounts.CodeOfAsync(
+            await brian.Client.PatchAsJsonAsync(Url(workspaceId, $"/{goalId}"), new { name = "Viaje Japón", targetAmount = 900m })));
 
         // Each one takes out only what is theirs, and nobody is removed with money still in.
         Assert.Equal("goals.withdrawal.exceeds_own", await Accounts.CodeOfAsync(await MoveAsync(juan, workspaceId, goalId, "withdrawals", 600m, juansBank.Id())));
@@ -128,6 +132,39 @@ public class GoalsTests(ApiFixture api)
         var month = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-5)).ToString("yyyy-MM");
         var report = await brian.Client.GetFromJsonAsync<JsonElement>($"/api/v1/workspaces/{workspaceId}/reports/summary?period=month&anchor={month}");
         Assert.Equal((1000m, 1000m), (report.GetProperty("current").Money("expense"), report.GetProperty("current").Money("goalFundedExpense")));
+
+        // Brian voids the expense in Transacciones: it was never spent, so the 1 000 go back to the goal, not to BCP.
+        Assert.Equal(HttpStatusCode.OK, (await brian.Client.PostAsJsonAsync($"{Books.TransactionsUrl(workspaceId)}/{expense.Id()}/void", new { reason = "Viaje cancelado" })).StatusCode);
+        var afterVoid = await GoalAsync(brian, workspaceId, goalId);
+        Assert.Equal((1000m, 0m), (afterVoid.Money("mySaved"), afterVoid.Money("remaining")));
+        Assert.Equal((1000m, 2000m), (await brian.BalanceAsync(bcp), (await brian.SummaryAsync()).Money("netWorth")));
+    }
+
+    [Fact]
+    public async Task Cancelling_a_goal_gives_each_participant_back_what_they_still_had_in_it_to_the_account_it_came_from()
+    {
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var workspaceId = brian.PersonalWorkspaceId;
+        var juanEmail = Accounts.NewEmail("juan");
+        var juan = await api.RegisterAsync("Juan", invitationToken: await api.InviteAsync(brian, workspaceId, juanEmail), email: juanEmail);
+        var bcp = (await brian.OpenAccountAsync("BCP", 2000m)).Id();
+        var juansBank = (await juan.OpenAccountAsync("Interbank", 1000m, workspaceId: workspaceId)).Id();
+        var created = await brian.Client.PostAsJsonAsync(Url(workspaceId), new { name = "Auto", targetAmount = 5000m, participantUserIds = new[] { juan.UserId } });
+        var goalId = (await created.Content.ReadFromJsonAsync<JsonElement>()).Id();
+
+        // Only what is missing goes in.
+        Assert.Equal("goals.contribution.exceeds_target", await Accounts.CodeOfAsync(await MoveAsync(brian, workspaceId, goalId, "contributions", 5000.01m, bcp)));
+        Assert.Equal(HttpStatusCode.Created, (await MoveAsync(brian, workspaceId, goalId, "contributions", 300m, bcp)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await MoveAsync(juan, workspaceId, goalId, "contributions", 200m, juansBank)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await MoveAsync(juan, workspaceId, goalId, "withdrawals", 50m, juansBank)).StatusCode);
+        Assert.Equal((1700m, 850m), (await brian.BalanceAsync(bcp), await juan.BalanceAsync(juansBank, workspaceId)));
+
+        // Brian gives it up: his 300 go back to BCP and the 150 Juan still had, to Interbank, in Juan's own ledger.
+        Assert.Equal(HttpStatusCode.OK, (await brian.Client.PostAsync(Url(workspaceId, $"/{goalId}/cancel"), null)).StatusCode);
+        Assert.Equal((2000m, 1000m), (await brian.BalanceAsync(bcp), await juan.BalanceAsync(juansBank, workspaceId)));
+        var cancelled = await GoalAsync(juan, workspaceId, goalId);
+        Assert.Equal(("cancelled", 0m, 0m), (cancelled.GetProperty("status").GetString(), cancelled.Money("saved"), cancelled.Money("mySaved")));
+        Assert.Equal(2000m, (await brian.SummaryAsync()).Money("netWorth"));
     }
 
     [Fact]

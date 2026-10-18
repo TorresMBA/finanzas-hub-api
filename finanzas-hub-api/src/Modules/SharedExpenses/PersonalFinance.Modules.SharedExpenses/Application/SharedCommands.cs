@@ -278,24 +278,25 @@ internal sealed class CancelSharedExpenseHandler(SharedGroupReader reader, ILedg
             return cancelled.Error;
         }
 
-        // The expense of who paid is in their own ledger. When it is they who cancel, it goes too; when it is someone
-        // else, nobody touches the ledger of another person: who paid is told.
+        // The expense of who paid is in their own ledger, and goes with the expense whoever cancels it: left there, it
+        // would keep money out of their account for something that no longer exists. Who paid is told when it was not them.
         var expense = cancelled.Value;
         if (expense.PayerOperationId is { } operationId)
         {
-            if (expense.PaidByUserId == userId)
+            var reason = $"Gasto compartido cancelado en {group.Name}";
+            var voided = expense.PaidByUserId == userId
+                ? await ledger.VoidAsync(operationId, reason, cancellationToken)
+                : await ledger.VoidLinkedAsync(operationId, expense.PaidByUserId, reason, cancellationToken);
+            if (voided.IsFailure)
             {
-                var voided = await ledger.VoidAsync(operationId, $"Gasto compartido cancelado en {group.Name}", cancellationToken);
-                if (voided.IsFailure)
-                {
-                    return voided.Error;
-                }
+                return voided.Error;
             }
-            else
+
+            if (expense.PaidByUserId != userId)
             {
                 await notifier.NotifyAsync(
                     group, expense.PaidByUserId, $"Se canceló «{expense.Description}»",
-                    "Lo habías registrado en una de tus cuentas: anula ese movimiento en Transacciones.", null, cancellationToken);
+                    "Lo habías registrado en una de tus cuentas: ese movimiento también se anuló.", null, cancellationToken);
             }
         }
 
@@ -458,15 +459,25 @@ internal sealed class VoidSettlementHandler(SharedGroupReader reader, ILedgerPos
             return voided.Error;
         }
 
-        // The movement the person had put in their account for this payment goes with it, so paying again does not
-        // leave two. The other side's movement, if they registered one, is theirs to void: they are told.
+        // The movements both sides put in their accounts for this payment go with it: the money never moved, so the
+        // one left behind would be money that is not there. The other side is told.
         var settlement = voided.Value;
+        var reason = $"Pago anulado en {group.Name}";
         var (mine, theirs, other) = userId == settlement.FromUserId
             ? (settlement.FromOperationId, settlement.ToOperationId, settlement.ToUserId)
             : (settlement.ToOperationId, settlement.FromOperationId, settlement.FromUserId);
         if (mine is { } operationId)
         {
-            var undone = await ledger.VoidAsync(operationId, $"Pago anulado en {group.Name}", cancellationToken);
+            var undone = await ledger.VoidAsync(operationId, reason, cancellationToken);
+            if (undone.IsFailure)
+            {
+                return undone.Error;
+            }
+        }
+
+        if (theirs is { } theirOperationId)
+        {
+            var undone = await ledger.VoidLinkedAsync(theirOperationId, other, reason, cancellationToken);
             if (undone.IsFailure)
             {
                 return undone.Error;
@@ -478,7 +489,7 @@ internal sealed class VoidSettlementHandler(SharedGroupReader reader, ILedgerPos
             group, other, $"{SharedGroupReader.NameOf(names, userId)} anuló un pago de {SharedNotifier.Money(settlement.Amount, group.Currency)}",
             theirs is null
                 ? $"En «{group.Name}». Lo que cubría se vuelve a deber."
-                : $"En «{group.Name}». Lo habías registrado en una de tus cuentas: anula ese movimiento en Transacciones.",
+                : $"En «{group.Name}». Lo habías registrado en una de tus cuentas: ese movimiento también se anuló.",
             null, cancellationToken);
 
         audit.Record(new AuditEntry("shared-expenses", "shared.settlement.voided", "shared_group", group.Id)

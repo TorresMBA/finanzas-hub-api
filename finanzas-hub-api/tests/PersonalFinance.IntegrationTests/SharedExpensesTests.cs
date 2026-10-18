@@ -114,10 +114,13 @@ public class SharedExpensesTests(ApiFixture api)
             .GetProperty("settlements").EnumerateArray().First(payment => payment.Money("amount") == 50m && !payment.GetProperty("isVoided").GetBoolean());
         var fifty = await PayFiftyAsync();
         Assert.Equal((350m, true), (await juan.BalanceAsync(juansBank.Id()), fifty.GetProperty("canVoid").GetBoolean()));
+        // Brian had already put it in BCP: voiding the payment takes it out of his account too, or he would keep 50 that never came.
+        Assert.Equal(HttpStatusCode.OK, (await brian.Client.PostWithKeyAsync($"{settlements}/{fifty.Id()}/link-account", new { accountId = bcp.Id(), categoryId = food })).StatusCode);
+        Assert.Equal(850m, await brian.BalanceAsync(bcp.Id()));
         var undone = await juan.Client.PostAsync($"{settlements}/{fifty.Id()}/void", null);
         Assert.Equal(HttpStatusCode.OK, undone.StatusCode);
         Assert.Equal(2, (await undone.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("voidsLeftToday").GetInt32());
-        Assert.Equal(400m, await juan.BalanceAsync(juansBank.Id()));
+        Assert.Equal((400m, 800m), (await juan.BalanceAsync(juansBank.Id()), await brian.BalanceAsync(bcp.Id())));
         Assert.Equal("shared.settlement.already_voided", await Accounts.CodeOfAsync(await juan.Client.PostAsync($"{settlements}/{fifty.Id()}/void", null)));
         await PayFiftyAsync();
         Assert.Equal((350m, 150m), (await juan.BalanceAsync(juansBank.Id()), (await juan.TransactionsAsync()).GetProperty("baseTotals").Money("expense")));

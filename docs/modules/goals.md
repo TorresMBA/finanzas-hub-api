@@ -22,7 +22,7 @@ Una meta personal es una meta con un solo participante. No hay dos modelos.
 | WithdrawFromGoal | Participante, sobre lo suyo | monto, cuenta destino | No más que su saldo aportado | Transferencia inversa |
 | VoidContribution | Autor del aporte | id | — | Anula aporte y operación |
 | SetAutoContribution | Participante | monto, día, cuenta origen | — | Crea o actualiza regla en Scheduling |
-| ArchiveGoal / CancelGoal | Owner de la meta | — | Cancelar no mueve dinero; cada uno retira lo suyo | `GoalCancelled` |
+| ArchiveGoal / CancelGoal | Owner de la meta | — | Archivar no mueve dinero. Cancelar devuelve lo de cada participante a las cuentas de donde salió (desde el 18-oct-2026) | `GoalCancelled` |
 | GetGoals, GetGoalDetail (queries) | Participante | estado | El detalle muestra aportes de todos, nunca la cuenta origen ajena | — |
 
 ## Estado tras la fase 8
@@ -34,3 +34,9 @@ Implementado: `CreateGoal`, `UpdateGoal`, `AddParticipant`, `RemoveParticipant` 
 El dinero de cada participante está en su propio fondo, una cuenta `GoalFund` del ledger que abre `ILedgerPosting.OpenGoalFundAsync` con su primer aporte, fuera del patrimonio. Aportar y retirar son transferencias entre una cuenta suya y ese fondo (`MoveGoalMoneyAsync`), con `source = goals`. Lo ahorrado en la meta es la suma de los aportes, nunca una columna.
 
 Diferido: aporte automático, cuenta vinculada, anular un aporte, traspasar la propiedad. Las diferencias con el diseño están en [phases.md](../roadmap/phases.md).
+
+### Ajustes del 18-oct-2026
+
+- **El objetivo se respeta.** Un aporte es como máximo lo que falta (`goals.contribution.exceeds_target`, y `goals.contribution.target_reached` una vez alcanzada), y el objetivo no baja de lo ya ahorrado (`goals.target_below_saved`). Cada aporte toca la fila de la meta, así que dos aportes a la vez no pasan el objetivo juntos: el segundo responde 409.
+- **Cancelar devuelve el dinero.** Lo que cada participante tiene en la meta vuelve a las cuentas de donde salió, empezando por el aporte más reciente (lo retirado o gastado salió de lo más antiguo). Es una transferencia del fondo a esa cuenta en el ledger de cada participante (`ILedgerPosting.ReturnGoalMoneyAsync`) y un retiro en la meta. Si esa cuenta está archivada, ese importe se queda en su fondo y se le avisa para que lo retire.
+- **Anular el gasto pagado con la meta lo devuelve a la meta.** Al anular en Transacciones un gasto registrado con "Usar el dinero", `ReturnSpentMoneyToGoal` (reacción a `LedgerOperationChanged`) anula también el retiro del fondo: el dinero vuelve a la meta y lo que falta crece con él. En una meta cancelada no: ahí el dinero se queda en la cuenta. El retiro guarda el gasto que pagó (`expense_operation_id`); los anteriores a este cambio se enlazaron desde la auditoría en la migración.

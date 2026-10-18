@@ -43,6 +43,7 @@ Diferido: borrador y edición de un gasto, elegir a qué gastos va un pago, "Div
 
 - **Visibilidad dentro del grupo.** Ser miembro deja ver el grupo, no todo lo que hay en él: `SharedGroupReader` devuelve a cada quien solo los gastos, pagos y deudas en que participa.
 - **Anular un pago** anula el movimiento propio en el ledger y avisa al otro lado. Solo dentro de un día, una vez por pago y tres al día por persona y grupo.
+- **Desde el 18-oct-2026**, anular un pago o cancelar un gasto anula también el movimiento que el otro lado había registrado por él (`ILedgerPosting.VoidLinkedAsync`): el dinero no se movió, y dejarlo creaba saldo que no existía. Es la única excepción a que nadie escribe en el ledger de otro: solo anula, solo ese movimiento, y no devuelve nada de él.
 - La sugerencia de liquidación se retiró.
 
 ### Pantalla

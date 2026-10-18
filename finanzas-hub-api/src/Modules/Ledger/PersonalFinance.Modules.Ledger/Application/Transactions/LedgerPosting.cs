@@ -51,6 +51,31 @@ internal sealed class LedgerPosting(
         return voided.IsFailure ? voided.Error : Result.Success();
     }
 
+    public async Task<Result> VoidLinkedAsync(Guid operationId, Guid ownerUserId, string reason, CancellationToken cancellationToken)
+    {
+        // The owner filter is that of the current person; the movement is of the other side, found by its id and its owner only.
+        if (await db.Operations.IgnoreQueryFilters().Include(operation => operation.Entries)
+                .SingleOrDefaultAsync(operation => operation.Id == operationId && operation.OwnerUserId == ownerUserId, cancellationToken) is not { } operation)
+        {
+            return LedgerErrors.TransactionNotFound;
+        }
+
+        var wasEffective = operation.IsEffective;
+        var voided = operation.Void(reason, clock.UtcNow);
+        if (voided.IsFailure || !wasEffective)
+        {
+            return voided;
+        }
+
+        // Not announced: the reactions to a movement (budgets, notices) read under the current person, who is not its owner.
+        audit.Record(new AuditEntry("ledger", "ledger.transaction.voided", "operation", operation.Id)
+        {
+            OwnerUserId = operation.OwnerUserId,
+            After = new { Status = operation.Status.ToString(), operation.VoidReason, VoidedByCounterpart = true }
+        });
+        return Result.Success();
+    }
+
     public async Task<Result> VoidGoalMoveAsync(Guid operationId, string reason, CancellationToken cancellationToken)
     {
         // The owner filter leaves out a movement of someone else, and VoidFor one that the goals did not register.
@@ -73,6 +98,59 @@ internal sealed class LedgerPosting(
             After = new { Status = operation.Status.ToString(), operation.VoidReason, SourceModule = GoalsModule }
         });
         return Result.Success();
+    }
+
+    public async Task<Result<Guid?>> ReturnGoalMoneyAsync(
+        Guid contributionOperationId, Guid ownerUserId, decimal amount, DateOnly occurredOn, string description, Guid sourceId, CancellationToken cancellationToken)
+    {
+        // The owner filter is that of the current person; the contribution may be of another participant, found by its id, its owner and its module.
+        if (await db.Operations.IgnoreQueryFilters().AsNoTracking().Include(operation => operation.Entries)
+                .SingleOrDefaultAsync(
+                    operation => operation.Id == contributionOperationId && operation.OwnerUserId == ownerUserId && operation.SourceModule == GoalsModule
+                                 && operation.Kind == OperationKind.Transfer,
+                    cancellationToken) is not { } contribution)
+        {
+            return LedgerErrors.TransactionNotFound;
+        }
+
+        var (originId, fundId) = (
+            contribution.Entries.Single(entry => entry.Direction == EntryDirection.Out).AccountId,
+            contribution.Entries.Single(entry => entry.Direction == EntryDirection.In).AccountId);
+        var accounts = await db.Accounts.IgnoreQueryFilters()
+            .Where(account => (account.Id == originId || account.Id == fundId) && account.OwnerUserId == ownerUserId)
+            .ToListAsync(cancellationToken);
+        if (accounts.SingleOrDefault(account => account.Id == originId) is not { } origin || accounts.SingleOrDefault(account => account.Id == fundId) is not { } fund)
+        {
+            return LedgerErrors.AccountNotFound;
+        }
+
+        // Its owner archived it: the money stays in the fund, where they can still withdraw it to another account.
+        if (origin.EnsureOpen().IsFailure)
+        {
+            return (Guid?)null;
+        }
+
+        var posted = Operation.PostTransfer(fund, origin, amount, null, occurredOn, description, null, clock.UtcNow, byModule: true);
+        if (posted.IsFailure)
+        {
+            return posted.Error;
+        }
+
+        var operation = posted.Value;
+        operation.AttributeTo(GoalsModule, "contribution", sourceId);
+        // The rates are those of the current person: someone else's movement is left unvalued, as one without a rate.
+        if (ownerUserId == scope.Owner?.UserId)
+        {
+            await rates.ValueAsync(operation, cancellationToken);
+        }
+
+        db.Operations.Add(operation);
+        audit.Record(new AuditEntry("ledger", "ledger.transfer.posted", "operation", operation.Id)
+        {
+            OwnerUserId = operation.OwnerUserId,
+            After = Snapshot.Of(operation)
+        });
+        return operation.Id;
     }
 
     public async Task<Result<Guid>> PostRefundAsync(

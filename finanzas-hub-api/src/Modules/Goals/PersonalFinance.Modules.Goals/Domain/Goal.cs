@@ -9,7 +9,7 @@ public enum GoalStatus
     /// <summary>Finished and put away.</summary>
     Archived,
 
-    /// <summary>Given up. No money moves: each participant withdraws what is theirs.</summary>
+    /// <summary>Given up. What each participant had in it goes back to the accounts it came from.</summary>
     Cancelled
 }
 
@@ -97,6 +97,9 @@ public sealed class GoalContribution
 
     public Guid LedgerOperationId { get; private set; }
 
+    /// <summary>For a withdrawal spent from the goal, the expense it paid. Voiding that expense brings the money back to the goal.</summary>
+    public Guid? ExpenseOperationId { get; internal set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     /// <summary>Set when it was voided, together with its transfer in the ledger. A voided one stays, and adds nothing.</summary>
@@ -172,6 +175,9 @@ public sealed class Goal : AggregateRoot
 
     public bool IsShared => _participants.Count(participant => participant.IsActive) > 1;
 
+    /// <summary>What is still missing to reach the target: the most a new contribution can be.</summary>
+    public decimal Remaining => Math.Max(TargetAmount - Saved, 0);
+
     public static Result<Goal> Create(
         Guid workspaceId, Guid creatorUserId, string? name, decimal targetAmount, string currency, DateOnly? targetDate, DateTimeOffset now)
     {
@@ -195,8 +201,18 @@ public sealed class Goal : AggregateRoot
 
     public bool IsOwner(Guid userId) => ActiveParticipant(userId)?.Role == ParticipantRole.Owner;
 
-    public Result Update(Guid actorUserId, string? name, decimal targetAmount, DateOnly? targetDate) =>
-        IsOwner(actorUserId) ? Describe(name, targetAmount, targetDate) : OwnerRequired;
+    public Result Update(Guid actorUserId, string? name, decimal targetAmount, DateOnly? targetDate)
+    {
+        if (!IsOwner(actorUserId))
+        {
+            return OwnerRequired;
+        }
+
+        // The target is what was agreed: lowering it under what is already saved would leave the goal past it.
+        return targetAmount < Saved
+            ? Error.BusinessRule("goals.target_below_saved", $"The target cannot be lower than what is already saved ({Saved:0.00} {Currency}).")
+            : Describe(name, targetAmount, targetDate);
+    }
 
     /// <summary>Adds a member of the workspace to the goal. Someone who had left comes back with what they had put in.</summary>
     public Result AddParticipant(Guid actorUserId, Guid userId, DateTimeOffset now)
@@ -259,7 +275,7 @@ public sealed class Goal : AggregateRoot
         return Result.Success();
     }
 
-    /// <summary>Whether this person may put this amount in. Asked before any money moves.</summary>
+    /// <summary>Whether this person may put this amount in: no more than what is missing to reach the target. Asked before any money moves.</summary>
     public Result<GoalParticipant> CanContribute(Guid userId, decimal amount)
     {
         if (ActiveParticipant(userId) is not { } participant)
@@ -272,7 +288,19 @@ public sealed class Goal : AggregateRoot
             return NotActive;
         }
 
-        return ValidAmount(amount) ? participant : AmountInvalid;
+        if (!ValidAmount(amount))
+        {
+            return AmountInvalid;
+        }
+
+        if (Remaining == 0)
+        {
+            return Error.BusinessRule("goals.contribution.target_reached", "The goal already reached its target: it takes no more contributions.");
+        }
+
+        return amount > Remaining
+            ? Error.BusinessRule("goals.contribution.exceeds_target", $"Only {Remaining:0.00} {Currency} are missing to reach the target.")
+            : participant;
     }
 
     /// <summary>Whether this person may take this amount out: no more than what they put in themselves. A closed goal still lets them.</summary>
@@ -337,7 +365,57 @@ public sealed class Goal : AggregateRoot
         return contribution;
     }
 
-    /// <summary>Archives or cancels the goal. Nothing moves: what each one put in stays in their fund until they withdraw it.</summary>
+    /// <summary>Remembers the expense a withdrawal paid, so voiding it brings the money back.</summary>
+    public void LinkExpense(Guid withdrawalId, Guid expenseOperationId) =>
+        _contributions.Single(contribution => contribution.Id == withdrawalId).ExpenseOperationId = expenseOperationId;
+
+    /// <summary>
+    /// Brings back to the goal the money of a withdrawal whose expense was voided: it was never spent. Not on a
+    /// cancelled goal, whose money already went back to its owners; there it stays in the account it was spent from.
+    /// </summary>
+    /// <returns>The withdrawal, or null when there is nothing to bring back.</returns>
+    public GoalContribution? RestoreSpent(Guid userId, Guid expenseOperationId, DateTimeOffset now)
+    {
+        var withdrawal = _contributions.FirstOrDefault(candidate =>
+            candidate.ExpenseOperationId == expenseOperationId && candidate.UserId == userId && candidate.Type == ContributionType.Withdrawal);
+        if (withdrawal is null || withdrawal.IsVoided || Status == GoalStatus.Cancelled)
+        {
+            return null;
+        }
+
+        withdrawal.VoidedAt = now;
+        return withdrawal;
+    }
+
+    /// <summary>
+    /// What goes back to whom when the goal is cancelled: what each participant still has in it, to the accounts it
+    /// came from. The newest contributions first, because what was withdrawn or spent came out of the oldest money.
+    /// </summary>
+    public IReadOnlyList<(GoalContribution From, decimal Amount)> RefundPlan()
+    {
+        var plan = new List<(GoalContribution, decimal)>();
+        foreach (var userId in _contributions.Select(contribution => contribution.UserId).Distinct())
+        {
+            var left = SavedBy(userId);
+            foreach (var contribution in _contributions
+                         .Where(candidate => candidate.UserId == userId && candidate.Type == ContributionType.Contribution && !candidate.IsVoided)
+                         .OrderByDescending(candidate => candidate.CreatedAt))
+            {
+                if (left <= 0)
+                {
+                    break;
+                }
+
+                var amount = Math.Min(left, contribution.Amount);
+                plan.Add((contribution, amount));
+                left -= amount;
+            }
+        }
+
+        return plan;
+    }
+
+    /// <summary>Archives or cancels the goal. Cancelling gives the money back (see <see cref="RefundPlan"/>); archiving leaves it in each fund.</summary>
     public Result Close(Guid actorUserId, GoalStatus status)
     {
         if (!IsOwner(actorUserId))

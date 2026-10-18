@@ -22,6 +22,7 @@ internal sealed class GoalConfiguration : IEntityTypeConfiguration<Goal>
         builder.Property<uint>("Version").IsRowVersion();
         builder.Ignore(goal => goal.Saved);
         builder.Ignore(goal => goal.IsShared);
+        builder.Ignore(goal => goal.Remaining);
         builder.HasIndex(goal => new { goal.WorkspaceId, goal.Status });
 
         builder.OwnsMany(goal => goal.Participants, participants =>
@@ -63,6 +64,8 @@ internal sealed class GoalConfiguration : IEntityTypeConfiguration<Goal>
 
             // One contribution per movement of the ledger, so the two can always be reconciled.
             contributions.HasIndex(contribution => contribution.LedgerOperationId).IsUnique();
+            // What voiding an expense paid with the goal looks up.
+            contributions.HasIndex(contribution => contribution.ExpenseOperationId).IsUnique().HasFilter("expense_operation_id IS NOT NULL");
             contributions.HasIndex("GoalId", nameof(GoalContribution.OccurredOn));
         });
         builder.Navigation(goal => goal.Contributions).UsePropertyAccessMode(PropertyAccessMode.Field);
