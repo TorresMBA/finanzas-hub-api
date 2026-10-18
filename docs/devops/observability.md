@@ -38,8 +38,12 @@ Métricas que existen hoy, todas en el `Meter` `PersonalFinance`:
 | `investments.operations` | Contador | Investments |
 | `reporting.dashboard.duration`, `reporting.report.duration` | Histograma (ms) | Reporting |
 | `reporting.exports` por formato | Contador | Reporting |
+| `auth.failed_logins` por motivo (`invalid_credentials`, `locked_out`) | Contador | Identity |
+| `security.forbidden` por endpoint | Contador | Api (todo 403, lo dé quien lo dé) |
+| `notifications.deliveries.pending` por canal (`email`, `whatsapp`) | Gauge | Infrastructure: lo que cada job de envío vio pendiente en su última vuelta |
+| `scheduler.cycle.duration` | Histograma (ms) | Worker, ciclo de Scheduling |
 
-Diseñadas y pendientes: `notifications.deliveries.pending` (gauge de la cola), `auth.failed_logins` y `security.forbidden`.
+Las métricas diseñadas en la fase 6 existen todas desde el 17-oct-2026.
 
 Health checks: `/health/live` (el proceso responde) y `/health/ready` (base de datos alcanzable y sin migraciones pendientes).
 

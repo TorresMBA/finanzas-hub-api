@@ -116,4 +116,28 @@ public class BudgetsTests(ApiFixture api)
         Assert.Equal(450m, (await ListAsync(brian, $"?month={Month.AddMonths(-1):yyyy-MM}")).Money("limit"));
         Assert.Equal(juans.Id(), Assert.Single((await ListAsync(juan, workspaceId: workspaceId)).GetProperty("budgets").EnumerateArray()).Id());
     }
+
+    [Fact]
+    public async Task The_suggested_limit_is_the_average_of_the_three_closed_months_with_the_subcategories_and_without_other_categories()
+    {
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var bcp = (await brian.OpenAccountAsync("BCP", 5000m)).Id();
+        string Back(int months) => Month.AddMonths(-months).AddDays(9).ToString("yyyy-MM-dd");
+
+        // 300 + 0 + 451 in the three months before this one; what is spent this month or four months ago does not count.
+        await brian.SpendAsync(bcp, 200m, occurredOn: Back(3));
+        await brian.SpendAsync(bcp, 100m, category: "Supermercado/Despensa", occurredOn: Back(3));
+        await brian.SpendAsync(bcp, 451m, occurredOn: Back(1));
+        await brian.SpendAsync(bcp, 999m, occurredOn: Back(4));
+        await brian.SpendAsync(bcp, 999m, occurredOn: Day);
+        await brian.SpendAsync(bcp, 999m, category: "Mascotas", occurredOn: Back(2));
+
+        var groceries = await brian.CategoryIdAsync("Supermercado");
+        var suggestion = await brian.Client.GetFromJsonAsync<JsonElement>($"{Url(brian.PersonalWorkspaceId)}/suggestion?categoryId={groceries}");
+        Assert.Equal(251m, suggestion.Money("suggestedLimit"));
+        Assert.Equal([300m, 0m, 451m], suggestion.GetProperty("months").EnumerateArray().Select(month => month.Money("spent")));
+
+        var juan = await api.RegisterWithActiveWorkspaceAsync("Juan");
+        Assert.Equal(HttpStatusCode.NotFound, (await juan.Client.GetAsync($"{Url(juan.PersonalWorkspaceId)}/suggestion?categoryId={groceries}")).StatusCode);
+    }
 }

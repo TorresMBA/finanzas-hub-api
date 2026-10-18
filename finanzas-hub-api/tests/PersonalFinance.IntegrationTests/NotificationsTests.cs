@@ -126,4 +126,34 @@ public class NotificationsTests(ApiFixture api)
         Assert.Equal(DeliveryStatus.Pending, Assert.Single(left.Deliveries));
         Assert.StartsWith(eventIds.Recent, Assert.Single(left.Events));
     }
+
+    [Fact]
+    public async Task A_category_taken_out_of_the_inbox_no_longer_shows_there_and_is_not_said_twice_when_it_comes_back()
+    {
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var bcp = await brian.OpenAccountAsync("BCP", 5000m);
+        var off = await brian.Client.PutAsJsonAsync(Settings, new
+        {
+            quietHoursEnabled = false, quietFrom = "22:00", quietTo = "07:00", largeMovementThreshold = 500m,
+            preferences = new[] { new { category = "largeMovement", emailEnabled = false, inboxEnabled = false } }
+        });
+        Assert.Equal(HttpStatusCode.OK, off.StatusCode);
+
+        // 610 is a large movement: the notice is kept, already read, so it shows nowhere and the badge stays at zero.
+        await brian.SpendAsync(bcp.Id(), 610m, description: "Wong", occurredOn: Day);
+        Assert.Empty(await NoticesAsync(brian));
+        Assert.Equal(0, await UnreadAsync(brian));
+        var kept = await api.ExecuteAsync(services => services.GetRequiredService<AppDbContext>().Set<Notification>()
+            .Where(notice => notice.UserId == brian.UserId).Select(notice => notice.ReadAt).ToListAsync());
+        Assert.NotNull(Assert.Single(kept));
+
+        // Back in the inbox, it shows read, and a filter by another category leaves it out.
+        await brian.Client.PutAsJsonAsync(Settings, new
+        {
+            quietHoursEnabled = false, quietFrom = "22:00", quietTo = "07:00", largeMovementThreshold = 500m,
+            preferences = new[] { new { category = "largeMovement", emailEnabled = false, inboxEnabled = true } }
+        });
+        Assert.True(Assert.Single(await NoticesAsync(brian)).GetProperty("isRead").GetBoolean());
+        Assert.Empty(await NoticesAsync(brian, "?category=budget"));
+    }
 }

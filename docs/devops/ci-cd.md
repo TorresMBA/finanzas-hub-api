@@ -29,7 +29,7 @@ flowchart LR
 |---|---|---|
 | Build, test y SonarQube | `dotnet sonarscanner begin`, `restore`, `build -c Release` (avisos = errores), tests **unitarios y de arquitectura**, `sonarscanner end`. Excluye `Migrations/**` y `tools/**` del análisis ([excepciones](#quality-gate-y-excepciones-de-sonarqube)) | No sigue |
 | Quality gate | Espera el veredicto de SonarQube (10 min) | Aborta el pipeline |
-| Seguridad | `mercury-ci semgrep` (SAST, archiva `semgrep.json`) y `mercury-ci trivy-fs` (dependencias vulnerables) | Aborta |
+| Seguridad | `mercury-ci semgrep` (SAST, archiva `semgrep.json`), `mercury-ci trivy-fs` (dependencias vulnerables) y `gitleaks` sobre los archivos con `.gitleaks.toml` (secretos en el código; el binario del agente o la imagen `zricethezav/gitleaks:v8.21.2`) | Aborta |
 | Imágenes | `dotnet publish` de API y Worker sin recompilar, `mercury-ci package dotnet` con la `Dockerfile` del repo, `mercury-ci trivy-image` | Aborta |
 | Deploy dev | Comprueba los `.env` del ambiente, descarga la imagen, aplica migraciones en un contenedor de un solo uso y despliega API y Worker (256 MB) | Si la migración falla, no se despliega nada |
 | Aprobar prod | `input` manual; sin agente, así que no ocupa recursos mientras espera | Caduca al día |
@@ -43,7 +43,7 @@ flowchart LR
 |---|---|
 | Build, lint y tests | `npm ci`, `npm run lint`, `npm test -- --watch=false` (Vitest + jsdom, sin navegador), `npm run build` |
 | SonarQube | `mercury-ci sonar`, excluyendo `node_modules`, `dist`, `.angular`, `e2e`, `test-results` y el `schema.ts` generado, con dos reglas de HTML ignoradas ([excepciones](#quality-gate-y-excepciones-de-sonarqube)) |
-| Análisis | Quality gate, Semgrep y Trivy en paralelo |
+| Análisis | Quality gate, Semgrep, Trivy y gitleaks en paralelo |
 | Imagen | `mercury-ci package spa dist/finanzas-hub-web/browser` con la `Dockerfile` del repo, y Trivy sobre la imagen |
 | Deploy dev / Aprobar prod / Deploy prod | `mercury-ci deploy finanzas-hub-web <env>` con 128 MB |
 

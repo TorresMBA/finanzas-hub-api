@@ -57,6 +57,9 @@ public sealed class Account : AggregateRoot, IOwned
     /// </summary>
     public bool IncludeInNetWorth { get; private set; }
 
+    /// <summary>Shown first among the main accounts of the home screen. A preference: it changes nothing in the books.</summary>
+    public bool IsFavorite { get; private set; }
+
     /// <summary>Present exactly when the account is a credit card.</summary>
     public CreditCardProfile? CreditCard { get; private set; }
 
@@ -157,6 +160,17 @@ public sealed class Account : AggregateRoot, IOwned
         NameKey = validName.Value.ToLowerInvariant();
         Institution = validInstitution.Value;
         IncludeInNetWorth = includeInNetWorth;
+        return Result.Success();
+    }
+
+    public Result MarkFavorite(bool isFavorite)
+    {
+        if (IsArchived)
+        {
+            return Archived;
+        }
+
+        IsFavorite = isFavorite;
         return Result.Success();
     }
 

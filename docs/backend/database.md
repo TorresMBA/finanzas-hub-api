@@ -67,7 +67,7 @@ La base contiene datos financieros, los hashes de las contraseñas y las claves 
 
 <!-- generated:start -->
 
-> Generado por `finanzas-hub-api/tools/update-db-docs.mjs` desde `AppDbContextModelSnapshot.cs`. No editar a mano entre las marcas. Última migración: `20261016223636_AddExpenseFundedByGoal`.
+> Generado por `finanzas-hub-api/tools/update-db-docs.mjs` desde `AppDbContextModelSnapshot.cs`. No editar a mano entre las marcas. Última migración: `20261017224017_AddFavoritesGroupIconsAndVoidedContributions`.
 
 **47 tablas** en 12 esquemas, **55 índices** secundarios, **27 claves foráneas** y **51 restricciones CHECK**.
 
@@ -579,6 +579,7 @@ erDiagram
         char currency
         boolean include_in_net_worth
         varchar institution
+        boolean is_favorite
         varchar name
         varchar name_key
         uuid owner_user_id "ref"
@@ -662,6 +663,7 @@ A place that holds money of one person, in one currency. It has no balance of it
 | `currency` | char(3) | no |  |
 | `include_in_net_worth` | boolean | no |  |
 | `institution` | character varying(60) | sí |  |
+| `is_favorite` | boolean | no |  |
 | `name` | character varying(60) | no |  |
 | `name_key` | character varying(60) | no |  |
 | `owner_user_id` | uuid | no | ref. → `identity.users` (sin FK) |
@@ -1196,6 +1198,7 @@ erDiagram
         date occurred_on
         varchar type
         uuid user_id "ref"
+        timestamptz voided_at
     }
     goals__goal_participants {
         uuid goal_id PK,FK
@@ -1257,6 +1260,7 @@ What one participant put into the goal or took out of it. Each is tied to one tr
 | `occurred_on` | date | no |  |
 | `type` | character varying(16) | no |  |
 | `user_id` | uuid | no | ref. → `identity.users` (sin FK) |
+| `voided_at` | timestamp with time zone | sí |  |
 
 Índices (además de la PK `pk_goal_contributions`):
 
@@ -1312,6 +1316,7 @@ erDiagram
         timestamptz created_at
         uuid created_by_user_id "ref"
         char currency
+        varchar icon
         varchar name
         varchar status
         xid xmin
@@ -1392,6 +1397,7 @@ People of a workspace who split expenses among themselves. It is shared by membe
 | `created_at` | timestamp with time zone | no |  |
 | `created_by_user_id` | uuid | no | ref. → `identity.users` (sin FK) |
 | `currency` | character(3) | no |  |
+| `icon` | character varying(40) | no |  |
 | `name` | character varying(60) | no |  |
 | `status` | character varying(16) | no |  |
 | `xmin` | xid | no | concurrencia optimista |

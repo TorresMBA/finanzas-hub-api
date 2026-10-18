@@ -221,6 +221,8 @@ public sealed class SharedGroup : AggregateRoot
 {
     public const int MaxNameLength = 60;
     public const int MaxDescriptionLength = 120;
+    public const int MaxIconLength = 40;
+    public const string DefaultIcon = "group";
     public const decimal MaxAmount = 999_999_999.99m;
 
     /// <summary>How long after registering a payment it can still be voided. Afterwards it stands.</summary>
@@ -256,6 +258,9 @@ public sealed class SharedGroup : AggregateRoot
 
     public GroupStatus Status { get; private set; }
 
+    /// <summary>The name of a glyph of the icon font, never markup.</summary>
+    public string Icon { get; private set; } = DefaultIcon;
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public IReadOnlyCollection<GroupMember> Members => _members.AsReadOnly();
@@ -264,7 +269,7 @@ public sealed class SharedGroup : AggregateRoot
 
     public IReadOnlyCollection<Settlement> Settlements => _settlements.AsReadOnly();
 
-    public static Result<SharedGroup> Create(Guid workspaceId, Guid creatorUserId, string? name, string currency, DateTimeOffset now)
+    public static Result<SharedGroup> Create(Guid workspaceId, Guid creatorUserId, string? name, string currency, DateTimeOffset now, string? icon = null)
     {
         var text = name?.Trim() ?? string.Empty;
         if (text.Length is 0 or > MaxNameLength)
@@ -272,12 +277,44 @@ public sealed class SharedGroup : AggregateRoot
             return Error.Validation("shared.group.name_invalid", $"The name is required and can have at most {MaxNameLength} characters.");
         }
 
+        var validIcon = ValidateIcon(icon ?? DefaultIcon);
+        if (validIcon.IsFailure)
+        {
+            return validIcon.Error;
+        }
+
         var group = new SharedGroup(NewId())
         {
-            WorkspaceId = workspaceId, CreatedByUserId = creatorUserId, Name = text, Currency = currency, Status = GroupStatus.Active, CreatedAt = now
+            WorkspaceId = workspaceId, CreatedByUserId = creatorUserId, Name = text, Currency = currency, Status = GroupStatus.Active, Icon = validIcon.Value,
+            CreatedAt = now
         };
         group._members.Add(new GroupMember(creatorUserId, GroupRole.Admin, now));
         return group;
+    }
+
+    public Result ChangeIcon(Guid actorUserId, string? icon)
+    {
+        if (!IsAdmin(actorUserId))
+        {
+            return AdminRequired;
+        }
+
+        var validIcon = ValidateIcon(icon ?? DefaultIcon);
+        if (validIcon.IsFailure)
+        {
+            return validIcon.Error;
+        }
+
+        Icon = validIcon.Value;
+        return Result.Success();
+    }
+
+    private static Result<string> ValidateIcon(string icon)
+    {
+        var normalized = icon.Trim().ToLowerInvariant();
+        return normalized.Length is 0 or > MaxIconLength || !normalized.All(character => character is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '_')
+            ? Error.Validation("shared.group.icon_invalid", "The icon is not valid.")
+            : normalized;
     }
 
     public GroupMember? ActiveMember(Guid userId) => _members.FirstOrDefault(member => member.UserId == userId && member.IsActive);

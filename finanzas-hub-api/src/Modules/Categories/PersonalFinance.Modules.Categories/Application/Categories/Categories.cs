@@ -155,6 +155,51 @@ internal sealed class UpdateCategoryHandler(CategoryFamilies families, IAuditLog
             : CategoryFamilies.SubcategoryNameIsTaken(family, family.Target);
 }
 
+/// <summary>Moves a subcategory under another category of the same kind. Answers with the category it moved to.</summary>
+public sealed record MoveCategoryCommand(Guid CategoryId, Guid ParentId) : ICommand<CategoryResponse>;
+
+internal sealed class MoveCategoryHandler(CategoryFamilies families, IAuditLog audit) : ICommandHandler<MoveCategoryCommand, CategoryResponse>
+{
+    public async Task<Result<CategoryResponse>> HandleAsync(MoveCategoryCommand command, CancellationToken cancellationToken)
+    {
+        if (await families.FindAsync(command.CategoryId, cancellationToken) is not { } from)
+        {
+            return CategoryErrors.NotFound;
+        }
+
+        if (await families.FindAsync(command.ParentId, cancellationToken) is not { } to)
+        {
+            return CategoryErrors.ParentNotFound;
+        }
+
+        var category = from.Target;
+        if (category.ParentId == command.ParentId)
+        {
+            return await families.DescribeAsync(to, cancellationToken);
+        }
+
+        var moved = category.MoveTo(to.Target);
+        if (moved.IsFailure)
+        {
+            return moved.Error;
+        }
+
+        var arrived = to with { Subcategories = [.. to.Subcategories, category], Target = category };
+        if (CategoryFamilies.SubcategoryNameIsTaken(arrived, category))
+        {
+            return CategoryErrors.NameTaken;
+        }
+
+        audit.Record(new AuditEntry("categories", "categories.category.moved", "category", category.Id)
+        {
+            OwnerUserId = category.OwnerUserId,
+            Before = new { ParentId = from.Root.Id },
+            After = new { category.ParentId }
+        });
+        return await families.DescribeAsync(arrived, cancellationToken);
+    }
+}
+
 public sealed record ArchiveCategoryCommand(Guid CategoryId) : ICommand<CategoryResponse>;
 
 internal sealed class ArchiveCategoryHandler(CategoryFamilies families, IAuditLog audit, IClock clock) : ICommandHandler<ArchiveCategoryCommand, CategoryResponse>

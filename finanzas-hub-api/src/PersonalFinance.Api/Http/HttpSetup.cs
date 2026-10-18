@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using PersonalFinance.BuildingBlocks.Domain;
+using PersonalFinance.Infrastructure.Observability;
 
 namespace PersonalFinance.Api.Http;
 
@@ -235,6 +236,12 @@ internal static class HttpSetup
             headers.XFrameOptions = "DENY";
             headers["Referrer-Policy"] = "no-referrer";
             await next(context);
+
+            // Every 403, whoever answered it: a business rule, the cross-site guard or the cookie handler.
+            if (context.Response.StatusCode == StatusCodes.Status403Forbidden)
+            {
+                Telemetry.Forbidden.Add(1, new KeyValuePair<string, object?>("endpoint", context.GetEndpoint()?.DisplayName ?? "unmatched"));
+            }
         });
 
         if (!app.Environment.IsDevelopment())

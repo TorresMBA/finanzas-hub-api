@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using PersonalFinance.Api.Realtime;
 using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.Infrastructure;
 using PersonalFinance.Infrastructure.Messaging;
@@ -68,6 +71,17 @@ public sealed class ApiFixture : IAsyncLifetime
         client.DefaultRequestHeaders.Add(TestAuthHandler.UserHeader, userId.ToString());
         return client;
     }
+
+    /// <summary>A connection to the realtime hub as a user, by long polling through the test server.</summary>
+    public HubConnection HubFor(Guid userId) =>
+        new HubConnectionBuilder()
+            .WithUrl(new Uri(_factory.Server.BaseAddress, RealtimeHub.Path.TrimStart('/')), options =>
+            {
+                options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
+                options.Transports = HttpTransportType.LongPolling;
+                options.Headers[TestAuthHandler.UserHeader] = userId.ToString();
+            })
+            .Build();
 
     /// <summary>A new user who is an active member of a new workspace.</summary>
     public (Guid UserId, Guid WorkspaceId) NewMember()

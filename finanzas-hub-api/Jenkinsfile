@@ -108,9 +108,17 @@ pipeline {
             stage('Seguridad') {
               steps {
                 dir('finanzas-hub-api') {
+                  // gitleaks sobre los archivos (no sobre el historial): un secreto en el código para el despliegue.
+                  // Usa el binario del agente si lo tiene; si no, la imagen oficial con versión fija.
                   sh '''
                     mercury-ci semgrep
                     mercury-ci trivy-fs
+                    if command -v gitleaks >/dev/null 2>&1; then
+                      gitleaks detect --no-git --source . --config .gitleaks.toml --redact --no-banner
+                    else
+                      docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.21.2 \
+                        detect --no-git --source /repo --config /repo/.gitleaks.toml --redact --no-banner
+                    fi
                   '''
                 }
               }

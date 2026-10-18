@@ -19,6 +19,16 @@ public sealed class CreateSharedGroupRequest
 
     /// <summary>Other members of the workspace to split with.</summary>
     public IReadOnlyList<Guid>? MemberUserIds { get; init; }
+
+    /// <summary>The name of a glyph of the icon font. A generic one when left out.</summary>
+    [StringLength(SharedGroup.MaxIconLength)]
+    public string? Icon { get; init; }
+}
+
+public sealed class ChangeSharedGroupIconRequest
+{
+    [Required, StringLength(SharedGroup.MaxIconLength, MinimumLength = 1)]
+    public string Icon { get; init; } = string.Empty;
 }
 
 public sealed class AddSharedGroupMemberRequest
@@ -125,7 +135,7 @@ public sealed class SharedGroupsController : ApiControllerBase
         Guid workspaceId, CreateSharedGroupRequest request, [FromServices] ICommandHandler<CreateSharedGroupCommand, SharedGroupDetailResponse> handler,
         CancellationToken cancellationToken) =>
         ToActionResult(
-            await handler.HandleAsync(new CreateSharedGroupCommand(request.Name, request.Currency, request.MemberUserIds), cancellationToken),
+            await handler.HandleAsync(new CreateSharedGroupCommand(request.Name, request.Currency, request.MemberUserIds, request.Icon), cancellationToken),
             detail => Created($"/api/v1/workspaces/{workspaceId}/shared-groups/{detail.Group.Id}", detail));
 
     /// <summary>Only who created the group, and only members of the workspace.</summary>
@@ -150,6 +160,15 @@ public sealed class SharedGroupsController : ApiControllerBase
         ToActionResult(await handler.HandleAsync(new ChangeSharedGroupMemberCommand(groupId, userId, GroupMembershipChange.Remove), cancellationToken), _ => NoContent());
 
     /// <summary>Only who created the group, once everything is repaid.</summary>
+    [HttpPut("{groupId:guid}/icon", Name = "ChangeSharedGroupIcon")]
+    [ProducesResponseType<SharedGroupDetailResponse>(StatusCodes.Status200OK)]
+    [Problem(StatusCodes.Status400BadRequest)]
+    [Problem(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ChangeIcon(
+        Guid workspaceId, Guid groupId, ChangeSharedGroupIconRequest request,
+        [FromServices] ICommandHandler<ChangeSharedGroupIconCommand, SharedGroupDetailResponse> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new ChangeSharedGroupIconCommand(groupId, request.Icon), cancellationToken), Ok);
+
     [HttpPost("{groupId:guid}/archive", Name = "ArchiveSharedGroup")]
     [ProducesResponseType<SharedGroupDetailResponse>(StatusCodes.Status200OK)]
     [Problem(StatusCodes.Status403Forbidden)]

@@ -24,19 +24,21 @@ public sealed record InvestmentTypeShareResponse(InvestmentType Type, decimal Va
 /// <param name="Weight">Its part of the portfolio, from 0 to 100, in the base currency.</param>
 /// <param name="ProjectedValue">What a term deposit will be worth at maturity.</param>
 /// <param name="Trend">What it was worth at the end of each of the last twelve months, the oldest first; the last one is today.</param>
+/// <param name="Realized">The gain (or loss, negative) its withdrawals realized so far.</param>
 public sealed record HoldingSummaryResponse(
     Guid Id, InvestmentType Type, string Name, string? Ticker, string? Institution, string Currency, decimal Invested, decimal Value, decimal Gain,
     decimal? GainPercent, decimal Weight, decimal? Quantity, DateOnly OpenedOn, DateOnly? ClosedOn, DateOnly? MaturesOn, decimal? AnnualRate, int? TermDays,
-    decimal? ProjectedValue, DateOnly? LastValuedOn, IReadOnlyList<decimal> Trend);
+    decimal? ProjectedValue, DateOnly? LastValuedOn, IReadOnlyList<decimal> Trend, decimal Realized);
 
 /// <summary>The portfolio of the current person: what it is worth in the base currency, by type and investment by investment.</summary>
 /// <param name="BaseCurrency">Null while the workspace has not chosen one.</param>
 /// <param name="Gain">Not realized yet: what it is worth minus the capital in it.</param>
 /// <param name="Holdings">The open investments, the one worth most first.</param>
+/// <param name="Closed">The investments withdrawn in full, the last one closed first. They count in no total.</param>
 /// <param name="MissingRates">Currencies without an exchange rate, left out of the totals.</param>
 public sealed record InvestmentSummaryResponse(
     string? BaseCurrency, decimal Value, decimal Invested, decimal Gain, decimal? GainPercent, IReadOnlyList<InvestmentTypeShareResponse> Distribution,
-    IReadOnlyList<HoldingSummaryResponse> Holdings, IReadOnlyList<string> MissingRates);
+    IReadOnlyList<HoldingSummaryResponse> Holdings, IReadOnlyList<string> MissingRates, IReadOnlyList<HoldingSummaryResponse> Closed);
 
 /// <param name="Realized">The gain (or loss, negative) a withdrawal realized.</param>
 public sealed record HoldingMovementResponse(Guid Id, HoldingMovementKind Kind, DateOnly OccurredOn, decimal Amount, decimal Capital, decimal Realized, decimal? Quantity, string? AccountName);
@@ -131,7 +133,11 @@ internal sealed class PortfolioReader(IInvestmentsDb db, ILedgerQueries ledger, 
             .OrderByDescending(share => share.Value)
             .ToList();
         return new InvestmentSummaryResponse(
-            BaseCurrency, total, invested, total - invested, invested > 0 ? decimal.Round((total - invested) / invested * 100, 1) : null, distribution, rows, [.. missing]);
+            BaseCurrency, total, invested, total - invested, invested > 0 ? decimal.Round((total - invested) / invested * 100, 1) : null, distribution, rows, [.. missing],
+            (await db.Holdings.AsNoTracking().Where(holding => holding.ClosedOn != null && (type == null || holding.Type == type)).ToListAsync(cancellationToken))
+                .OrderByDescending(holding => holding.ClosedOn)
+                .Select(holding => Describe(holding, today, null))
+                .ToList());
     }
 
     public async Task<HoldingDetailResponse> DetailAsync(Holding holding, CancellationToken cancellationToken)
@@ -165,7 +171,7 @@ internal sealed class PortfolioReader(IInvestmentsDb db, ILedgerQueries ledger, 
             holding.Id, holding.Type, holding.Name, holding.Ticker, holding.Institution, holding.Currency, capital, value, value - capital,
             capital > 0 ? decimal.Round((value - capital) / capital * 100, 1) : null, weight ?? 0, holding.Quantity, holding.OpenedOn, holding.ClosedOn,
             holding.TermDeposit?.MaturesOn, holding.TermDeposit?.AnnualRate, holding.TermDeposit?.Days, holding.ProjectedValue,
-            holding.Valuations.Count == 0 ? null : holding.Valuations.Max(valuation => valuation.OnDate), trend);
+            holding.Valuations.Count == 0 ? null : holding.Valuations.Max(valuation => valuation.OnDate), trend, holding.Movements.Sum(movement => movement.Realized));
     }
 }
 

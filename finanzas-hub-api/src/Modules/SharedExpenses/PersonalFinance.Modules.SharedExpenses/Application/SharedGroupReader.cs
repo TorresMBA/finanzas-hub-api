@@ -4,6 +4,7 @@ using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.SharedExpenses.Application.Abstractions;
+using PersonalFinance.Modules.SharedExpenses.Contracts;
 using PersonalFinance.Modules.SharedExpenses.Domain;
 using PersonalFinance.Modules.Workspaces.Contracts;
 
@@ -46,7 +47,7 @@ public sealed record SharedSettlementResponse(
 /// <param name="MemberNames">Who is in the group, the person asking last.</param>
 /// <param name="LastActivityOn">The day of the latest expense or payment the person asking takes part in.</param>
 public sealed record SharedGroupSummaryResponse(
-    Guid Id, string Name, string Currency, GroupStatus Status, int MemberCount, decimal MyBalance, decimal OwedToMe, decimal IOwe, int PendingExpenses,
+    Guid Id, string Name, string Icon, string Currency, GroupStatus Status, int MemberCount, decimal MyBalance, decimal OwedToMe, decimal IOwe, int PendingExpenses,
     IReadOnlyList<string> MemberNames, DateOnly? LastActivityOn);
 
 /// <summary>What the person asking is owed and owes in one currency, over all their groups.</summary>
@@ -115,7 +116,7 @@ internal sealed class SharedGroupReader(ISharedExpensesDb db, IWorkspaceDirector
             .Concat(group.Settlements.Where(settlement => settlement.FromUserId == me || settlement.ToUserId == me).Select(settlement => settlement.OccurredOn))
             .ToList();
         return new SharedGroupSummaryResponse(
-            group.Id, group.Name, group.Currency, group.Status, active.Count, group.NetOf(me),
+            group.Id, group.Name, group.Icon, group.Currency, group.Status, active.Count, group.NetOf(me),
             group.Members.Sum(member => group.Owed(member.UserId, me)), group.Members.Sum(member => group.Owed(me, member.UserId)),
             mine.Count(expense => expense.PaidByUserId == me ? expense.Status != SharedExpenseStatus.Settled : expense.ShareOf(me)!.Pending > 0),
             active.OrderBy(member => member.UserId == me).ThenBy(member => member.JoinedAt).Select(member => NameOf(names, member.UserId)).ToList(),
@@ -198,4 +199,17 @@ internal sealed class GetSharedGroupHandler(ISharedExpensesDb db, SharedGroupRea
         await db.SharedGroups.AsNoTracking().SingleOrDefaultAsync(candidate => candidate.Id == query.GroupId, cancellationToken) is { } group
             ? await reader.DescribeAsync(group, cancellationToken)
             : SharedErrors.NotFound;
+}
+
+internal sealed class SharedGroupQueries(ISharedExpensesDb db) : ISharedGroupQueries
+{
+    // The global filter leaves out the groups the current person is not in.
+    public async Task<IReadOnlyList<SharedGroupMatch>> SearchAsync(string text, int count, CancellationToken cancellationToken) =>
+        (await db.SharedGroups.AsNoTracking().ToListAsync(cancellationToken))
+        .Where(group => group.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase))
+        .OrderBy(group => group.Status)
+        .ThenBy(group => group.Name, StringComparer.InvariantCultureIgnoreCase)
+        .Take(count)
+        .Select(group => new SharedGroupMatch(group.Id, group.Name, group.Icon, group.Status == GroupStatus.Archived))
+        .ToList();
 }

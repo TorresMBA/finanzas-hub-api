@@ -35,6 +35,13 @@ public sealed class WhatsAppController : ApiControllerBase
     public async Task<IActionResult> Get([FromServices] IQueryHandler<GetWhatsAppChannelQuery, WhatsAppChannelResponse> handler, CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new GetWhatsAppChannelQuery(), cancellationToken), Ok);
 
+    /// <summary>The last messages sent to the person by WhatsApp and how each went: sent, delivered, read or failed.</summary>
+    [HttpGet("deliveries", Name = "ListWhatsAppDeliveries")]
+    [ProducesResponseType<IReadOnlyList<WhatsAppDeliveryResponse>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Deliveries(
+        [FromServices] IQueryHandler<ListWhatsAppDeliveriesQuery, IReadOnlyList<WhatsAppDeliveryResponse>> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new ListWhatsAppDeliveriesQuery(), cancellationToken), Ok);
+
     /// <summary>Sends a code by WhatsApp to the number. A new code can be asked for after a minute; each lasts ten minutes.</summary>
     [HttpPost("verify-start", Name = "StartWhatsAppVerification")]
     [ProducesResponseType<WhatsAppVerificationResponse>(StatusCodes.Status200OK)]

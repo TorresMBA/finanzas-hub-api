@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.BuildingBlocks.Application.Security;
+using PersonalFinance.Infrastructure.Observability;
 using PersonalFinance.Infrastructure.Security;
 using PersonalFinance.Modules.Scheduling.Application;
 
@@ -18,6 +20,7 @@ internal sealed class RunDueOccurrencesJob(IServiceScopeFactory scopeFactory, IL
 
     protected override async Task RunAsync(IServiceProvider services, CancellationToken cancellationToken)
     {
+        var started = Stopwatch.GetTimestamp();
         var owners = await services.GetRequiredService<IQueryHandler<ListScheduleOwnersQuery, IReadOnlyList<ScheduleOwner>>>()
             .HandleAsync(new ListScheduleOwnersQuery(), cancellationToken);
         var (posted, failed, notices) = (0, 0, 0);
@@ -44,6 +47,7 @@ internal sealed class RunDueOccurrencesJob(IServiceScopeFactory scopeFactory, IL
             }
         }
 
+        Telemetry.ScheduleCycleDuration.Record(Stopwatch.GetElapsedTime(started).TotalMilliseconds);
         if (posted + failed + notices > 0)
         {
             Logger.LogInformation("Schedule cycle: {Posted} registered, {Failed} failed, {Notices} notice(s)", posted, failed, notices);

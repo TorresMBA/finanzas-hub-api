@@ -94,6 +94,44 @@ internal sealed class GetWhatsAppChannelHandler(WhatsAppBook book, ICurrentUser 
             : NotificationErrors.Unauthenticated;
 }
 
+/// <summary>One message sent, or to be sent, by WhatsApp. What it said is not kept once sent, so only its notice names it.</summary>
+/// <param name="Title">The title of the notice it carried; null for a reply or a code.</param>
+/// <param name="LastError">Why the last attempt failed, while it failed.</param>
+public sealed record WhatsAppDeliveryResponse(
+    Guid Id, DeliveryKind Kind, DeliveryStatus Status, string? Title, DateTimeOffset CreatedAt, DateTimeOffset? SentAt, int Attempts, string? LastError);
+
+/// <summary>The last messages to the signed-in person by WhatsApp, newest first.</summary>
+public sealed record ListWhatsAppDeliveriesQuery : IQuery<IReadOnlyList<WhatsAppDeliveryResponse>>;
+
+internal sealed class ListWhatsAppDeliveriesHandler(INotificationsDb db, ICurrentUser currentUser)
+    : IQueryHandler<ListWhatsAppDeliveriesQuery, IReadOnlyList<WhatsAppDeliveryResponse>>
+{
+    public const int Limit = 20;
+
+    public async Task<Result<IReadOnlyList<WhatsAppDeliveryResponse>>> HandleAsync(ListWhatsAppDeliveriesQuery query, CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return NotificationErrors.Unauthenticated;
+        }
+
+        // No global filter covers these tables: the user is named in both queries.
+        var deliveries = await db.Deliveries.AsNoTracking()
+            .Where(delivery => delivery.UserId == userId && delivery.Channel == NotificationChannel.WhatsApp)
+            .OrderByDescending(delivery => delivery.CreatedAt)
+            .Take(Limit)
+            .ToListAsync(cancellationToken);
+        var noticeIds = deliveries.Where(delivery => delivery.NotificationId != null).Select(delivery => delivery.NotificationId!.Value).ToList();
+        var titles = await db.Notifications.AsNoTracking()
+            .Where(notification => notification.UserId == userId && noticeIds.Contains(notification.Id))
+            .ToDictionaryAsync(notification => notification.Id, notification => notification.Title, cancellationToken);
+        return deliveries.Select(delivery => new WhatsAppDeliveryResponse(
+                delivery.Id, delivery.Kind, delivery.Status, delivery.NotificationId is { } id ? titles.GetValueOrDefault(id) : null, delivery.CreatedAt,
+                delivery.SentAt, delivery.Attempts, delivery.Status == DeliveryStatus.Failed || delivery.Status == DeliveryStatus.Pending ? delivery.LastError : null))
+            .ToList();
+    }
+}
+
 /// <param name="Phone">With its country code.</param>
 public sealed record StartWhatsAppVerificationCommand(string Phone) : ICommand<WhatsAppVerificationResponse>;
 

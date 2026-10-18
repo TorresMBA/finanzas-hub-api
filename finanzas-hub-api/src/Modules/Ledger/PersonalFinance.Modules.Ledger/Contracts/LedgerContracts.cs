@@ -41,7 +41,8 @@ public sealed record LedgerCategoryTotals(IReadOnlyList<LedgerCategoryTotal> Cat
 /// <param name="BaseBalance">The balance in the base currency; null when there is no rate for its currency.</param>
 /// <param name="CreditLimit">Set for a credit card.</param>
 public sealed record LedgerAccountBalance(
-    Guid Id, string Name, LedgerAccountType Type, string Currency, decimal Balance, decimal? BaseBalance, decimal? CreditLimit, bool IncludeInNetWorth);
+    Guid Id, string Name, LedgerAccountType Type, string Currency, decimal Balance, decimal? BaseBalance, decimal? CreditLimit, bool IncludeInNetWorth,
+    bool IsFavorite = false);
 
 /// <param name="SignedAmount">Negative when the money left the account. For a transfer, what left the origin account.</param>
 /// <param name="CounterAccountName">The destination account of a transfer.</param>
@@ -88,6 +89,9 @@ public interface ILedgerPosting
     /// nobody undoes what is in the ledger of another person.
     /// </summary>
     Task<Result> VoidAsync(Guid operationId, string reason, CancellationToken cancellationToken);
+
+    /// <summary>Voids a movement registered with <see cref="MoveGoalMoneyAsync"/>. Only a movement of the current person is found.</summary>
+    Task<Result> VoidGoalMoveAsync(Guid operationId, string reason, CancellationToken cancellationToken);
 
     /// <summary>
     /// Registers money that comes back to the current person for an expense of a category. It enters the account

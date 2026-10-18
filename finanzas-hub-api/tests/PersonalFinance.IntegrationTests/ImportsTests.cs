@@ -171,4 +171,32 @@ public class ImportsTests(ApiFixture api)
             .OrderBy(line => line.Item1).ToList();
         Assert.Equal([("2025-08-03", "expense", 54.90m), ("2025-08-05", "income", 2500m)], lines);
     }
+
+    [Fact]
+    public async Task A_rule_written_during_the_review_classifies_the_lines_still_without_category_and_leaves_the_rest_alone()
+    {
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var bank = (await brian.OpenAccountAsync("Interbank")).Id();
+        const string Statement = "Fecha;Descripción;Cargo;Abono\n06/10/2026;NETFLIX.COM;44,90;\n08/10/2026;NETFLIX ADICIONAL;10,00;\n";
+        var detail = await ReadAsync(await UploadAsync(brian, Statement, bank));
+        var importId = detail.GetProperty("import").Id();
+        Assert.Equal((0, 2), (Counts(detail).Ready, Counts(detail).Pending));
+
+        // One line is classified by hand under Restaurantes; then a rule for Netflix is written.
+        var extra = detail.GetProperty("records").EnumerateArray().Single(record => record.GetProperty("description").GetString() == "NETFLIX ADICIONAL").Id();
+        var dining = await brian.CategoryIdAsync("Restaurantes y delivery");
+        Assert.Equal(HttpStatusCode.NoContent, (await brian.Client.PatchAsJsonAsync(Url(brian, $"/{importId}/records/{extra}"), new { categoryId = dining })).StatusCode);
+        var leisure = await brian.CategoryIdAsync("Suscripciones y ocio");
+        Assert.Equal(HttpStatusCode.Created, (await brian.Client.PostAsJsonAsync(
+            $"/api/v1/workspaces/{brian.PersonalWorkspaceId}/categorization-rules", new { pattern = "Netflix", categoryId = leisure })).StatusCode);
+
+        var reapplied = await ReadAsync(await brian.Client.PostAsync(Url(brian, $"/{importId}/reapply-rules"), null));
+        var categories = reapplied.GetProperty("records").EnumerateArray()
+            .ToDictionary(record => record.GetProperty("description").GetString()!, record => record.GetProperty("categoryId").GetGuid());
+        Assert.Equal((leisure, dining), (categories["NETFLIX.COM"], categories["NETFLIX ADICIONAL"]));
+        Assert.Equal((2, 0), (Counts(reapplied).Ready, Counts(reapplied).Pending));
+
+        var juan = await api.RegisterWithActiveWorkspaceAsync("Juan");
+        Assert.Equal(HttpStatusCode.NotFound, (await juan.Client.PostAsync($"/api/v1/workspaces/{juan.PersonalWorkspaceId}/imports/{importId}/reapply-rules", null)).StatusCode);
+    }
 }

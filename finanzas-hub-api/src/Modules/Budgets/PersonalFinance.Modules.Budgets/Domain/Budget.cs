@@ -77,9 +77,14 @@ public sealed class Budget : AggregateRoot, IOwned
     public Result<Budget> Adjust(decimal amount, int alertThresholdPercent, bool isFixed, DateOnly month, DateTimeOffset now)
     {
         var from = FirstDay(month);
-        if (!IsInForce || from < EffectiveFrom)
+        if (!IsInForce)
         {
             return Error.BusinessRule("budgets.not_in_force", "This budget no longer applies; change the one in force.");
+        }
+
+        if (from < EffectiveFrom)
+        {
+            return Error.BusinessRule("budgets.adjust_before_start", "A change cannot apply before the month the budget started.");
         }
 
         if (Check(amount, alertThresholdPercent) is { } error)

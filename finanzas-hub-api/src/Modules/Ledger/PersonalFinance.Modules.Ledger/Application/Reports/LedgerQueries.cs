@@ -192,7 +192,7 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
             var balance = byAccount.GetValueOrDefault(account.Id);
             return new LedgerAccountBalance(
                 account.Id, account.Name, Enum.Parse<LedgerAccountType>(account.Type.ToString()), account.Currency, balance, table.ToBase(account.Currency, balance),
-                account.CreditCard?.CreditLimit, account.IncludeInNetWorth);
+                account.CreditCard?.CreditLimit, account.IncludeInNetWorth, account.IsFavorite);
         }).ToList();
     }
 

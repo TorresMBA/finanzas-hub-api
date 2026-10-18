@@ -7,6 +7,7 @@ using PersonalFinance.Modules.Ledger.Application.Accounts;
 using PersonalFinance.Modules.Ledger.Application.ExchangeRates;
 using PersonalFinance.Modules.Ledger.Application.Transfers;
 using PersonalFinance.Modules.Ledger.Contracts;
+using PersonalFinance.Modules.Ledger.Contracts.Events;
 using PersonalFinance.Modules.Ledger.Domain;
 
 namespace PersonalFinance.Modules.Ledger.Application.Transactions;
@@ -48,6 +49,30 @@ internal sealed class LedgerPosting(
     {
         var voided = await voidTransaction.HandleAsync(new VoidTransactionCommand(operationId, reason), cancellationToken);
         return voided.IsFailure ? voided.Error : Result.Success();
+    }
+
+    public async Task<Result> VoidGoalMoveAsync(Guid operationId, string reason, CancellationToken cancellationToken)
+    {
+        // The owner filter leaves out a movement of someone else, and VoidFor one that the goals did not register.
+        if (await db.FindOperationAsync(operationId, cancellationToken) is not { } operation)
+        {
+            return LedgerErrors.TransactionNotFound;
+        }
+
+        var wasEffective = operation.IsEffective;
+        var voided = operation.VoidFor(GoalsModule, reason, clock.UtcNow);
+        if (voided.IsFailure || !wasEffective)
+        {
+            return voided;
+        }
+
+        operation.Announce(LedgerOperationChange.Voided);
+        audit.Record(new AuditEntry("ledger", "ledger.transaction.voided", "operation", operation.Id)
+        {
+            OwnerUserId = operation.OwnerUserId,
+            After = new { Status = operation.Status.ToString(), operation.VoidReason, SourceModule = GoalsModule }
+        });
+        return Result.Success();
     }
 
     public async Task<Result<Guid>> PostRefundAsync(

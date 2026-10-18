@@ -9,6 +9,7 @@ using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Categories.Contracts;
 using PersonalFinance.Modules.Goals.Contracts;
 using PersonalFinance.Modules.Ledger.Contracts;
+using PersonalFinance.Modules.SharedExpenses.Contracts;
 
 namespace PersonalFinance.Modules.Reporting.Application.Reports;
 
@@ -271,19 +272,32 @@ public sealed record SearchAccountResponse(Guid Id, string Name, LedgerAccountTy
 
 public sealed record SearchGoalResponse(Guid Id, string Name, decimal Saved, decimal TargetAmount, string Currency, decimal Percent, bool IsShared);
 
+/// <param name="ParentName">The category it is under, for a subcategory.</param>
+public sealed record SearchCategoryResponse(Guid Id, string Name, string? ParentName, bool IsIncome, string Icon, string Color);
+
+public sealed record SearchGroupResponse(Guid Id, string Name, string Icon, bool IsArchived);
+
 /// <param name="Movements">The newest matches first.</param>
-public sealed record SearchResponse(IReadOnlyList<SearchMovementResponse> Movements, IReadOnlyList<SearchAccountResponse> Accounts, IReadOnlyList<SearchGoalResponse> Goals);
+public sealed record SearchResponse(
+    IReadOnlyList<SearchMovementResponse> Movements, IReadOnlyList<SearchAccountResponse> Accounts, IReadOnlyList<SearchGoalResponse> Goals,
+    IReadOnlyList<SearchCategoryResponse> Categories, IReadOnlyList<SearchGroupResponse> Groups);
 
 public sealed record SearchQuery(string Text) : IQuery<SearchResponse>;
 
-/// <summary>Finds the person's own movements, accounts and goals by a piece of their text. Nobody else's ever comes up.</summary>
-internal sealed class SearchHandler(ILedgerQueries ledger, IGoalQueries goals, ICategoryLookup categories) : IQueryHandler<SearchQuery, SearchResponse>
+/// <summary>
+/// Finds the person's own movements, accounts, goals and categories, and the groups they are in, by a piece of
+/// their text. Nobody else's ever comes up.
+/// </summary>
+internal sealed class SearchHandler(ILedgerQueries ledger, IGoalQueries goals, ICategoryLookup categories, ICategoryDirectory directory, ISharedGroupQueries groups)
+    : IQueryHandler<SearchQuery, SearchResponse>
 {
     public const int MinLength = 2;
     public const int MaxLength = 80;
     private const int Movements = 8;
     private const int Accounts = 5;
     private const int Goals = 5;
+    private const int Categories = 5;
+    private const int Groups = 5;
 
     public async Task<Result<SearchResponse>> HandleAsync(SearchQuery query, CancellationToken cancellationToken)
     {
@@ -304,6 +318,10 @@ internal sealed class SearchHandler(ILedgerQueries ledger, IGoalQueries goals, I
             accounts.Where(account => account.Type != LedgerAccountType.GoalFund)
                 .Select(account => new SearchAccountResponse(account.Id, account.Name, account.Type, account.Currency, account.Balance)).ToList(),
             open.Where(goal => goal.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase)).Take(Goals)
-                .Select(goal => new SearchGoalResponse(goal.Id, goal.Name, goal.Saved, goal.TargetAmount, goal.Currency, goal.Percent, goal.IsShared)).ToList());
+                .Select(goal => new SearchGoalResponse(goal.Id, goal.Name, goal.Saved, goal.TargetAmount, goal.Currency, goal.Percent, goal.IsShared)).ToList(),
+            (await directory.ListAsync(cancellationToken)).Where(category => category.Name.Contains(text, StringComparison.CurrentCultureIgnoreCase)).Take(Categories)
+                .Select(category => new SearchCategoryResponse(
+                    category.Id, category.Name, category.ParentName, category.Use == CategoryUse.Income, category.Icon, category.Color)).ToList(),
+            (await groups.SearchAsync(text, Groups, cancellationToken)).Select(group => new SearchGroupResponse(group.Id, group.Name, group.Icon, group.IsArchived)).ToList());
     }
 }

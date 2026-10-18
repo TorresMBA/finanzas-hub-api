@@ -36,7 +36,9 @@ public sealed record GoalMemberResponse(Guid UserId, string DisplayName);
 /// <param name="BaseCurrency">The currency a new goal is offered in.</param>
 public sealed record GoalsResponse(IReadOnlyList<GoalResponse> Goals, IReadOnlyList<GoalMemberResponse> Members, string? BaseCurrency);
 
-public sealed record GoalContributionResponse(Guid Id, Guid UserId, string DisplayName, ContributionType Type, decimal Amount, DateOnly OccurredOn, bool IsMine);
+/// <param name="IsVoided">Voided with its transfer: it adds nothing to the goal.</param>
+public sealed record GoalContributionResponse(
+    Guid Id, Guid UserId, string DisplayName, ContributionType Type, decimal Amount, DateOnly OccurredOn, bool IsMine, bool IsVoided);
 
 /// <param name="Month">As <c>2026-10</c>.</param>
 /// <param name="Amount">What went in minus what came out that month.</param>
@@ -135,7 +137,7 @@ internal sealed class GetGoalDetailHandler(IGoalsDb db, GoalReader reader, ICurr
                 .Take(LatestContributions)
                 .Select(contribution => new GoalContributionResponse(
                     contribution.Id, contribution.UserId, GoalReader.NameOf(names, contribution.UserId), contribution.Type, contribution.Amount, contribution.OccurredOn,
-                    contribution.UserId == currentUser.UserId))
+                    contribution.UserId == currentUser.UserId, contribution.IsVoided))
                 .ToList(),
             Enumerable.Range(0, Months).Select(offset => firstMonth.AddMonths(offset))
                 .Select(month => new GoalMonthResponse(

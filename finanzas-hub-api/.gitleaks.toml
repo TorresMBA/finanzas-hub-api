@@ -1,0 +1,12 @@
+# Configuración de gitleaks para el CI (stage Seguridad). Usa las reglas por defecto y solo deja fuera
+# lo que genera la compilación, que no se versiona.
+title = "PersonalHub API"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Salidas de compilación"
+paths = [
+  '''(^|/)(bin|obj|publish|TestResults)/''',
+]

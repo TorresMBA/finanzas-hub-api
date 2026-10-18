@@ -9,6 +9,7 @@
     <ProjectReference Include="..\..\Goals\PersonalFinance.Modules.Goals\PersonalFinance.Modules.Goals.csproj" />
     <ProjectReference Include="..\..\Investments\PersonalFinance.Modules.Investments\PersonalFinance.Modules.Investments.csproj" />
     <ProjectReference Include="..\..\Scheduling\PersonalFinance.Modules.Scheduling\PersonalFinance.Modules.Scheduling.csproj" />
+    <ProjectReference Include="..\..\SharedExpenses\PersonalFinance.Modules.SharedExpenses\PersonalFinance.Modules.SharedExpenses.csproj" />
   </ItemGroup>
 
 </Project>

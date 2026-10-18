@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using Microsoft.AspNetCore.Identity;
 using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
@@ -35,12 +36,12 @@ internal sealed class LoginHandler(UserManager<User> users, IAuditLog audit) : I
         var user = await users.FindByEmailAsync(command.Email.Trim());
         if (user is null)
         {
-            return new LoginOutcome(null, LoginFailure.InvalidCredentials);
+            return Failed(LoginFailure.InvalidCredentials);
         }
 
         if (await users.IsLockedOutAsync(user))
         {
-            return new LoginOutcome(null, LoginFailure.LockedOut);
+            return Failed(LoginFailure.LockedOut);
         }
 
         if (!await users.CheckPasswordAsync(user, command.Password))
@@ -48,11 +49,11 @@ internal sealed class LoginHandler(UserManager<User> users, IAuditLog audit) : I
             await users.AccessFailedAsync(user);
             if (!await users.IsLockedOutAsync(user))
             {
-                return new LoginOutcome(null, LoginFailure.InvalidCredentials);
+                return Failed(LoginFailure.InvalidCredentials);
             }
 
             audit.Record(new AuditEntry("identity", "identity.user.locked_out", "user", user.Id) { OwnerUserId = user.Id });
-            return new LoginOutcome(null, LoginFailure.LockedOut);
+            return Failed(LoginFailure.LockedOut);
         }
 
         if (user.AccessFailedCount > 0)
@@ -61,5 +62,15 @@ internal sealed class LoginHandler(UserManager<User> users, IAuditLog audit) : I
         }
 
         return new LoginOutcome(user.Id, null);
+    }
+
+    // Same meter name as the platform's, which is the one the hosts export. Never tagged with who tried.
+    private static readonly Counter<long> FailedLogins =
+        new Meter("PersonalFinance").CreateCounter<long>("auth.failed_logins", description: "Sign-ins refused, by reason.");
+
+    private static LoginOutcome Failed(LoginFailure failure)
+    {
+        FailedLogins.Add(1, new KeyValuePair<string, object?>("reason", failure == LoginFailure.LockedOut ? "locked_out" : "invalid_credentials"));
+        return new LoginOutcome(null, failure);
     }
 }

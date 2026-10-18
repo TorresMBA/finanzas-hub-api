@@ -43,7 +43,7 @@ public sealed record DashboardMovementResponse(
     string? CounterAccountName, string? CategoryName, string? CategoryIcon, string? CategoryColor);
 
 /// <param name="Balance">In the currency of the account; negative when it is owed.</param>
-public sealed record DashboardAccountResponse(Guid Id, string Name, LedgerAccountType Type, string Currency, decimal Balance);
+public sealed record DashboardAccountResponse(Guid Id, string Name, LedgerAccountType Type, string Currency, decimal Balance, bool IsFavorite);
 
 /// <summary>
 /// The home page of one person for one month. Every amount that adds things up is in the base currency of the
@@ -136,9 +136,9 @@ internal sealed class GetDashboardHandler(
                     movement.Id, movement.Kind, movement.OccurredOn, movement.Description, movement.SignedAmount, movement.Currency, movement.AccountName,
                     movement.CounterAccountName, category?.Name, category?.Icon, category?.Color);
             }).ToList(),
-            accounts.OrderByDescending(account => Math.Abs(account.BaseBalance ?? account.Balance))
+            accounts.OrderByDescending(account => account.IsFavorite).ThenByDescending(account => Math.Abs(account.BaseBalance ?? account.Balance))
                 .Take(MainAccounts)
-                .Select(account => new DashboardAccountResponse(account.Id, account.Name, account.Type, account.Currency, account.Balance))
+                .Select(account => new DashboardAccountResponse(account.Id, account.Name, account.Type, account.Currency, account.Balance, account.IsFavorite))
                 .ToList(),
             budget.Count == 0 ? null : new DashboardBudgetResponse(budget.Limit, budget.Spent, decimal.Round(budget.Spent * 100 / budget.Limit, 1)),
             upcoming.Select(payment => new DashboardUpcomingResponse(payment.Date, payment.Description, payment.Amount, payment.Currency, payment.IsCardPayment)).ToList(),

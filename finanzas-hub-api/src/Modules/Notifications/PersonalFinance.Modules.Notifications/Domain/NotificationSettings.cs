@@ -6,7 +6,10 @@ namespace PersonalFinance.Modules.Notifications.Domain;
 public enum NotificationChannel
 {
     Email,
-    WhatsApp
+    WhatsApp,
+
+    /// <summary>The inbox of the application. Only a preference: nothing is delivered through it.</summary>
+    Inbox
 }
 
 /// <summary>A choice a person made for one category and channel. Without one, the default of the category applies.</summary>
@@ -79,6 +82,14 @@ public sealed class NotificationSettings : AggregateRoot
 
     /// <summary>WhatsApp is never on until the person turns it on, which they can only do with a proven number.</summary>
     public bool WhatsAppEnabled(NotificationCategory category) => Preference(category, NotificationChannel.WhatsApp)?.Enabled ?? false;
+
+    /// <summary>
+    /// Whether notices of the category show in the inbox. Turned off, they are still kept, already read, so that a
+    /// reminder is not repeated; email and WhatsApp follow their own choice.
+    /// </summary>
+    public bool InboxEnabled(NotificationCategory category) => Preference(category, NotificationChannel.Inbox)?.Enabled ?? true;
+
+    public void SetInbox(NotificationCategory category, bool enabled) => Set(category, NotificationChannel.Inbox, enabled);
 
     public void SetEmail(NotificationCategory category, bool enabled) => Set(category, NotificationChannel.Email, enabled);
 

@@ -35,7 +35,7 @@ internal sealed class SharedNotifier(INotificationPublisher notifications, IReal
 
 /// <param name="Currency">That of the workspace when left out.</param>
 /// <param name="MemberUserIds">Other members of the workspace to split with. The creator is always in.</param>
-public sealed record CreateSharedGroupCommand(string Name, string? Currency, IReadOnlyList<Guid>? MemberUserIds) : ICommand<SharedGroupDetailResponse>;
+public sealed record CreateSharedGroupCommand(string Name, string? Currency, IReadOnlyList<Guid>? MemberUserIds, string? Icon = null) : ICommand<SharedGroupDetailResponse>;
 
 internal sealed class CreateSharedGroupHandler(ISharedExpensesDb db, SharedGroupReader reader, SharedNotifier notifier, IAuditLog audit, IClock clock)
     : ICommandHandler<CreateSharedGroupCommand, SharedGroupDetailResponse>
@@ -53,7 +53,7 @@ internal sealed class CreateSharedGroupHandler(ISharedExpensesDb db, SharedGroup
             return Error.Validation("shared.group.currency_invalid", "State the currency of the group with its three-letter code.");
         }
 
-        var created = SharedGroup.Create(workspaceId, userId, command.Name, currency, clock.UtcNow);
+        var created = SharedGroup.Create(workspaceId, userId, command.Name, currency, clock.UtcNow, command.Icon);
         if (created.IsFailure)
         {
             return created.Error;
@@ -134,6 +134,30 @@ internal sealed class ChangeSharedGroupMemberHandler(SharedGroupReader reader, S
                 cancellationToken);
         }
 
+        return await reader.DescribeAsync(group, cancellationToken);
+    }
+}
+
+/// <summary>Only who created the group changes how it looks to everyone in it.</summary>
+public sealed record ChangeSharedGroupIconCommand(Guid GroupId, string Icon) : ICommand<SharedGroupDetailResponse>;
+
+internal sealed class ChangeSharedGroupIconHandler(SharedGroupReader reader, SharedNotifier notifier)
+    : ICommandHandler<ChangeSharedGroupIconCommand, SharedGroupDetailResponse>
+{
+    public async Task<Result<SharedGroupDetailResponse>> HandleAsync(ChangeSharedGroupIconCommand command, CancellationToken cancellationToken)
+    {
+        if (reader.UserId is not { } userId || await reader.FindAsync(command.GroupId, cancellationToken) is not { } group)
+        {
+            return SharedErrors.NotFound;
+        }
+
+        var changed = group.ChangeIcon(userId, command.Icon);
+        if (changed.IsFailure)
+        {
+            return changed.Error;
+        }
+
+        notifier.Signal(group, userId);
         return await reader.DescribeAsync(group, cancellationToken);
     }
 }

@@ -65,6 +65,45 @@ internal sealed class ListTagsHandler(ICategoriesDb db) : IQueryHandler<ListTags
     }
 }
 
+public sealed record RenameTagCommand(Guid TagId, string Name) : ICommand<TagResponse>;
+
+internal sealed class RenameTagHandler(ICategoriesDb db, IAuditLog audit) : ICommandHandler<RenameTagCommand, TagResponse>
+{
+    public async Task<Result<TagResponse>> HandleAsync(RenameTagCommand command, CancellationToken cancellationToken)
+    {
+        if (await db.Tags.SingleOrDefaultAsync(tag => tag.Id == command.TagId && tag.ArchivedAt == null, cancellationToken) is not { } tag)
+        {
+            return CategoryErrors.TagNotFound;
+        }
+
+        var before = tag.Name;
+        var renamed = tag.Rename(command.Name);
+        if (renamed.IsFailure)
+        {
+            return renamed.Error;
+        }
+
+        // The name is unique per person, archived tags included: typing an archived name brings that tag back.
+        if (tag.Name != before && await db.Tags.AnyAsync(other => other.Name == tag.Name && other.Id != tag.Id, cancellationToken))
+        {
+            return Error.Conflict("categories.tag.name_taken", "There is already a tag with that name.");
+        }
+
+        if (tag.Name != before)
+        {
+            audit.Record(new AuditEntry("categories", "categories.tag.renamed", "tag", tag.Id)
+            {
+                OwnerUserId = tag.OwnerUserId,
+                Before = new { Name = before },
+                After = new { tag.Name }
+            });
+        }
+
+        var uses = await db.Categories.CountAsync(category => category.ArchivedAt == null && category.Tags.Any(suggested => suggested.TagId == tag.Id), cancellationToken);
+        return new TagResponse(tag.Id, tag.Name, uses);
+    }
+}
+
 public sealed record ArchiveTagCommand(Guid TagId) : ICommand<Unit>;
 
 internal sealed class ArchiveTagHandler(ICategoriesDb db, IAuditLog audit, IClock clock) : ICommandHandler<ArchiveTagCommand, Unit>

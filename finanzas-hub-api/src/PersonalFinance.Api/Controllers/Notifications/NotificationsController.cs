@@ -17,6 +17,9 @@ public sealed class NotificationPreferenceRequest
 
     /// <summary>Null keeps what it had. Turning it on needs a verified number.</summary>
     public bool? WhatsAppEnabled { get; init; }
+
+    /// <summary>Null keeps what it had. Off, notices of the category are kept as read and do not show in the inbox.</summary>
+    public bool? InboxEnabled { get; init; }
 }
 
 public sealed class UpdateNotificationSettingsRequest
@@ -43,12 +46,15 @@ public sealed class UpdateNotificationSettingsRequest
 [Problem(StatusCodes.Status401Unauthorized)]
 public sealed class NotificationsController : ApiControllerBase
 {
-    /// <summary>The newest notices, newest first, and how many of the whole inbox are unread.</summary>
+    /// <summary>A page of notices, newest first, and how many of the whole inbox are unread.</summary>
+    /// <param name="category">Only notices of this category.</param>
+    /// <param name="before">The <c>nextCursor</c> of the page before.</param>
     [HttpGet("notifications", Name = "ListNotifications")]
     [ProducesResponseType<NotificationListResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List(
-        [FromQuery] bool unreadOnly, [FromServices] IQueryHandler<ListNotificationsQuery, NotificationListResponse> handler, CancellationToken cancellationToken) =>
-        ToActionResult(await handler.HandleAsync(new ListNotificationsQuery(unreadOnly), cancellationToken), Ok);
+        [FromQuery] bool unreadOnly, [FromQuery] NotificationCategory? category, [FromQuery] Guid? before,
+        [FromServices] IQueryHandler<ListNotificationsQuery, NotificationListResponse> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new ListNotificationsQuery(unreadOnly, category, before), cancellationToken), Ok);
 
     /// <summary>What the badge shows. Asked again every minute in case a signal was lost.</summary>
     [HttpGet("notifications/unread-count", Name = "GetUnreadNotificationCount")]
@@ -87,7 +93,8 @@ public sealed class NotificationsController : ApiControllerBase
             await handler.HandleAsync(
                 new UpdateNotificationSettingsCommand(
                     request.QuietHoursEnabled, request.QuietFrom!.Value, request.QuietTo!.Value, request.LargeMovementThreshold,
-                    request.Preferences.Select(preference => new NotificationPreferenceChange(preference.Category!.Value, preference.EmailEnabled, preference.WhatsAppEnabled)).ToList()),
+                    request.Preferences.Select(preference => new NotificationPreferenceChange(
+                        preference.Category!.Value, preference.EmailEnabled, preference.WhatsAppEnabled, preference.InboxEnabled)).ToList()),
                 cancellationToken),
             Ok);
 }

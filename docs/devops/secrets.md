@@ -109,4 +109,3 @@ Sin SMTP los correos se escriben como `.eml` en `%TEMP%\personal-hub-mail`, y si
 
 - **Usuario de base de datos propio.** La aplicación debería conectarse con un rol que solo tenga permisos sobre sus esquemas, no con `postgres`. Hoy no hay `GRANT` en las migraciones, así que la tabla de auditoría es de solo inserción por convención, no porque la base lo impida.
 - **Cifrar las claves de Data Protection** (`ProtectKeysWith...`) si la base se aloja donde otras personas tienen acceso de lectura.
-- **Detectar secretos antes del commit** (por ejemplo `gitleaks` en un hook o en el CI) para que la regla 5 no dependa de la memoria de nadie.

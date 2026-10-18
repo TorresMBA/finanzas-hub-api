@@ -116,7 +116,7 @@ internal sealed class UploadImportHandler(IIntegrationsDb db, ImportReader reade
         }
 
         var records = rows.Select(row => ImportRecord.From(session, row)).ToList();
-        await ApplyRulesAsync(records, known, cancellationToken);
+        await ApplyRulesAsync(db, records, known, cancellationToken);
         await reader.MarkDuplicatesAsync(session, records, cancellationToken);
 
         db.ImportSessions.Add(session);
@@ -129,22 +129,35 @@ internal sealed class UploadImportHandler(IIntegrationsDb db, ImportReader reade
         return await reader.DescribeAsync(session, records, null, 0, cancellationToken);
     }
 
-    /// <summary>A line of a file that names no category takes the one of the most specific rule its description matches.</summary>
-    private async Task ApplyRulesAsync(List<ImportRecord> records, IReadOnlyList<CategoryInfo> known, CancellationToken cancellationToken)
+    /// <summary>
+    /// A line of a file that names no category, and has none yet, takes the one of the most specific rule its
+    /// description matches. A line the person already classified keeps what they chose.
+    /// </summary>
+    /// <returns>How many lines took a category.</returns>
+    internal static async Task<int> ApplyRulesAsync(
+        IIntegrationsDb db, IReadOnlyList<ImportRecord> records, IReadOnlyList<CategoryInfo> known, CancellationToken cancellationToken)
     {
         var uses = known.ToDictionary(category => category.Id, category => category.Use);
         var rules = (await db.CategorizationRules.AsNoTracking().Where(rule => rule.IsActive).ToListAsync(cancellationToken))
             .Where(rule => uses.ContainsKey(rule.CategoryId)).OrderByDescending(rule => rule.PatternKey.Length).ThenBy(rule => rule.CreatedAt).ToList();
         if (rules.Count == 0)
         {
-            return;
+            return 0;
         }
 
-        foreach (var record in records.Where(record => record is { Error: null, SourceCategory.Length: 0, Kind: ImportKind.Income or ImportKind.Expense }))
+        var classified = 0;
+        foreach (var record in records.Where(record => record is
+                     { Error: null, SourceCategory.Length: 0, CategoryId: null, OperationId: null, Kind: ImportKind.Income or ImportKind.Expense }))
         {
             var use = record.Kind == ImportKind.Income ? CategoryUse.Income : CategoryUse.Expense;
-            record.Classify(rules.FirstOrDefault(rule => uses[rule.CategoryId] == use && rule.Matches(record.Description))?.CategoryId);
+            if (rules.FirstOrDefault(rule => uses[rule.CategoryId] == use && rule.Matches(record.Description)) is { } rule)
+            {
+                record.Classify(rule.CategoryId);
+                classified++;
+            }
         }
+
+        return classified;
     }
 
     /// <summary>The category of the person a category of the file is: the same name under the same group, or the only one with that name.</summary>
@@ -292,6 +305,33 @@ internal sealed class ReviewImportRecordHandler(IIntegrationsDb db, ImportReader
         }
 
         return Unit.Value;
+    }
+}
+
+/// <summary>
+/// Runs the rules again over an import still in review, for instance after writing a new rule. Only the lines
+/// without a category take one; what the person chose stays.
+/// </summary>
+public sealed record ReapplyImportRulesCommand(Guid ImportId) : ICommand<ImportDetailResponse>;
+
+internal sealed class ReapplyImportRulesHandler(IIntegrationsDb db, ImportReader reader, ICategoryDirectory categories)
+    : ICommandHandler<ReapplyImportRulesCommand, ImportDetailResponse>
+{
+    public async Task<Result<ImportDetailResponse>> HandleAsync(ReapplyImportRulesCommand command, CancellationToken cancellationToken)
+    {
+        if (await reader.FindAsync(command.ImportId, cancellationToken) is not { } session)
+        {
+            return ImportErrors.NotFound;
+        }
+
+        if (session.Status == ImportStatus.Committed)
+        {
+            return ImportSession.AlreadyCommitted;
+        }
+
+        var records = await reader.RecordsAsync(session.Id, cancellationToken);
+        await UploadImportHandler.ApplyRulesAsync(db, records, await categories.ListAsync(cancellationToken), cancellationToken);
+        return await reader.DescribeAsync(session, records, null, 0, cancellationToken);
     }
 }
 

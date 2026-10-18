@@ -162,6 +162,15 @@ public sealed class GoalsController : ApiControllerBase
             goal => Created($"/api/v1/workspaces/{workspaceId}/goals/{goal.Id}", goal));
     }
 
+    /// <summary>Voids a contribution of the person asking, with its transfer. Not possible once that money was withdrawn or spent.</summary>
+    [HttpPost("{goalId:guid}/contributions/{contributionId:guid}/void", Name = "VoidGoalContribution")]
+    [ProducesResponseType<GoalResponse>(StatusCodes.Status200OK)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> VoidContribution(
+        Guid workspaceId, Guid goalId, Guid contributionId, [FromServices] ICommandHandler<VoidGoalContributionCommand, GoalResponse> handler,
+        CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new VoidGoalContributionCommand(goalId, contributionId), cancellationToken), Ok);
+
     /// <summary>Takes back part of what the person asking put in, to one of their accounts.</summary>
     [HttpPost("{goalId:guid}/withdrawals", Name = "WithdrawFromGoal")]
     [ProducesResponseType<GoalResponse>(StatusCodes.Status201Created)]

@@ -59,6 +59,7 @@ internal sealed class GoalConfiguration : IEntityTypeConfiguration<Goal>
             contributions.Property(contribution => contribution.Type).HasConversion<string>().HasMaxLength(16);
             contributions.Property(contribution => contribution.Amount).HasPrecision(18, 2);
             contributions.Ignore(contribution => contribution.Signed);
+            contributions.Ignore(contribution => contribution.IsVoided);
 
             // One contribution per movement of the ledger, so the two can always be reconciled.
             contributions.HasIndex(contribution => contribution.LedgerOperationId).IsUnique();

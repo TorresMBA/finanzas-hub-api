@@ -129,4 +129,37 @@ public class GoalsTests(ApiFixture api)
         var report = await brian.Client.GetFromJsonAsync<JsonElement>($"/api/v1/workspaces/{workspaceId}/reports/summary?period=month&anchor={month}");
         Assert.Equal((1000m, 1000m), (report.GetProperty("current").Money("expense"), report.GetProperty("current").Money("goalFundedExpense")));
     }
+
+    [Fact]
+    public async Task A_contribution_made_by_mistake_is_voided_with_its_transfer_but_not_once_that_money_left_the_goal()
+    {
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var workspaceId = brian.PersonalWorkspaceId;
+        var bcp = (await brian.OpenAccountAsync("BCP", 2000m)).Id();
+        var created = await brian.Client.PostAsJsonAsync(Url(workspaceId), new { name = "Laptop", targetAmount = 3000m });
+        var goalId = (await created.Content.ReadFromJsonAsync<JsonElement>()).Id();
+        Assert.Equal(HttpStatusCode.Created, (await MoveAsync(brian, workspaceId, goalId, "contributions", 500m, bcp)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await MoveAsync(brian, workspaceId, goalId, "contributions", 300m, bcp)).StatusCode);
+        async Task<Guid> ContributionAsync(decimal amount) =>
+            (await brian.Client.GetFromJsonAsync<JsonElement>(Url(workspaceId, $"/{goalId}"))).GetProperty("contributions").EnumerateArray()
+            .Single(contribution => contribution.Money("amount") == amount && contribution.GetProperty("type").GetString() == "contribution").Id();
+        var mistake = await ContributionAsync(500m);
+
+        // The 500 go back to BCP as if they had never left, and voiding again changes nothing.
+        var voidUrl = Url(workspaceId, $"/{goalId}/contributions/{mistake}/void");
+        Assert.Equal(HttpStatusCode.OK, (await brian.Client.PostAsync(voidUrl, null)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await brian.Client.PostAsync(voidUrl, null)).StatusCode);
+        Assert.Equal(300m, (await GoalAsync(brian, workspaceId, goalId)).Money("saved"));
+        Assert.Equal(1700m, await brian.BalanceAsync(bcp));
+
+        // Once 200 of the 300 were withdrawn, the 300 cannot be voided: part of it already left the goal.
+        Assert.Equal(HttpStatusCode.Created, (await MoveAsync(brian, workspaceId, goalId, "withdrawals", 200m, bcp)).StatusCode);
+        var rest = await ContributionAsync(300m);
+        Assert.Equal("goals.contribution.already_used", await Accounts.CodeOfAsync(await brian.Client.PostAsync(Url(workspaceId, $"/{goalId}/contributions/{rest}/void"), null)));
+        Assert.Equal(1900m, await brian.BalanceAsync(bcp));
+
+        // For someone outside the goal, neither the goal nor its contributions exist.
+        var juan = await api.RegisterWithActiveWorkspaceAsync("Juan");
+        Assert.Equal(HttpStatusCode.NotFound, (await juan.Client.PostAsync(Url(juan.PersonalWorkspaceId, $"/{goalId}/contributions/{rest}/void"), null)).StatusCode);
+    }
 }

@@ -99,8 +99,13 @@ public sealed class GoalContribution
 
     public DateTimeOffset CreatedAt { get; private set; }
 
-    /// <summary>What it adds to the goal: negative for a withdrawal.</summary>
-    public decimal Signed => Type == ContributionType.Contribution ? Amount : -Amount;
+    /// <summary>Set when it was voided, together with its transfer in the ledger. A voided one stays, and adds nothing.</summary>
+    public DateTimeOffset? VoidedAt { get; internal set; }
+
+    public bool IsVoided => VoidedAt is not null;
+
+    /// <summary>What it adds to the goal: negative for a withdrawal, nothing once voided.</summary>
+    public decimal Signed => IsVoided ? 0 : Type == ContributionType.Contribution ? Amount : -Amount;
 }
 
 /// <summary>
@@ -292,6 +297,33 @@ public sealed class Goal : AggregateRoot
 
         AchievedAt = now;
         return true;
+    }
+
+    /// <summary>
+    /// Undoes a contribution made by mistake: only its author, and only while what they still have in the goal
+    /// covers it (what was already withdrawn or spent cannot be put back). The ledger transfer is voided with it.
+    /// </summary>
+    public Result<GoalContribution> VoidContribution(Guid userId, Guid contributionId, DateTimeOffset now)
+    {
+        if (ActiveParticipant(userId) is null)
+        {
+            return ParticipantNotFound;
+        }
+
+        var contribution = _contributions.FirstOrDefault(candidate => candidate.Id == contributionId && candidate.UserId == userId);
+        if (contribution is null || contribution.Type != ContributionType.Contribution)
+        {
+            return Error.NotFound("goals.contribution.not_found", "The contribution was not found.");
+        }
+
+        if (!contribution.IsVoided && SavedBy(userId) < contribution.Amount)
+        {
+            return Error.BusinessRule(
+                "goals.contribution.already_used", "Part of that money was already withdrawn or spent, so the contribution cannot be voided.");
+        }
+
+        contribution.VoidedAt ??= now;
+        return contribution;
     }
 
     /// <summary>Archives or cancels the goal. Nothing moves: what each one put in stays in their fund until they withdraw it.</summary>

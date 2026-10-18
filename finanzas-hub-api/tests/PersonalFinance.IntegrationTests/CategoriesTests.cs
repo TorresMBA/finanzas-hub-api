@@ -285,6 +285,40 @@ public class CategoriesTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
     }
 
+    [Fact]
+    public async Task A_renamed_tag_follows_its_transactions_and_a_moved_subcategory_takes_its_spending_along()
+    {
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var workspaceId = brian.PersonalWorkspaceId;
+        var bank = (await brian.OpenAccountAsync("BCP", 500m)).Id();
+        var coffee = (await brian.SpendAsync(bank, 40m, category: "Restaurantes y delivery/Cafés", tags: ["cafe"])).Id();
+        var cafe = (await TagsAsync(brian)).Single(tag => Name(tag) == "cafe");
+
+        // The transaction points to the tag, so it shows the new name. A name that another tag has is refused.
+        var renamed = await brian.Client.PatchAsJsonAsync($"/api/v1/workspaces/{workspaceId}/tags/{Id(cafe)}", new { name = "Cafetería" });
+        Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
+        var transaction = await brian.Client.GetFromJsonAsync<JsonElement>($"{Books.TransactionsUrl(workspaceId)}/{coffee}");
+        Assert.Equal(["cafetería"], transaction.GetProperty("tags").EnumerateArray().Select(tag => tag.GetString()));
+        Assert.Equal("categories.tag.name_taken", await Accounts.CodeOfAsync(
+            await brian.Client.PatchAsJsonAsync($"/api/v1/workspaces/{workspaceId}/tags/{Id(cafe)}", new { name = "fijo" })));
+
+        // Moved under Supermercado, what Cafés spent now counts there; a category of the first level cannot move.
+        var groceries = await brian.CategoryIdAsync("Supermercado");
+        var moved = await brian.Client.PostAsJsonAsync($"{Url(workspaceId)}/{await brian.CategoryIdAsync("Restaurantes y delivery/Cafés")}/move", new { parentId = groceries });
+        Assert.Equal(HttpStatusCode.OK, moved.StatusCode);
+        Assert.Contains("Cafés", Subcategories(await moved.Content.ReadFromJsonAsync<JsonElement>()));
+        Assert.DoesNotContain("Cafés", Subcategories(Named(await ListAsync(brian), "Restaurantes y delivery")));
+        Assert.Equal([coffee], (await brian.TransactionsAsync($"?categoryId={groceries}")).GetProperty("items").EnumerateArray().Select(item => item.Id()));
+        Assert.Equal("categories.move_root", await Accounts.CodeOfAsync(
+            await brian.Client.PostAsJsonAsync($"{Url(workspaceId)}/{await brian.CategoryIdAsync("Mascotas")}/move", new { parentId = groceries })));
+
+        // Someone else's tag or category is not found.
+        var juan = await api.RegisterWithActiveWorkspaceAsync("Juan");
+        Assert.Equal(HttpStatusCode.NotFound, (await juan.Client.PatchAsJsonAsync($"/api/v1/workspaces/{juan.PersonalWorkspaceId}/tags/{Id(cafe)}", new { name = "mio" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await juan.Client.PostAsJsonAsync(
+            $"{Url(juan.PersonalWorkspaceId)}/{await brian.CategoryIdAsync("Supermercado/Cafés")}/move", new { parentId = await juan.CategoryIdAsync("Supermercado") })).StatusCode);
+    }
+
     private static string Url(Guid workspaceId) => $"/api/v1/workspaces/{workspaceId}/categories";
 
     private static async Task<List<JsonElement>> ListAsync(TestAccount account, string query = "", Guid? workspaceId = null) =>

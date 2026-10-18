@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PersonalFinance.BuildingBlocks.Application.Abstractions;
+using PersonalFinance.Infrastructure.Observability;
 using PersonalFinance.Infrastructure.Persistence;
 using PersonalFinance.Infrastructure.Platform;
 
@@ -99,6 +100,7 @@ internal sealed class EmailDispatcher(AppDbContext db, IOptions<EmailOptions> op
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        Telemetry.RecordPendingEmails(await db.OutgoingEmails.LongCountAsync(email => email.SentAt == null && email.Attempts < MaxAttempts, cancellationToken));
         return sent;
     }
 

@@ -2,7 +2,7 @@
 
 Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance de cada una está en [phases.md](phases.md), junto con lo que se verificó al cerrarla; aquí solo va en qué punto está y qué quedó pendiente.
 
-Última actualización: 16-oct-2026.
+Última actualización: 17-oct-2026.
 
 | Fase | Contenido | Estado | Cerrada |
 |---|---|---|---|
@@ -26,14 +26,14 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-16-oct-2026, tras los ajustes de operación y usabilidad (proxy, purga, patrimonio único, filtros de Transacciones, «Hoy» en el selector de mes, «Usar el dinero» de una meta, fondos de metas en el patrimonio y resumen de presupuestos). E2E sin repetir desde la fase 13.
+17-oct-2026, tras cerrar los pendientes pequeños de las fases (ver «Resuelto», filas del 17-oct-2026). Migración `AddFavoritesGroupIconsAndVoidedContributions`.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 284 en verde (168 unitarios, 19 de arquitectura, 97 de integración) |
-| Frontend: build, tests y lint | Build correcto y sin avisos, 132 tests, lint limpio |
-| E2E en Chrome | 31 en verde el 15-oct-2026; no se repitieron tras estos ajustes |
+| Backend: tests | 290 en verde (168 unitarios, 19 de arquitectura, 103 de integración) |
+| Frontend: build, tests y lint | Build correcto, 132 tests, lint limpio. Tres avisos de tamaño de estilos (`shared.scss`, `group-view.scss`, `budgets.scss`) que vienen del rediseño v2 |
+| E2E en Chrome | 32 en verde, contra una base desechable. El nuevo (`layout.spec.ts`) recorre las 13 secciones en tablet (768 px) y móvil (390 px) con tema claro, comprueba que nada desborda y guarda una captura de cada una; se revisaron a ojo |
 
 ## Pendientes que dejaron las fases cerradas
 
@@ -59,8 +59,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 
 | Pendiente | Se retoma |
 |---|---|
-| Renombrar un tag | Sin fecha |
-| Mover una categoría a otro padre | Sin fecha: el mock no lo pide |
 | Evento `CategoryArchived` | Sin fecha. Scheduling no lo necesitó: una regla cuya categoría se archivó falla al registrarse, queda en pausa y avisa |
 
 ### Fase 3
@@ -78,7 +76,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 |---|---|
 | Comisión de una transferencia como gasto vinculado | Sin fecha. Hoy se registra aparte, como un gasto más |
 | Editar una transferencia | Sin fecha. Se anula y se registra de nuevo |
-| Marca de "cuenta favorita" para las cuentas del Inicio (OQ-24) | Sin fecha. El Inicio muestra las cuatro de mayor saldo |
 | Historial de tipos de cambio en pantalla | Fase 14. Se guarda una fila por día; la pantalla solo muestra y cambia el vigente |
 
 ### Fase 5
@@ -86,11 +83,8 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Pendiente | Se retoma |
 |---|---|
 | El reembolso resta del consumo | Cuando el ledger permita registrar un reembolso |
-| Elegir desde qué mes vale un ajuste | Sin fecha. Hoy vale desde el mes actual |
 | Presupuesto semanal y acumular lo no gastado | Sin fecha (OQ-17) |
-| Sugerir el límite con el promedio de 3 meses | Sin fecha |
 | Span del cálculo del presupuesto | Sin fecha |
-| Tablet y tema claro de la pantalla de Presupuestos | Sin revisar a ojo; se revisó escritorio y móvil en tema oscuro |
 | Pagos fijos del mes con su vencimiento y «Marcar pagado» (rediseño v2, 17-oct-2026) | Sin fecha. Un presupuesto fijo no está ligado a sus movimientos programados; «Fijos por pagar» es lo que le falta a cada presupuesto fijo para llegar a su límite. Ligarlos pide que Budgets lea los pagos programados de la categoría, pagados y pendientes |
 | Flechas de mes en la cabecera de Presupuestos (rediseño v2) | Sin fecha. El mes se cambia en la barra superior, como en el resto de pantallas |
 
@@ -98,13 +92,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 
 | Pendiente | Se retoma |
 |---|---|
-| Test de que el hub solo entrega al destinatario | Sin fecha. La señal se dirige por el id de la persona de la cookie y el E2E prueba que llega a su dueño; ningún test prueba que no llegue a otro |
-| Badge de avisos en móvil | Sin fecha. En móvil la campana no está en la barra superior; el aviso emergente sí aparece |
-| Filtros Alertas y Hogar, y paginación de la bandeja | Cuando haya más categorías. La bandeja muestra los 100 últimos |
-| Desactivar la bandeja por categoría | Sin fecha. Todo aviso llega a la bandeja; la preferencia decide solo el correo |
-| Métrica de envíos pendientes | Sin fecha. Se cuenta lo publicado (`notifications.published`) |
 | Push móvil, resumen semanal, "Crear alerta" | Backlog |
-| Tablet y tema claro de la pantalla de Notificaciones | Sin revisar a ojo |
 
 ### Fase 7
 
@@ -116,8 +104,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | `IScheduledActionHandler` e `ICalendarItemProvider` | Con el aporte automático a una meta, que la fase 8 dejó pendiente |
 | Pausar las reglas de quien pierde el acceso y avisarle | Sin fecha. Hoy esas reglas simplemente dejan de correr, y vuelven a correr si la persona recupera el acceso |
 | Ver el job del Worker registrar un movimiento | Sin verificar. El test corre el mismo caso de uso que el job, no la clase del job; en el E2E el Worker arrancó sin errores pero no tenía nada automático que registrar |
-| Métrica de la duración del ciclo | Sin fecha. Se cuenta lo registrado (`scheduler.occurrences`) |
-| Tablet y tema claro del Calendario | Sin revisar a ojo |
 
 ### Fase 8
 
@@ -126,12 +112,10 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Aporte automático mensual a una meta | Sin fecha. Necesita que Scheduling programe acciones de otros módulos (`IScheduledActionHandler`) |
 | Fecha objetivo de la meta en el Calendario | Sin fecha, con `ICalendarItemProvider` |
 | Cuenta de ahorro propia como destino del aporte ("cuenta vinculada") | Sin fecha. Hoy todo aporte va al fondo de la meta, una cuenta que la aplicación abre a nombre de quien aporta |
-| Anular un aporte | Sin fecha. Un aporte equivocado se retira |
 | Traspasar la propiedad de una meta | Sin fecha. Quien la creó no puede salir: la archiva o la cancela |
 | Meta en otra moneda que la cuenta | Fuera de alcance: la cuenta debe tener la moneda de la meta |
 | Test de dos aportes simultáneos | Sin fecha. Dos aportes a la vez no chocan (cada uno es una fila); que crucen el objetivo a la vez sí, y uno responde 409 |
-| Ver la señal en tiempo real entre dos navegadores | Sin verificar. El aporte de otro participante envía `resource.changed`; ningún test lo observa |
-| Tablet, móvil a ojo y tema claro de Metas | Solo se revisó escritorio en tema oscuro; en móvil se comprobó que no desborda |
+| Ver la señal `resource.changed` en otro navegador | Sin verificar. `RealtimeTests` prueba que el aviso del aporte (`notification.created`) llega al participante y no a otro miembro del espacio; la señal `resource.changed` no la observa ningún test |
 
 ### Fase 9
 
@@ -144,10 +128,8 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Sugerencia de liquidación con menos pagos | Retirada el 13-oct-2026: cada miembro ve solo sus deudas, y la sugerencia exponía las de los demás |
 | Resumen aparte (`W/shared-expenses/summary`) y gastos compartidos en el Inicio | Sin fecha. Los totales vienen en el listado de grupos. Desde el rediseño v2 (17-oct-2026) la pantalla pide el detalle de cada grupo para el resumen por persona y por grupo; si alguien llega a tener muchos grupos, ese resumen pasa a un endpoint |
 | Pagos entre otros miembros y saldo de grupo de cada uno en el rediseño v2 | Por privacidad no se muestran: el mock los tenía, pero cada miembro ve solo lo que es entre él y cada otro. "Quién puso cuánto" cuenta solo los gastos en que participa quien mira |
-| Ícono propio por grupo | Sin fecha. El mock v2 lo tiene, pero el grupo no guarda ícono: todos usan el mismo |
 | Refunds en la pantalla de Transacciones: registrar uno a mano | Sin fecha. Hoy un reembolso solo nace de un cobro de gastos compartidos |
-| Tests de concurrencia y de la señal en tiempo real | Sin fecha |
-| Tablet y tema claro de Gastos compartidos | Solo se revisó escritorio en tema oscuro; en móvil, que no desborda |
+| Tests de concurrencia | Sin fecha. La señal en tiempo real ya tiene su test (`RealtimeTests`) |
 
 ### ADR-021: finanzas privadas de la persona (13-oct-2026)
 
@@ -156,7 +138,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Lo privado registrado antes dentro del espacio de otra persona | No se retoma: eran datos de prueba. Siguen en la base, pero no se ven porque no están en el espacio personal de su dueño |
 | Un fondo de meta abierto antes en un espacio ajeno | No se retoma. Esa cuenta ya no se ve, así que ese aporte no se puede retirar |
 | Libros propios de un espacio compartido ("cuentas del hogar") | No existen por decisión. Lo común se lleva con metas y, desde la fase 9, gastos compartidos |
-| Una persona que ya no posee ningún espacio (traspasó el único que tenía antes de este cambio) | Sin fecha. La migración no le marca espacio personal y no vería sus finanzas |
 
 ## Resuelto de fases anteriores
 
@@ -187,6 +168,25 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Subtotal por subcategoría dentro de un presupuesto | — | 16-oct-2026: acordeón «Ver subcategorías» en cada presupuesto con subcategorías, con lo gastado en cada una y lo registrado en la categoría misma («Sin subcategoría»); usa `category-totals`, sin cambios en la API |
 | Elegir el mes sin pasar por todos, y elegirlo en móvil | — | 16-oct-2026: botón «Hoy» y selector nativo de mes en la barra superior; en móvil no había forma de cambiar de mes |
 | Patrimonio de Cuentas a valor de mercado | Fase 13 | 16-oct-2026: Cuentas e Inicio usan el mismo cálculo (`GET W/net-worth`, en Reporting) |
+| Renombrar un tag | Fase 2 | 17-oct-2026: `PATCH W/tags/{id}`. Categorías y movimientos lo siguen por su id; un nombre que ya tiene otro tag (archivado también) responde 409. En Categorías, «Renombrar» junto al filtro del tag |
+| Mover una subcategoría a otra categoría | Fase 2 | 17-oct-2026: `POST W/categories/{id}/move`, a una categoría de primer nivel del mismo tipo. Lo que movió cuenta para la nueva, también en meses pasados. Una categoría de primer nivel no se mueve (`categories.move_root`) |
+| Cuenta favorita para el Inicio (OQ-24) | Fase 4 | 17-oct-2026: `PUT W/accounts/{id}/favorite`. El Inicio pone primero las principales y completa hasta cuatro con las de mayor saldo |
+| Elegir desde qué mes vale un ajuste de presupuesto | Fase 5 | 17-oct-2026: `fromMonth` en `PATCH W/budgets/{id}`; nunca antes del mes en que empezó el presupuesto |
+| Sugerir el límite con el promedio de 3 meses | Fase 5 | 17-oct-2026: `GET W/budgets/suggestion?categoryId=`, promedio de los tres meses cerrados con sus subcategorías, redondeado hacia arriba. El formulario ofrece «Usar» |
+| Test de que el hub entrega solo al destinatario | Fase 6 | 17-oct-2026: `RealtimeTests`, con dos clientes de SignalR |
+| Badge de avisos en móvil | Fase 6 | 17-oct-2026: un punto en «Más» y el número en «Notificaciones» de la hoja |
+| Filtro por categoría y paginación de la bandeja | Fase 6 | 17-oct-2026: `category` y `before` en `GET /me/notifications`, de 50 en 50; «Ver anteriores» |
+| Desactivar la bandeja por categoría | Fase 6 | 17-oct-2026: canal `Inbox` en las preferencias. Un aviso de una categoría sacada de la bandeja se guarda leído (así no se repite) y no muestra el aviso emergente; correo y WhatsApp siguen su propia elección |
+| Métricas `notifications.deliveries.pending`, `auth.failed_logins`, `security.forbidden` y duración del ciclo de Scheduling | Fases 6 y 7 | 17-oct-2026: ver [observability.md](../devops/observability.md) |
+| Anular un aporte a una meta | Fase 8 | 17-oct-2026: `POST W/goals/{id}/contributions/{cid}/void`. Solo su autor, y solo mientras lo que tiene en la meta lo cubre; anula también su transferencia (`ILedgerPosting.VoidGoalMoveAsync`). El aporte queda tachado en el historial |
+| Ícono propio por grupo | Fase 9 | 17-oct-2026: se elige al crear el grupo; quien lo creó lo cambia (`PUT W/shared-groups/{id}/icon`) |
+| Una persona que ya no posee ningún espacio | ADR-021 | 17-oct-2026: la migración `AddFavoritesGroupIconsAndVoidedContributions` le crea su espacio personal, con la moneda y la zona del espacio más antiguo en que está |
+| Volver a aplicar las reglas a una importación en revisión | Fase 10 | 17-oct-2026: «Aplicar reglas» (`POST W/imports/{id}/reapply-rules`). Solo clasifica las líneas sin categoría |
+| Ver el estado de entrega de cada WhatsApp | Fase 11 | 17-oct-2026: «Últimos mensajes» en la sección WhatsApp (`GET /me/channels/whatsapp/deliveries`) |
+| Meta de ahorro propia en Reportes | Fase 12 | 17-oct-2026: la de Preferencias (`savingsRateTarget`, ya existía) se dibuja como una línea en la tasa de ahorro mensual, con los meses que la cumplieron |
+| Búsqueda de categorías y grupos, y abrir el movimiento | Fase 12 | 17-oct-2026: el buscador encuentra categorías y grupos (nuevo `ISharedGroupQueries`, flecha Reporting → SharedExpenses) y abre el movimiento, la meta o el grupo elegido. Las metas no tienen notas: no hay nada que buscar ahí |
+| Ver las inversiones ya rescatadas | Fase 13 | 17-oct-2026: filtro «Cerradas», con la fecha de cierre y la ganancia realizada |
+| Tablet y tema claro de Presupuestos, Notificaciones, Calendario, Metas, Gastos compartidos, WhatsApp, Reportes e Inversiones | Fases 5 a 13 | 17-oct-2026: `e2e/layout.spec.ts` y revisión de sus capturas |
 
 ### Fase 10
 
@@ -195,7 +195,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Mapear a mano las columnas de un CSV | Sin fecha. Las columnas se reconocen por su nombre (fecha, descripción, monto o cargo y abono, categoría, moneda, en español o inglés); un banco con otros nombres da `imports.format_not_recognized` |
 | Análisis en segundo plano (`ParseImportsJob`, `IFileStorage`) | No hizo falta: con 10 MB y 10 000 líneas como máximo el archivo se lee en la misma petición y no se guarda. Se retoma si un archivo tarda demasiado |
 | Movimientos en otra moneda que la de su cuenta (Bluecoins) | Sin fecha. Quedan como «Otra moneda» y se excluyen; no se convierten con el tipo de cambio del archivo |
-| Volver a aplicar las reglas a una importación en revisión | Sin fecha. Las reglas se aplican al leer el archivo; después se clasifica línea por línea |
 | Formato real de la exportación de Bluecoins | Probado con las dos cabeceras conocidas (la de exportar y la de la plantilla de importación, con columnas numeradas). Sin verificar con un archivo real del dueño |
 | Evento `ImportCommitted` y aviso al terminar | Sin fecha: la importación se confirma con la pantalla abierta |
 
@@ -206,8 +205,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Plantillas aprobadas en Meta (`WhatsApp:NoticeTemplate`, `CodeTemplate`) | Cuando Meta las apruebe. La cuenta (número propio, token permanente de usuario del sistema, App Secret) está en dev desde el 16-oct-2026. Sin plantillas, el código de verificación y los avisos salen como texto y Meta solo los entrega si la persona escribió en las últimas 24 h |
 | Probar con Meta el envío por plantilla | Con las plantillas. El 16-oct-2026 se probó en dev contra Meta: envío de texto, saludo del webhook (`hub.challenge`), firma, número no verificado ignorado, `saldo`/`ayuda` respondidos y estados de entrega hasta *read* |
 | Registrar gastos por chat | Fuera de alcance (OQ-23): el canal solo consulta (`saldo`, `ayuda`) |
-| Ver en la pantalla el estado de entrega de cada mensaje | Sin fecha. Se guarda (enviado, entregado, leído, fallido) y se mide (`whatsapp.deliveries`), pero no se muestra |
-| Tablet y tema claro de la sección WhatsApp | Solo se revisó escritorio y móvil en tema oscuro |
 
 ### Fase 12
 
@@ -216,10 +213,6 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Exportar en PDF | Sin fecha. Hay Excel (resumen y movimientos) y CSV (movimientos) |
 | Reportes programados y resumen semanal | Backlog. El botón «Programar reporte» del mock no existe |
 | Índice sobre el comercio normalizado | Sin fecha. Los comercios se agrupan en memoria con `MerchantName.KeyOf` sobre los gastos del periodo; basta para el volumen de una persona. Se añade una columna con índice si un año tarda |
-| Meta de ahorro propia («Meta del hogar: 25 %» del mock) | Sin fecha. La gráfica muestra la tasa de cada mes sin una meta |
-| Búsqueda de categorías, grupos compartidos y notas de metas | Sin fecha. Busca movimientos (descripción, comercio, nota), cuentas y metas abiertas |
-| Abrir un movimiento desde la búsqueda | Sin fecha. Lleva a Transacciones filtradas por el texto; una cuenta, a sus movimientos |
-| Tablet y tema claro de Reportes y del buscador | Solo se revisó escritorio y móvil en tema oscuro |
 
 ### Fase 13
 
@@ -229,7 +222,5 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Precios automáticos (`RefreshPrices`) | Futuro, como decía el diseño. La valuación es manual |
 | Rendimiento anual frente a la inflación y «Perfil» del mock | Sin fecha: es dato externo |
 | `Asset` y `PriceSnapshot` como agregados propios | No hicieron falta: el instrumento (nombre, ticker, institución) va en la posición y cada valuación en `holding_valuations`. Se separan si varias personas siguen el mismo activo con precios compartidos |
-| Ver las inversiones ya rescatadas por completo | Sin fecha. Salen del portafolio; su historial queda y su cuenta del ledger también |
 | Renovar un depósito al vencer | Sin fecha. Se rescata y se abre otro |
 | Vencimientos de depósitos en el Calendario | Sin fecha. Hoy llegan como aviso una semana antes |
-| Tablet y tema claro de Inversiones | Solo se revisó escritorio y móvil en tema oscuro |

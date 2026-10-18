@@ -128,6 +128,14 @@ public sealed class ImportsController : ApiControllerBase
         ToActionResult(
             await handler.HandleAsync(new ReviewImportRecordCommand(importId, recordId, request.CategoryId, request.Excluded), cancellationToken), _ => NoContent());
 
+    /// <summary>Runs the rules again over the lines that have no category yet. What was chosen by hand stays.</summary>
+    [HttpPost("imports/{importId:guid}/reapply-rules", Name = "ReapplyImportRules")]
+    [ProducesResponseType<ImportDetailResponse>(StatusCodes.Status200OK)]
+    [Problem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ReapplyRules(
+        Guid workspaceId, Guid importId, [FromServices] ICommandHandler<ReapplyImportRulesCommand, ImportDetailResponse> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new ReapplyImportRulesCommand(importId), cancellationToken), Ok);
+
     /// <summary>
     /// Registers in the ledger every line that is ready, all of them or none. Lines that still need an account or
     /// a category stop it; duplicates and excluded lines stay out. An import is confirmed once.

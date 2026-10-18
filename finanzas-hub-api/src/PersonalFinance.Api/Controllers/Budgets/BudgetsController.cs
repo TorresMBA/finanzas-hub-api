@@ -33,6 +33,10 @@ public sealed class AdjustBudgetRequest
     public int AlertThresholdPercent { get; init; } = 90;
 
     public bool IsFixed { get; init; }
+
+    /// <summary>As 2026-11: the month the change applies from. The current month when left out; never before the budget started.</summary>
+    [RegularExpression(@"^\d{4}-\d{2}$")]
+    public string? FromMonth { get; init; }
 }
 
 /// <summary>The budgets of the signed-in person in this workspace. Nobody else's are reachable from here.</summary>
@@ -50,6 +54,14 @@ public sealed class BudgetsController : ApiControllerBase
     public async Task<IActionResult> List(
         Guid workspaceId, [FromQuery] string? month, [FromServices] IQueryHandler<GetBudgetsQuery, BudgetsResponse> handler, CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new GetBudgetsQuery(month), cancellationToken), Ok);
+
+    /// <summary>A limit for a category from what was spent in it in the last three closed months.</summary>
+    [HttpGet("suggestion", Name = "SuggestBudget")]
+    [ProducesResponseType<BudgetSuggestionResponse>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Suggest(
+        Guid workspaceId, [FromQuery, Required] Guid categoryId, [FromServices] IQueryHandler<SuggestBudgetQuery, BudgetSuggestionResponse> handler,
+        CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new SuggestBudgetQuery(categoryId), cancellationToken), Ok);
 
     /// <summary>One budget in a month, with the expenses that count towards it and what was spent each day.</summary>
     /// <param name="month">As 2026-10. The current month when left out.</param>
@@ -83,7 +95,8 @@ public sealed class BudgetsController : ApiControllerBase
         Guid workspaceId, Guid budgetId, AdjustBudgetRequest request, [FromServices] ICommandHandler<AdjustBudgetCommand, BudgetResponse> handler,
         CancellationToken cancellationToken) =>
         ToActionResult(
-            await handler.HandleAsync(new AdjustBudgetCommand(budgetId, request.Amount!.Value, request.AlertThresholdPercent, request.IsFixed), cancellationToken), Ok);
+            await handler.HandleAsync(
+                new AdjustBudgetCommand(budgetId, request.Amount!.Value, request.AlertThresholdPercent, request.IsFixed, request.FromMonth), cancellationToken), Ok);
 
     /// <summary>Stops the budget from the current month on. Past months keep it.</summary>
     [HttpDelete("{budgetId:guid}", Name = "EndBudget")]

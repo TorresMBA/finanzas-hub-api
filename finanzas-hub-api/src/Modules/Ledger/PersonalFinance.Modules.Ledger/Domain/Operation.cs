@@ -336,13 +336,17 @@ public sealed class Operation : AggregateRoot, IOwned
         return Result.Success();
     }
 
-    public Result Void(string? reason, DateTimeOffset now)
-    {
-        if (SourceModule is not null)
-        {
-            return Error.BusinessRule("ledger.transaction.owned_by_module", "This movement was created by another part of the application and is voided from there.");
-        }
+    public Result Void(string? reason, DateTimeOffset now) =>
+        SourceModule is not null
+            ? Error.BusinessRule("ledger.transaction.owned_by_module", "This movement was created by another part of the application and is voided from there.")
+            : VoidCore(reason, now);
 
+    /// <summary>Voids a movement that a module registered, asked by that same module.</summary>
+    public Result VoidFor(string module, string? reason, DateTimeOffset now) =>
+        SourceModule == module ? VoidCore(reason, now) : Error.NotFound("ledger.transaction.not_found", "The transaction was not found.");
+
+    private Result VoidCore(string? reason, DateTimeOffset now)
+    {
         var normalized = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
         if (normalized is { Length: > MaxVoidReasonLength })
         {

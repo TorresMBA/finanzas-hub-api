@@ -57,6 +57,19 @@ public sealed class Tag : AggregateRoot, IOwned
             : normalized;
     }
 
+    /// <summary>Transactions and categories point to the tag by its id, so they all follow the new name.</summary>
+    public Result Rename(string? name)
+    {
+        var normalized = Normalize(name);
+        if (normalized.IsFailure)
+        {
+            return normalized.Error;
+        }
+
+        Name = normalized.Value;
+        return Result.Success();
+    }
+
     public void Archive(DateTimeOffset now) => ArchivedAt ??= now;
 
     public void Restore() => ArchivedAt = null;

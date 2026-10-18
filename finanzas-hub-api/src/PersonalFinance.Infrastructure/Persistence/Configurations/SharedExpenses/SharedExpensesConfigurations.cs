@@ -14,6 +14,7 @@ internal sealed class SharedGroupConfiguration : IEntityTypeConfiguration<Shared
         builder.Property(group => group.Name).HasMaxLength(SharedGroup.MaxNameLength).IsRequired();
         builder.Property(group => group.Currency).HasMaxLength(3).IsFixedLength().IsRequired();
         builder.Property(group => group.Status).HasConversion<string>().HasMaxLength(16);
+        builder.Property(group => group.Icon).HasMaxLength(SharedGroup.MaxIconLength).HasDefaultValue(SharedGroup.DefaultIcon).IsRequired();
         builder.Property<uint>("Version").IsRowVersion();
         builder.Ignore(group => group.HasPendingDebts);
         builder.HasIndex(group => new { group.WorkspaceId, group.Status });

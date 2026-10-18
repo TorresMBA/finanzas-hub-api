@@ -287,6 +287,49 @@ internal sealed class WithdrawFromGoalHandler(GoalReader reader, ILedgerPosting 
     }
 }
 
+/// <summary>
+/// Voids a contribution of the current person made by mistake, with its transfer: the money is back in the account
+/// it came from as if it had never left. Voiding it again changes nothing.
+/// </summary>
+public sealed record VoidGoalContributionCommand(Guid GoalId, Guid ContributionId) : ICommand<GoalResponse>;
+
+internal sealed class VoidGoalContributionHandler(GoalReader reader, ILedgerPosting ledger, GoalNotifier notifier, IAuditLog audit, IClock clock)
+    : ICommandHandler<VoidGoalContributionCommand, GoalResponse>
+{
+    public async Task<Result<GoalResponse>> HandleAsync(VoidGoalContributionCommand command, CancellationToken cancellationToken)
+    {
+        if (reader.Owner is not var (_, userId) || await reader.FindAsync(command.GoalId, cancellationToken) is not { } goal)
+        {
+            return GoalErrors.NotFound;
+        }
+
+        var alreadyVoided = goal.Contributions.Any(contribution => contribution.Id == command.ContributionId && contribution.IsVoided);
+        var voided = goal.VoidContribution(userId, command.ContributionId, clock.UtcNow);
+        if (voided.IsFailure)
+        {
+            return voided.Error;
+        }
+
+        if (!alreadyVoided)
+        {
+            var contribution = voided.Value;
+            var undone = await ledger.VoidGoalMoveAsync(contribution.LedgerOperationId, $"Aporte anulado en {goal.Name}", cancellationToken);
+            if (undone.IsFailure)
+            {
+                return undone.Error;
+            }
+
+            audit.Record(new AuditEntry("goals", "goals.contribution.voided", "goal", goal.Id)
+            {
+                ScopeType = "goal", ScopeId = goal.Id, Before = new { ContributionId = contribution.Id, contribution.Amount, goal.Currency, OperationId = contribution.LedgerOperationId }
+            });
+            notifier.Signal(goal, userId);
+        }
+
+        return await reader.DescribeAsync(goal, cancellationToken);
+    }
+}
+
 /// <param name="Description">What was bought; the name of the goal when left out.</param>
 public sealed record SpendFromGoalCommand(
     Guid GoalId, decimal Amount, Guid AccountId, Guid CategoryId, string? Description, DateOnly? OccurredOn, string IdempotencyKey)

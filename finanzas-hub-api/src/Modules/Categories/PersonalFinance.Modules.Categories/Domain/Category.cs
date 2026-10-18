@@ -162,6 +162,31 @@ public sealed class Category : AggregateRoot, IOwned
         return Result.Success();
     }
 
+    /// <summary>
+    /// Moves a subcategory under another category of the same kind. What was classified with it keeps its id,
+    /// so from now on it counts for the new category in totals and budgets, also in past months.
+    /// </summary>
+    public Result MoveTo(Category parent)
+    {
+        if (IsRoot)
+        {
+            return Error.BusinessRule("categories.move_root", "Only a subcategory can be moved to another category.");
+        }
+
+        if (IsArchived || parent.IsArchived)
+        {
+            return Archived;
+        }
+
+        if (!parent.IsRoot || parent.Kind != Kind || parent.OwnerUserId != OwnerUserId)
+        {
+            return Error.BusinessRule("categories.move_target_invalid", "A subcategory can only move under a category of the same kind.");
+        }
+
+        ParentId = parent.Id;
+        return Result.Success();
+    }
+
     public Result SetTags(IReadOnlyCollection<Guid> tagIds)
     {
         if (!IsRoot)

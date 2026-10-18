@@ -66,6 +66,11 @@ public sealed class UpdateAccountRequest
     public CreditCardRequest? CreditCard { get; init; }
 }
 
+public sealed class SetAccountFavoriteRequest
+{
+    public bool IsFavorite { get; init; }
+}
+
 public sealed class PayCreditCardRequest
 {
     /// <summary>The account the money comes from. Not another credit card.</summary>
@@ -157,6 +162,15 @@ public sealed class AccountsController : ApiControllerBase
             await handler.HandleAsync(
                 new UpdateAccountCommand(accountId, request.Name, request.Institution, request.IncludeInNetWorth, request.CreditCard?.ToTerms()), cancellationToken),
             Ok);
+
+    /// <summary>Marks the account as one of the main ones of the home screen, or unmarks it.</summary>
+    [HttpPut("{accountId:guid}/favorite", Name = "SetAccountFavorite")]
+    [ProducesResponseType<AccountResponse>(StatusCodes.Status200OK)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> SetFavorite(
+        Guid workspaceId, Guid accountId, SetAccountFavoriteRequest request, [FromServices] ICommandHandler<SetAccountFavoriteCommand, AccountResponse> handler,
+        CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new SetAccountFavoriteCommand(accountId, request.IsFavorite), cancellationToken), Ok);
 
     /// <summary>The account stops being offered. Its movements and its balance stay.</summary>
     [HttpPost("{accountId:guid}/archive", Name = "ArchiveAccount")]

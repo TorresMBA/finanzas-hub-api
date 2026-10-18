@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PersonalFinance.BuildingBlocks.Application.Abstractions;
+using PersonalFinance.Infrastructure.Observability;
 using PersonalFinance.Infrastructure.Persistence;
 using PersonalFinance.Modules.Notifications.Application.Abstractions;
 using PersonalFinance.Modules.Notifications.Domain;
@@ -208,6 +209,7 @@ internal sealed class DeliveryDispatcher(AppDbContext db, IWhatsAppSender sender
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        Telemetry.RecordPendingWhatsApp(await db.Deliveries.LongCountAsync(delivery => delivery.Status == DeliveryStatus.Pending, cancellationToken));
         return sent;
     }
 }

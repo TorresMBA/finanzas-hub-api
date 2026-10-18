@@ -16,16 +16,17 @@ public sealed record CreditCardResponse(decimal CreditLimit, decimal Used, decim
 /// <param name="Balance">Derived from the ledger at the moment of the answer; it is stored nowhere. Negative on a credit card with debt.</param>
 /// <param name="IncludeInNetWorth">Whether the account counts in the net worth while it is not archived.</param>
 /// <param name="CreditCard">Present exactly when the account is a credit card.</param>
+/// <param name="IsFavorite">Shown first on the home screen.</param>
 public sealed record AccountResponse(
     Guid Id, string Name, AccountType Type, string Currency, string? Institution, decimal Balance, bool IncludeInNetWorth, CreditCardResponse? CreditCard,
-    bool IsArchived, DateTimeOffset CreatedAt)
+    bool IsArchived, DateTimeOffset CreatedAt, bool IsFavorite)
 {
     internal static AccountResponse From(Account account, decimal balance, DateOnly today) =>
         new(account.Id, account.Name, account.Type, account.Currency, account.Institution, balance, account.IncludeInNetWorth,
             account.CreditCard is { } card
                 ? new CreditCardResponse(card.CreditLimit, Math.Max(0, -balance), card.AvailableWith(balance), card.PaymentDay, card.ClosingDay, card.NextPaymentDate(today))
                 : null,
-            account.IsArchived, account.CreatedAt);
+            account.IsArchived, account.CreatedAt, account.IsFavorite);
 }
 
 public sealed record ListAccountsQuery(bool IncludeArchived) : IQuery<IReadOnlyList<AccountResponse>>;
@@ -166,6 +167,23 @@ internal sealed class UpdateAccountHandler(ILedgerDb db, AccountBalances balance
 }
 
 public sealed record ArchiveAccountCommand(Guid AccountId) : ICommand<AccountResponse>;
+
+/// <summary>Marks or unmarks an account as one of the main ones of the home screen.</summary>
+public sealed record SetAccountFavoriteCommand(Guid AccountId, bool IsFavorite) : ICommand<AccountResponse>;
+
+internal sealed class SetAccountFavoriteHandler(ILedgerDb db, AccountBalances balances, LedgerScope scope) : ICommandHandler<SetAccountFavoriteCommand, AccountResponse>
+{
+    public async Task<Result<AccountResponse>> HandleAsync(SetAccountFavoriteCommand command, CancellationToken cancellationToken)
+    {
+        if (await db.Accounts.SingleOrDefaultAsync(account => account.Id == command.AccountId, cancellationToken) is not { } account)
+        {
+            return LedgerErrors.AccountNotFound;
+        }
+
+        var marked = account.MarkFavorite(command.IsFavorite);
+        return marked.IsFailure ? marked.Error : AccountResponse.From(account, await balances.OfAsync(account.Id, cancellationToken), scope.Today);
+    }
+}
 
 internal sealed class ArchiveAccountHandler(ILedgerDb db, AccountBalances balances, LedgerScope scope, IAuditLog audit, IClock clock)
     : ICommandHandler<ArchiveAccountCommand, AccountResponse>

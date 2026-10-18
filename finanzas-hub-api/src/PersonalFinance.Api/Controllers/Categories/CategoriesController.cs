@@ -47,6 +47,19 @@ public sealed class SetCategoryTagsRequest
     public IReadOnlyList<string> Tags { get; init; } = [];
 }
 
+public sealed class MoveCategoryRequest
+{
+    /// <summary>The category of the first level the subcategory goes under. It must be of the same kind.</summary>
+    [Required]
+    public Guid? ParentId { get; init; }
+}
+
+public sealed class RenameTagRequest
+{
+    [Required, StringLength(Tag.MaxNameLength, MinimumLength = 1)]
+    public string Name { get; init; } = string.Empty;
+}
+
 /// <summary>The categories of the signed-in person in this workspace. Nobody else's are reachable from here.</summary>
 [Tags("Categories")]
 [Route("api/v1/workspaces/{workspaceId:guid}/categories")]
@@ -82,6 +95,17 @@ public sealed class CategoriesController : ApiControllerBase
         Guid workspaceId, Guid categoryId, UpdateCategoryRequest request,
         [FromServices] ICommandHandler<UpdateCategoryCommand, CategoryResponse> handler, CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new UpdateCategoryCommand(categoryId, request.Name, request.Icon, request.Color), cancellationToken), Ok);
+
+    /// <summary>Moves a subcategory under another category. Answers with the category it moved to.</summary>
+    [HttpPost("{categoryId:guid}/move", Name = "MoveCategory")]
+    [ProducesResponseType<CategoryResponse>(StatusCodes.Status200OK)]
+    [Problem(StatusCodes.Status400BadRequest)]
+    [Problem(StatusCodes.Status409Conflict)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Move(
+        Guid workspaceId, Guid categoryId, MoveCategoryRequest request,
+        [FromServices] ICommandHandler<MoveCategoryCommand, CategoryResponse> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new MoveCategoryCommand(categoryId, request.ParentId!.Value), cancellationToken), Ok);
 
     /// <summary>Archiving a category archives its subcategories. Nothing is deleted.</summary>
     [HttpPost("{categoryId:guid}/archive", Name = "ArchiveCategory")]
@@ -127,6 +151,15 @@ public sealed class TagsController : ApiControllerBase
     [ProducesResponseType<IReadOnlyList<TagResponse>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List(Guid workspaceId, [FromServices] IQueryHandler<ListTagsQuery, IReadOnlyList<TagResponse>> handler, CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new ListTagsQuery(), cancellationToken), Ok);
+
+    /// <summary>Renames the tag everywhere it is used: categories and transactions point to it, not to its name.</summary>
+    [HttpPatch("{tagId:guid}", Name = "RenameTag")]
+    [ProducesResponseType<TagResponse>(StatusCodes.Status200OK)]
+    [Problem(StatusCodes.Status400BadRequest)]
+    [Problem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Rename(
+        Guid workspaceId, Guid tagId, RenameTagRequest request, [FromServices] ICommandHandler<RenameTagCommand, TagResponse> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new RenameTagCommand(tagId, request.Name), cancellationToken), Ok);
 
     /// <summary>Archives the tag and removes it from every category that suggested it.</summary>
     [HttpPost("{tagId:guid}/archive", Name = "ArchiveTag")]

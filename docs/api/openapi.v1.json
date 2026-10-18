@@ -1373,6 +1373,96 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspaceId}/shared-groups/{groupId}/icon": {
+      "put": {
+        "tags": [
+          "SharedExpenses"
+        ],
+        "operationId": "ChangeSharedGroupIcon",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "groupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeSharedGroupIconRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedGroupDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/shared-groups/{groupId}/archive": {
       "post": {
         "tags": [
@@ -3003,6 +3093,21 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/NotificationCategory"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -3255,6 +3360,39 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WhatsAppChannelResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/channels/whatsapp/deliveries": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "operationId": "ListWhatsAppDeliveries",
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WhatsAppDeliveryResponse"
+                  }
                 }
               }
             }
@@ -3731,6 +3869,86 @@
               "application/problem\u002Bjson": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/accounts/{accountId}/favorite": {
+      "put": {
+        "tags": [
+          "Ledger"
+        ],
+        "operationId": "SetAccountFavorite",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetAccountFavoriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
                 }
               }
             }
@@ -6048,6 +6266,76 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspaceId}/imports/{importId}/reapply-rules": {
+      "post": {
+        "tags": [
+          "Imports"
+        ],
+        "operationId": "ReapplyImportRules",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "importId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportDetailResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/imports/{importId}/commit": {
       "post": {
         "tags": [
@@ -7494,6 +7782,85 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspaceId}/goals/{goalId}/contributions/{contributionId}/void": {
+      "post": {
+        "tags": [
+          "Goals"
+        ],
+        "operationId": "VoidGoalContribution",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "goalId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "contributionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/goals/{goalId}/withdrawals": {
       "post": {
         "tags": [
@@ -8125,6 +8492,106 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspaceId}/categories/{categoryId}/move": {
+      "post": {
+        "tags": [
+          "Categories"
+        ],
+        "operationId": "MoveCategory",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveCategoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/categories/{categoryId}/archive": {
       "post": {
         "tags": [
@@ -8460,6 +8927,96 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspaceId}/tags/{tagId}": {
+      "patch": {
+        "tags": [
+          "Categories"
+        ],
+        "operationId": "RenameTag",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "tagId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameTagRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/tags/{tagId}/archive": {
       "post": {
         "tags": [
@@ -8663,6 +9220,66 @@
               "application/problem\u002Bjson": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/budgets/suggestion": {
+      "get": {
+        "tags": [
+          "Budgets"
+        ],
+        "operationId": "SuggestBudget",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetSuggestionResponse"
                 }
               }
             }
@@ -8930,7 +9547,8 @@
           "includeInNetWorth",
           "creditCard",
           "isArchived",
-          "createdAt"
+          "createdAt",
+          "isFavorite"
         ],
         "type": "object",
         "properties": {
@@ -8980,6 +9598,9 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "isFavorite": {
+            "type": "boolean"
           }
         }
       },
@@ -9127,6 +9748,13 @@
           },
           "isFixed": {
             "type": "boolean"
+          },
+          "fromMonth": {
+            "pattern": "^\\d{4}-\\d{2}$",
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -9510,6 +10138,61 @@
           "paid"
         ]
       },
+      "BudgetSuggestionMonth": {
+        "required": [
+          "month",
+          "spent"
+        ],
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "spent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "BudgetSuggestionResponse": {
+        "required": [
+          "categoryId",
+          "currency",
+          "suggestedLimit",
+          "months"
+        ],
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "suggestedLimit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BudgetSuggestionMonth"
+            }
+          }
+        }
+      },
       "CalendarItemKind": {
         "enum": [
           "income",
@@ -9848,6 +10531,19 @@
           "newPassword": {
             "maxLength": 128,
             "minLength": 12,
+            "type": "string"
+          }
+        }
+      },
+      "ChangeSharedGroupIconRequest": {
+        "required": [
+          "icon"
+        ],
+        "type": "object",
+        "properties": {
+          "icon": {
+            "maxLength": 40,
+            "minLength": 1,
             "type": "string"
           }
         }
@@ -10246,6 +10942,14 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          "icon": {
+            "maxLength": 40,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -10469,7 +11173,8 @@
           "name",
           "type",
           "currency",
-          "balance"
+          "balance",
+          "isFavorite"
         ],
         "type": "object",
         "properties": {
@@ -10493,6 +11198,9 @@
               "string"
             ],
             "format": "double"
+          },
+          "isFavorite": {
+            "type": "boolean"
           }
         }
       },
@@ -10935,6 +11643,22 @@
           }
         }
       },
+      "DeliveryKind": {
+        "enum": [
+          "reply",
+          "notice",
+          "verificationCode"
+        ]
+      },
+      "DeliveryStatus": {
+        "enum": [
+          "pending",
+          "sent",
+          "delivered",
+          "read",
+          "failed"
+        ]
+      },
       "EditTransactionRequest": {
         "required": [
           "type",
@@ -11121,7 +11845,8 @@
           "type",
           "amount",
           "occurredOn",
-          "isMine"
+          "isMine",
+          "isVoided"
         ],
         "type": "object",
         "properties": {
@@ -11152,6 +11877,9 @@
             "format": "date"
           },
           "isMine": {
+            "type": "boolean"
+          },
+          "isVoided": {
             "type": "boolean"
           }
         }
@@ -11672,7 +12400,8 @@
           "termDays",
           "projectedValue",
           "lastValuedOn",
-          "trend"
+          "trend",
+          "realized"
         ],
         "type": "object",
         "properties": {
@@ -11813,6 +12542,14 @@
               ],
               "format": "double"
             }
+          },
+          "realized": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -12240,7 +12977,8 @@
           "gainPercent",
           "distribution",
           "holdings",
-          "missingRates"
+          "missingRates",
+          "closed"
         ],
         "type": "object",
         "properties": {
@@ -12299,6 +13037,12 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "closed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HoldingSummaryResponse"
             }
           }
         }
@@ -12599,6 +13343,21 @@
           }
         }
       },
+      "MoveCategoryRequest": {
+        "required": [
+          "parentId"
+        ],
+        "type": "object",
+        "properties": {
+          "parentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
       "NetWorthResponse": {
         "required": [
           "baseCurrency",
@@ -12693,6 +13452,13 @@
               "string"
             ],
             "format": "int32"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -12720,6 +13486,12 @@
               "null",
               "boolean"
             ]
+          },
+          "inboxEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -12727,7 +13499,8 @@
         "required": [
           "category",
           "emailEnabled",
-          "whatsAppEnabled"
+          "whatsAppEnabled",
+          "inboxEnabled"
         ],
         "type": "object",
         "properties": {
@@ -12738,6 +13511,9 @@
             "type": "boolean"
           },
           "whatsAppEnabled": {
+            "type": "boolean"
+          },
+          "inboxEnabled": {
             "type": "boolean"
           }
         }
@@ -13527,6 +14303,19 @@
           }
         }
       },
+      "RenameTagRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 40,
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      },
       "ReportCategoryResponse": {
         "required": [
           "categoryId",
@@ -13940,6 +14729,41 @@
           }
         }
       },
+      "SearchCategoryResponse": {
+        "required": [
+          "id",
+          "name",
+          "parentName",
+          "isIncome",
+          "icon",
+          "color"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isIncome": {
+            "type": "boolean"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      },
       "SearchGoalResponse": {
         "required": [
           "id",
@@ -13987,6 +14811,30 @@
             "format": "double"
           },
           "isShared": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SearchGroupResponse": {
+        "required": [
+          "id",
+          "name",
+          "icon",
+          "isArchived"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "isArchived": {
             "type": "boolean"
           }
         }
@@ -14044,7 +14892,9 @@
         "required": [
           "movements",
           "accounts",
-          "goals"
+          "goals",
+          "categories",
+          "groups"
         ],
         "type": "object",
         "properties": {
@@ -14065,6 +14915,18 @@
             "items": {
               "$ref": "#/components/schemas/SearchGoalResponse"
             }
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchCategoryResponse"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchGroupResponse"
+            }
           }
         }
       },
@@ -14081,6 +14943,14 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "SetAccountFavoriteRequest": {
+        "type": "object",
+        "properties": {
+          "isFavorite": {
+            "type": "boolean"
           }
         }
       },
@@ -14332,6 +15202,7 @@
         "required": [
           "id",
           "name",
+          "icon",
           "currency",
           "status",
           "memberCount",
@@ -14349,6 +15220,9 @@
             "format": "uuid"
           },
           "name": {
+            "type": "string"
+          },
+          "icon": {
             "type": "string"
           },
           "currency": {
@@ -15337,6 +16211,62 @@
           },
           "isVerified": {
             "type": "boolean"
+          }
+        }
+      },
+      "WhatsAppDeliveryResponse": {
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "title",
+          "createdAt",
+          "sentAt",
+          "attempts",
+          "lastError"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DeliveryKind"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeliveryStatus"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sentAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "attempts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

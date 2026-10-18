@@ -1091,6 +1091,10 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(60)")
                         .HasColumnName("institution");
 
+                    b.Property<bool>("IsFavorite")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_favorite");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(60)
@@ -1810,6 +1814,14 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         .HasColumnName("currency")
                         .IsFixedLength();
 
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasDefaultValue("group")
+                        .HasColumnName("icon");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(60)
@@ -2136,6 +2148,10 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                             b1.Property<Guid>("UserId")
                                 .HasColumnType("uuid")
                                 .HasColumnName("user_id");
+
+                            b1.Property<DateTimeOffset?>("VoidedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("voided_at");
 
                             b1.HasKey("Id")
                                 .HasName("pk_goal_contributions");

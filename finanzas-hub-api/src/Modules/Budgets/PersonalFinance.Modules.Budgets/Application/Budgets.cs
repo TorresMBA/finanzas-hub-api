@@ -119,11 +119,50 @@ internal sealed class CreateBudgetHandler(IBudgetsDb db, BudgetReader reader, IC
     }
 }
 
+/// <param name="CategoryId">An expense category of the first level.</param>
+/// <param name="SuggestedLimit">The average of the three months, rounded up to a whole amount. Zero when nothing was spent.</param>
+/// <param name="Months">What was spent in each of the three closed months before the current one, oldest first.</param>
+public sealed record BudgetSuggestionResponse(Guid CategoryId, string? Currency, decimal SuggestedLimit, IReadOnlyList<BudgetSuggestionMonth> Months);
+
+/// <param name="Month">As <c>2026-10</c>.</param>
+public sealed record BudgetSuggestionMonth(string Month, decimal Spent);
+
+/// <summary>What a limit could be, from what was spent in the category in the last three closed months.</summary>
+public sealed record SuggestBudgetQuery(Guid CategoryId) : IQuery<BudgetSuggestionResponse>;
+
+internal sealed class SuggestBudgetHandler(BudgetReader reader, ILedgerQueries ledger, ICategoryLookup categories) : IQueryHandler<SuggestBudgetQuery, BudgetSuggestionResponse>
+{
+    public const int MonthsAveraged = 3;
+
+    public async Task<Result<BudgetSuggestionResponse>> HandleAsync(SuggestBudgetQuery query, CancellationToken cancellationToken)
+    {
+        // Someone else's category is not found by the lookup, so it answers 404 like any other.
+        if (await categories.FindAsync(query.CategoryId, cancellationToken) is not { Use: CategoryUse.Expense } category || category.RootId != category.Id)
+        {
+            return Error.NotFound("budgets.category_not_found", "The category was not found.");
+        }
+
+        var family = await categories.WithSubcategoriesAsync(category.Id, cancellationToken);
+        var months = new List<BudgetSuggestionMonth>();
+        for (var back = MonthsAveraged; back >= 1; back--)
+        {
+            var first = reader.CurrentMonth().AddMonths(-back);
+            var totals = await ledger.GetCategoryTotalsAsync(first, first.AddMonths(1).AddDays(-1), cancellationToken);
+            var spent = totals.Categories.Where(total => !total.IsIncome && family.Contains(total.CategoryId)).Sum(total => total.Amount);
+            months.Add(new BudgetSuggestionMonth($"{first.Year:D4}-{first.Month:D2}", spent));
+        }
+
+        var suggested = Math.Max(0m, Math.Ceiling(months.Sum(month => month.Spent) / MonthsAveraged));
+        return new BudgetSuggestionResponse(category.Id, reader.BaseCurrency, suggested, months);
+    }
+}
+
 /// <summary>
-/// Changes the limit, the warning or the fixed mark from the current month on. The months already closed keep
-/// the limit they had.
+/// Changes the limit, the warning or the fixed mark from a month on: the current one when left out. The months
+/// before it keep the limit they had.
 /// </summary>
-public sealed record AdjustBudgetCommand(Guid BudgetId, decimal Amount, int AlertThresholdPercent, bool IsFixed) : ICommand<BudgetResponse>;
+/// <param name="FromMonth">As <c>2026-11</c>. It cannot be before the month the budget started.</param>
+public sealed record AdjustBudgetCommand(Guid BudgetId, decimal Amount, int AlertThresholdPercent, bool IsFixed, string? FromMonth = null) : ICommand<BudgetResponse>;
 
 internal sealed class AdjustBudgetHandler(IBudgetsDb db, BudgetReader reader, IAuditLog audit, IClock clock) : ICommandHandler<AdjustBudgetCommand, BudgetResponse>
 {
@@ -134,7 +173,13 @@ internal sealed class AdjustBudgetHandler(IBudgetsDb db, BudgetReader reader, IA
             return BudgetErrors.NotFound;
         }
 
-        var month = reader.CurrentMonth();
+        var from = reader.Month(command.FromMonth);
+        if (from.IsFailure)
+        {
+            return from.Error;
+        }
+
+        var month = from.Value;
         var before = new { budget.Amount, budget.AlertThresholdPercent, budget.IsFixed };
         var adjusted = budget.Adjust(command.Amount, command.AlertThresholdPercent, command.IsFixed, month, clock.UtcNow);
         if (adjusted.IsFailure)

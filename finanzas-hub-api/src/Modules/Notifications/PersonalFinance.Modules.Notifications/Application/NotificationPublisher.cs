@@ -62,11 +62,18 @@ internal sealed class NotificationPublisher(
             return false;
         }
 
+        var settings = await settingsStore.ReadAsync(request.UserId, cancellationToken);
         var notification = Notification.Create(request, clock.UtcNow);
         db.Notifications.Add(notification);
-        realtime.ToUser(request.UserId, CreatedEvent, new { notification.Id, Category = request.Category.ToString(), notification.Title });
+        if (settings.InboxEnabled(request.Category))
+        {
+            realtime.ToUser(request.UserId, CreatedEvent, new { notification.Id, Category = request.Category.ToString(), notification.Title });
+        }
+        else
+        {
+            notification.MarkRead(clock.UtcNow);
+        }
 
-        var settings = await settingsStore.ReadAsync(request.UserId, cancellationToken);
         var emailed = settings.EmailEnabled(request.Category) && await users.FindAsync(request.UserId, cancellationToken) is { } user && Queue(user, notification, settings);
         var texted = settings.WhatsAppEnabled(request.Category) && await QueueWhatsAppAsync(notification, settings, cancellationToken);
         Published.Add(
