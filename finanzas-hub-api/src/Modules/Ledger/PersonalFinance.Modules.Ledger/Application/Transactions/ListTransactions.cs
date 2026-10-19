@@ -155,50 +155,60 @@ internal sealed class ListTransactionsHandler(ILedgerDb db, TransactionReader re
                 BaseAmount = operation.Kind == OperationKind.Refund ? -entry.BaseAmount : entry.BaseAmount
             })
             .GroupBy(row => new { row.Currency, row.Kind })
-            .Select(group => new
-            {
+            .Select(group => new TotalsRow(
                 group.Key.Currency,
                 group.Key.Kind,
-                Total = group.Sum(row => row.Amount),
-                Count = group.Count(),
-                Valued = group.Sum(row => row.BaseAmount ?? 0m),
-                Unvalued = group.Sum(row => row.BaseAmount == null ? row.Amount : 0m)
-            })
+                group.Sum(row => row.Amount),
+                group.Count(),
+                group.Sum(row => row.BaseAmount ?? 0m),
+                group.Sum(row => row.BaseAmount == null ? row.Amount : 0m)))
             .ToListAsync(cancellationToken);
 
         var table = await rates.LoadAsync(cancellationToken);
-        var (baseIncome, baseExpense) = (new BaseSum(table), new BaseSum(table));
-        foreach (var row in rows)
-        {
-            (row.Kind == OperationKind.Income ? baseIncome : baseExpense).Add(row.Currency, row.Unvalued, row.Valued);
-        }
-
-        var inBase = table.BaseCurrency is { } baseCurrency
-            ? new BaseTotalsResponse(
-                baseCurrency, baseIncome.Total, baseExpense.Total, baseIncome.Total - baseExpense.Total,
-                baseIncome.Missing.Union(baseExpense.Missing).Order(StringComparer.Ordinal).ToList())
-            : null;
         var byCurrency = rows.GroupBy(row => row.Currency)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
-            .Select(group =>
-            {
-                var income = group.Where(row => row.Kind == OperationKind.Income).Sum(row => row.Total);
-                var expense = group.Where(row => row.Kind == OperationKind.Expense).Sum(row => row.Total);
-
-                // The same net in the base currency; null when part of it cannot be converted.
-                var inBase = new BaseSum(table);
-                foreach (var row in group)
-                {
-                    var sign = row.Kind == OperationKind.Income ? 1m : -1m;
-                    inBase.Add(row.Currency, sign * row.Unvalued, sign * row.Valued);
-                }
-
-                var baseNet = table.BaseCurrency is null || inBase.Missing.Count > 0 ? (decimal?)null : inBase.Total;
-                return new CurrencyTotalsResponse(group.Key, income, expense, income - expense, group.Sum(row => row.Count), baseNet);
-            })
+            .Select(group => CurrencyTotals(group, table))
             .ToList();
-        return (byCurrency, inBase);
+        return (byCurrency, BaseTotals(rows, table));
     }
+
+    private static BaseTotalsResponse? BaseTotals(IReadOnlyList<TotalsRow> rows, RateTable table)
+    {
+        if (table.BaseCurrency is not { } baseCurrency)
+        {
+            return null;
+        }
+
+        var (income, expense) = (new BaseSum(table), new BaseSum(table));
+        foreach (var row in rows)
+        {
+            (row.Kind == OperationKind.Income ? income : expense).Add(row.Currency, row.Unvalued, row.Valued);
+        }
+
+        return new BaseTotalsResponse(
+            baseCurrency, income.Total, expense.Total, income.Total - expense.Total,
+            income.Missing.Union(expense.Missing).Order(StringComparer.Ordinal).ToList());
+    }
+
+    private static CurrencyTotalsResponse CurrencyTotals(IGrouping<string, TotalsRow> group, RateTable table)
+    {
+        var income = group.Where(row => row.Kind == OperationKind.Income).Sum(row => row.Total);
+        var expense = group.Where(row => row.Kind == OperationKind.Expense).Sum(row => row.Total);
+
+        // The same net in the base currency; null when part of it cannot be converted.
+        var inBase = new BaseSum(table);
+        foreach (var row in group)
+        {
+            var sign = row.Kind == OperationKind.Income ? 1m : -1m;
+            inBase.Add(row.Currency, sign * row.Unvalued, sign * row.Valued);
+        }
+
+        var baseNet = table.BaseCurrency is null || inBase.Missing.Count > 0 ? (decimal?)null : inBase.Total;
+        return new CurrencyTotalsResponse(group.Key, income, expense, income - expense, group.Sum(row => row.Count), baseNet);
+    }
+
+    /// <summary>The income or expenses of one currency: what was valued when posted and what still has to be converted.</summary>
+    private sealed record TotalsRow(string Currency, OperationKind Kind, decimal Total, int Count, decimal Valued, decimal Unvalued);
 
     /// <summary>Where a page ended: the date and id of its last row. Opaque to the client.</summary>
     private sealed record PageCursor(DateOnly OccurredOn, Guid Id)

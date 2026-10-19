@@ -81,50 +81,65 @@ internal sealed class TransactionReader(ILedgerDb db, ICategoryLookup categories
         var categoryInfo = await categories.GetAsync(
             operations.Where(operation => operation.CategoryId != null).Select(operation => operation.CategoryId!.Value).Distinct().ToList(), cancellationToken);
         var tagNames = await tags.GetNamesAsync(operations.SelectMany(operation => operation.Tags).Select(tag => tag.TagId).Distinct().ToList(), cancellationToken);
-        string NameOf(Guid accountId) => accounts.TryGetValue(accountId, out var account) ? account.Name : string.Empty;
         var table = await rates.LoadAsync(cancellationToken);
         var fees = await FeesAsync(operations.Where(operation => operation.Kind == OperationKind.Transfer).Select(operation => operation.Id).ToList(), cancellationToken);
 
-        return operations.Select(operation =>
-        {
-            // The entry that left, unless the caller is looking at the other account of a transfer.
-            var leaving = operation.Entries.FirstOrDefault(candidate => candidate.Direction == EntryDirection.Out);
-            var entry = operation.Entries.FirstOrDefault(candidate => candidate.AccountId == perspectiveAccountId) ?? leaving ?? operation.Entries.First();
-            var category = operation.CategoryId is { } categoryId && categoryInfo.TryGetValue(categoryId, out var info)
-                ? new TransactionCategoryResponse(info.Id, info.Name, info.ParentName, info.Icon, info.Color)
-                : null;
-            TransferResponse? transfer = null;
-            if (operation.Kind == OperationKind.Transfer && leaving is not null)
-            {
-                var arriving = operation.Entries.First(candidate => candidate.Direction == EntryDirection.In);
-                transfer = new TransferResponse(
-                    leaving.AccountId, NameOf(leaving.AccountId), leaving.Amount, leaving.Currency,
-                    arriving.AccountId, NameOf(arriving.AccountId), arriving.Amount, arriving.Currency,
-                    accounts.TryGetValue(arriving.AccountId, out var destination) && destination.Type == AccountType.CreditCard,
-                    leaving.Currency == arriving.Currency ? null : table.CrossAt(arriving.Currency, leaving.Currency, operation.OccurredOn),
-                    fees.TryGetValue(operation.Id, out var fee) ? fee : null);
-            }
+        var known = new Lookups(accounts, categoryInfo, tagNames, table, fees);
+        return operations.Select(operation => Describe(operation, perspectiveAccountId, known)).ToList();
+    }
 
-            var conversion = table.BaseCurrency is { } baseCurrency && entry is { BaseAmount: { } baseAmount, FxRate: { } rate, FxRateDate: { } rateDate }
-                ? new ConversionResponse(baseCurrency, baseAmount, rate, rateDate, operation.ManualFxRate is not null)
-                : null;
-            var originalPrice = operation is { OriginalAmount: { } price, OriginalCurrency: { } priceCurrency }
-                ? new OriginalPriceResponse(price, priceCurrency, table.CrossAt(priceCurrency, entry.Currency, operation.OccurredOn))
-                : null;
+    private static TransactionResponse Describe(Operation operation, Guid? perspectiveAccountId, Lookups known)
+    {
+        // The entry that left, unless the caller is looking at the other account of a transfer.
+        var leaving = operation.Entries.FirstOrDefault(candidate => candidate.Direction == EntryDirection.Out);
+        var entry = operation.Entries.FirstOrDefault(candidate => candidate.AccountId == perspectiveAccountId) ?? leaving ?? operation.Entries.First();
+        var category = operation.CategoryId is { } categoryId && known.Categories.TryGetValue(categoryId, out var info)
+            ? new TransactionCategoryResponse(info.Id, info.Name, info.ParentName, info.Icon, info.Color)
+            : null;
+        var transfer = operation.Kind == OperationKind.Transfer && leaving is not null ? Transfer(operation, leaving, known) : null;
 
-            return new TransactionResponse(
-                operation.Id, operation.Kind, operation.Status, operation.OccurredOn, operation.Description, operation.Merchant, operation.Note,
-                entry.Amount, entry.Direction == EntryDirection.In ? entry.Amount : -entry.Amount, entry.Currency,
-                entry.AccountId, NameOf(entry.AccountId),
-                category,
-                operation.Tags.Where(tag => tagNames.ContainsKey(tag.TagId)).Select(tag => tagNames[tag.TagId]).Order(StringComparer.Ordinal).ToList(),
-                operation is { IsTransaction: true, IsEffective: true, SourceModule: null },
-                operation.CreatedAt, operation.VoidReason, transfer, operation.FundedByGoalId != null, conversion, originalPrice);
-        }).ToList();
+        var table = known.Rates;
+        var conversion = table.BaseCurrency is { } baseCurrency && entry is { BaseAmount: { } baseAmount, FxRate: { } rate, FxRateDate: { } rateDate }
+            ? new ConversionResponse(baseCurrency, baseAmount, rate, rateDate, operation.ManualFxRate is not null)
+            : null;
+        var originalPrice = operation is { OriginalAmount: { } price, OriginalCurrency: { } priceCurrency }
+            ? new OriginalPriceResponse(price, priceCurrency, table.CrossAt(priceCurrency, entry.Currency, operation.OccurredOn))
+            : null;
+
+        return new TransactionResponse(
+            operation.Id, operation.Kind, operation.Status, operation.OccurredOn, operation.Description, operation.Merchant, operation.Note,
+            entry.Amount, entry.Direction == EntryDirection.In ? entry.Amount : -entry.Amount, entry.Currency,
+            entry.AccountId, known.NameOf(entry.AccountId),
+            category,
+            operation.Tags.Where(tag => known.Tags.ContainsKey(tag.TagId)).Select(tag => known.Tags[tag.TagId]).Order(StringComparer.Ordinal).ToList(),
+            operation is { IsTransaction: true, IsEffective: true, SourceModule: null },
+            operation.CreatedAt, operation.VoidReason, transfer, operation.FundedByGoalId != null, conversion, originalPrice);
+    }
+
+    private static TransferResponse Transfer(Operation operation, Entry leaving, Lookups known)
+    {
+        var arriving = operation.Entries.First(candidate => candidate.Direction == EntryDirection.In);
+        return new TransferResponse(
+            leaving.AccountId, known.NameOf(leaving.AccountId), leaving.Amount, leaving.Currency,
+            arriving.AccountId, known.NameOf(arriving.AccountId), arriving.Amount, arriving.Currency,
+            known.Accounts.TryGetValue(arriving.AccountId, out var destination) && destination.Type == AccountType.CreditCard,
+            leaving.Currency == arriving.Currency ? null : known.Rates.CrossAt(arriving.Currency, leaving.Currency, operation.OccurredOn),
+            known.Fees.TryGetValue(operation.Id, out var fee) ? fee : null);
+    }
+
+    /// <summary>What describing a page of operations needs from other tables and modules, loaded once for all of them.</summary>
+    private sealed record Lookups(
+        Dictionary<Guid, (string Name, AccountType Type)> Accounts,
+        IReadOnlyDictionary<Guid, CategoryInfo> Categories,
+        IReadOnlyDictionary<Guid, string> Tags,
+        RateTable Rates,
+        Dictionary<Guid, decimal> Fees)
+    {
+        public string NameOf(Guid accountId) => Accounts.TryGetValue(accountId, out var account) ? account.Name : string.Empty;
     }
 
     /// <summary>The fee charged apart for each of these transfers that has one still in force.</summary>
-    private async Task<Dictionary<Guid, decimal>> FeesAsync(IReadOnlyList<Guid> transferIds, CancellationToken cancellationToken)
+    private async Task<Dictionary<Guid, decimal>> FeesAsync(List<Guid> transferIds, CancellationToken cancellationToken)
     {
         if (transferIds.Count == 0)
         {
@@ -148,7 +163,9 @@ internal sealed class TransactionReader(ILedgerDb db, ICategoryLookup categories
 
         return current.Values.Where(IsFeeOf)
             .GroupBy(operation => operation.SourceId!.Value)
-            .ToDictionary(group => group.Key, group => group.Sum(operation => operation.Entries.Sum(entry => entry.Amount)));
+            .ToDictionary(group => group.Key, group => group.Sum(AmountOf));
+
+        static decimal AmountOf(Operation operation) => operation.Entries.Sum(entry => entry.Amount);
     }
 
     /// <summary>The category a transaction is being given: it must be the person's, of the right kind and in use.</summary>
