@@ -67,9 +67,9 @@ La base contiene datos financieros, los hashes de las contraseñas y las claves 
 
 <!-- generated:start -->
 
-> Generado por `finanzas-hub-api/tools/update-db-docs.mjs` desde `AppDbContextModelSnapshot.cs`. No editar a mano entre las marcas. Última migración: `20261018210531_GoalSpendExpenseLink`.
+> Generado por `finanzas-hub-api/tools/update-db-docs.mjs` desde `AppDbContextModelSnapshot.cs`. No editar a mano entre las marcas. Última migración: `20261019015013_TransactionForeignTerms`.
 
-**47 tablas** en 12 esquemas, **56 índices** secundarios, **27 claves foráneas** y **51 restricciones CHECK**.
+**47 tablas** en 12 esquemas, **56 índices** secundarios, **27 claves foráneas** y **52 restricciones CHECK**.
 
 ### Tablas por esquema
 
@@ -621,9 +621,12 @@ erDiagram
         varchar description
         uuid funded_by_goal_id
         varchar kind
+        numeric manual_fx_rate
         varchar merchant
         varchar note
         date occurred_on
+        numeric original_amount
+        char original_currency
         uuid owner_user_id "ref"
         uuid source_id
         varchar source_module
@@ -757,9 +760,12 @@ The business fact a person sees as "a transaction". Its entries are what moves t
 | `description` | character varying(120) | no |  |
 | `funded_by_goal_id` | uuid | sí |  |
 | `kind` | character varying(16) | no |  |
+| `manual_fx_rate` | numeric(18,8) | sí |  |
 | `merchant` | character varying(80) | sí |  |
 | `note` | character varying(500) | sí |  |
 | `occurred_on` | date | no |  |
+| `original_amount` | numeric(19,4) | sí |  |
+| `original_currency` | char(3) | sí |  |
 | `owner_user_id` | uuid | no | ref. → `identity.users` (sin FK) |
 | `source_id` | uuid | sí |  |
 | `source_module` | character varying(40) | sí |  |
@@ -782,6 +788,7 @@ The business fact a person sees as "a transaction". Its entries are what moves t
 |---|---|
 | `ck_operations_category` | `kind NOT IN ('Income', 'Expense', 'Refund') OR category_id IS NOT NULL` |
 | `ck_operations_kind` | `kind IN ('Income', 'Expense', 'Refund', 'Transfer', 'Adjustment', 'OpeningBalance')` |
+| `ck_operations_original_price` | `(original_amount IS NULL) = (original_currency IS NULL)` |
 | `ck_operations_status` | `status IN ('Pending', 'Confirmed', 'Voided')` |
 
 #### `ledger.credit_card_profiles`

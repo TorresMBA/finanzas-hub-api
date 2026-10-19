@@ -73,6 +73,7 @@ internal sealed class OperationConfiguration : IEntityTypeConfiguration<Operatio
             table.HasCheckConstraint("ck_operations_kind", "kind IN ('Income', 'Expense', 'Refund', 'Transfer', 'Adjustment', 'OpeningBalance')");
             table.HasCheckConstraint("ck_operations_status", "status IN ('Pending', 'Confirmed', 'Voided')");
             table.HasCheckConstraint("ck_operations_category", "kind NOT IN ('Income', 'Expense', 'Refund') OR category_id IS NOT NULL");
+            table.HasCheckConstraint("ck_operations_original_price", "(original_amount IS NULL) = (original_currency IS NULL)");
         });
         builder.HasKey(operation => operation.Id);
         builder.Property(operation => operation.Id).ValueGeneratedNever();
@@ -84,6 +85,9 @@ internal sealed class OperationConfiguration : IEntityTypeConfiguration<Operatio
         builder.Property(operation => operation.VoidReason).HasMaxLength(Operation.MaxVoidReasonLength);
         builder.Property(operation => operation.SourceModule).HasMaxLength(40);
         builder.Property(operation => operation.SourceType).HasMaxLength(40);
+        builder.Property(operation => operation.OriginalAmount).HasColumnType(LedgerColumns.Amount);
+        builder.Property(operation => operation.OriginalCurrency).HasColumnType("char(3)");
+        builder.Property(operation => operation.ManualFxRate).HasColumnType("numeric(18,8)");
         builder.Ignore(operation => operation.IsEffective);
         builder.Ignore(operation => operation.IsTransaction);
         builder.Property<uint>("Version").IsRowVersion();

@@ -12,10 +12,16 @@ namespace PersonalFinance.Modules.Ledger.Application.Transactions;
 /// <param name="Amount">Positive, in the currency of the account.</param>
 /// <param name="Tags">Names of tags. A name that is not a tag yet becomes one.</param>
 /// <param name="Pending">Registered but still to be reviewed. It counts in balances all the same.</param>
+/// <param name="Foreign">The price in another currency and the rate the person states, both optional.</param>
 public sealed record PostTransactionCommand(
     TransactionType Type, Guid AccountId, decimal Amount, Guid CategoryId, DateOnly OccurredOn, string Description, string? Merchant, string? Note,
-    IReadOnlyList<string>? Tags, bool Pending, string IdempotencyKey)
+    IReadOnlyList<string>? Tags, bool Pending, string IdempotencyKey, ForeignTerms? Foreign = null)
     : ICommand<TransactionResponse>, IIdempotentCommand;
+
+/// <summary>What a transaction says about other currencies. Every field is optional.</summary>
+/// <param name="OriginalAmount">The price in the currency something was sold in, with <paramref name="OriginalCurrency"/>.</param>
+/// <param name="FxRate">Units of the base currency per unit of the account's, instead of the rate of the person's table.</param>
+public sealed record ForeignTerms(decimal? OriginalAmount, string? OriginalCurrency, decimal? FxRate);
 
 internal sealed class PostTransactionHandler(ILedgerDb db, TransactionReader reader, ExchangeRateBook rates, IAuditLog audit, IClock clock)
     : ICommandHandler<PostTransactionCommand, TransactionResponse>
@@ -49,6 +55,12 @@ internal sealed class PostTransactionHandler(ILedgerDb db, TransactionReader rea
             return tagged.Error;
         }
 
+        var foreign = operation.Agree(command.Foreign, rates.BaseCurrency);
+        if (foreign.IsFailure)
+        {
+            return foreign.Error;
+        }
+
         await rates.ValueAsync(operation, cancellationToken);
         operation.Announce(LedgerOperationChange.Posted);
         db.Operations.Add(operation);
@@ -65,7 +77,7 @@ internal sealed class PostTransactionHandler(ILedgerDb db, TransactionReader rea
 /// <summary>Replaces what a transaction says. Amount, account and date can change too; the audit trail keeps both versions.</summary>
 public sealed record EditTransactionCommand(
     Guid TransactionId, TransactionType Type, Guid AccountId, decimal Amount, Guid CategoryId, DateOnly OccurredOn, string Description, string? Merchant,
-    string? Note, IReadOnlyList<string>? Tags)
+    string? Note, IReadOnlyList<string>? Tags, ForeignTerms? Foreign = null)
     : ICommand<TransactionResponse>;
 
 internal sealed class EditTransactionHandler(ILedgerDb db, TransactionReader reader, ExchangeRateBook rates, IAuditLog audit)
@@ -101,6 +113,12 @@ internal sealed class EditTransactionHandler(ILedgerDb db, TransactionReader rea
         if (tagged.IsFailure)
         {
             return tagged.Error;
+        }
+
+        var foreign = operation.Agree(command.Foreign, rates.BaseCurrency);
+        if (foreign.IsFailure)
+        {
+            return foreign.Error;
         }
 
         // The amount, the account or the date may have changed, and with them what it is worth in the base currency.
@@ -161,6 +179,7 @@ internal sealed class VoidTransactionHandler(ILedgerDb db, TransactionReader rea
         if (wasEffective)
         {
             operation.Announce(LedgerOperationChange.Voided);
+            await VoidFeesAsync(operation, command.Reason, cancellationToken);
         }
 
         if (wasEffective)
@@ -174,6 +193,32 @@ internal sealed class VoidTransactionHandler(ILedgerDb db, TransactionReader rea
         }
 
         return await reader.DescribeAsync(operation, cancellationToken);
+    }
+
+    /// <summary>The fee the bank charged for a transfer goes with it: voiding the transfer voids the fee.</summary>
+    private async Task VoidFeesAsync(Operation transfer, string? reason, CancellationToken cancellationToken)
+    {
+        if (transfer.Kind != OperationKind.Transfer)
+        {
+            return;
+        }
+
+        var fees = await db.Operations.Include(operation => operation.Entries)
+            .Where(operation => operation.SourceModule == TransferFees.Module && operation.SourceType == TransferFees.Type && operation.SourceId == transfer.Id
+                && operation.Status != OperationStatus.Voided)
+            .ToListAsync(cancellationToken);
+        foreach (var fee in fees)
+        {
+            var before = Snapshot.Of(fee);
+            fee.VoidFor(TransferFees.Module, reason, clock.UtcNow);
+            fee.Announce(LedgerOperationChange.Voided);
+            audit.Record(new AuditEntry("ledger", "ledger.transaction.voided", "operation", fee.Id)
+            {
+                OwnerUserId = fee.OwnerUserId,
+                Before = before,
+                After = new { Status = fee.Status.ToString(), fee.VoidReason }
+            });
+        }
     }
 }
 
@@ -226,13 +271,35 @@ internal static class Snapshot
             operation.Description,
             operation.Merchant,
             operation.Note,
+            operation.OriginalAmount,
+            operation.OriginalCurrency,
+            operation.ManualFxRate,
             Tags = operation.Tags.Select(tag => tag.TagId).ToList()
         };
     }
 }
 
+/// <summary>A fee the bank charged apart for a transfer: an expense of the origin account that the ledger itself attributes to the transfer.</summary>
+internal static class TransferFees
+{
+    public const string Module = "ledger";
+    public const string Type = "transfer_fee";
+
+    /// <summary>The expense category a fee goes to. It is created for whoever does not have it yet.</summary>
+    public const string Category = "Comisiones";
+
+    public const string Description = "Comisión de transferencia";
+}
+
 internal static class TransactionMapping
 {
+    /// <summary>The price in another currency and the stated rate; null terms clear both.</summary>
+    public static Result Agree(this Operation operation, ForeignTerms? terms, string? baseCurrency)
+    {
+        var priced = operation.PriceIn(terms?.OriginalAmount, terms?.OriginalCurrency);
+        return priced.IsFailure ? priced : operation.UseRate(terms?.FxRate, baseCurrency);
+    }
+
     public static OperationKind ToKind(this TransactionType type) => type == TransactionType.Income ? OperationKind.Income : OperationKind.Expense;
 
     public static Task<Operation?> FindOperationAsync(this ILedgerDb db, Guid operationId, CancellationToken cancellationToken) =>

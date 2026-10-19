@@ -1303,6 +1303,10 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(16)")
                         .HasColumnName("kind");
 
+                    b.Property<decimal?>("ManualFxRate")
+                        .HasColumnType("numeric(18,8)")
+                        .HasColumnName("manual_fx_rate");
+
                     b.Property<string>("Merchant")
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)")
@@ -1316,6 +1320,14 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly>("OccurredOn")
                         .HasColumnType("date")
                         .HasColumnName("occurred_on");
+
+                    b.Property<decimal?>("OriginalAmount")
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("original_amount");
+
+                    b.Property<string>("OriginalCurrency")
+                        .HasColumnType("char(3)")
+                        .HasColumnName("original_currency");
 
                     b.Property<Guid>("OwnerUserId")
                         .HasColumnType("uuid")
@@ -1380,6 +1392,8 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_operations_category", "kind NOT IN ('Income', 'Expense', 'Refund') OR category_id IS NOT NULL");
 
                             t.HasCheckConstraint("ck_operations_kind", "kind IN ('Income', 'Expense', 'Refund', 'Transfer', 'Adjustment', 'OpeningBalance')");
+
+                            t.HasCheckConstraint("ck_operations_original_price", "(original_amount IS NULL) = (original_currency IS NULL)");
 
                             t.HasCheckConstraint("ck_operations_status", "status IN ('Pending', 'Confirmed', 'Voided')");
                         });

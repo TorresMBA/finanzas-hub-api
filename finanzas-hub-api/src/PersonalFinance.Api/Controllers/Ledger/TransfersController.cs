@@ -33,6 +33,12 @@ public sealed class PostTransferRequest
 
     [StringLength(Operation.MaxNoteLength)]
     public string? Note { get; init; }
+
+    /// <summary>
+    /// What the bank charged apart for the transfer, in the currency of the origin. It is registered as an expense of the
+    /// origin account in "Comisiones" and voided with the transfer. What the exchange itself cost is already in the amounts.
+    /// </summary>
+    public decimal? Fee { get; init; }
 }
 
 /// <summary>Money moving between two accounts of the signed-in person. It is listed, read and voided as a transaction.</summary>
@@ -59,7 +65,7 @@ public sealed class TransfersController : ApiControllerBase
 
         var command = new PostTransferCommand(
             request.FromAccountId!.Value, request.ToAccountId!.Value, request.Amount!.Value, request.DestinationAmount, request.OccurredOn!.Value,
-            request.Description, request.Note, key);
+            request.Description, request.Note, key, request.Fee);
         return ToActionResult(
             await handler.HandleAsync(command, cancellationToken),
             transfer => Created($"/api/v1/workspaces/{workspaceId}/transactions/{transfer.Id}", transfer));

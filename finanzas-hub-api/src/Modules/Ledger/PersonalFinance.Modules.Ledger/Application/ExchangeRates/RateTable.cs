@@ -16,6 +16,18 @@ public sealed class RateTable(string? baseCurrency, IReadOnlyList<ExchangeRate> 
     public ExchangeRate? At(string currency, DateOnly day) =>
         rates.Where(rate => rate.Currency == currency && rate.AsOf <= day).MaxBy(rate => rate.AsOf);
 
+    /// <summary>
+    /// How many units of <paramref name="quote"/> one unit of <paramref name="currency"/> was worth on a day, through the
+    /// base currency: what the market paid, to compare with what a bank applied. Null when a rate is missing.
+    /// </summary>
+    public decimal? CrossAt(string currency, string quote, DateOnly day)
+    {
+        decimal? InBase(string code) => code == baseCurrency ? 1m : At(code, day)?.Rate;
+        return baseCurrency is not null && InBase(currency) is { } valued && InBase(quote) is { } quoted
+            ? decimal.Round(valued / quoted, 6, MidpointRounding.AwayFromZero)
+            : null;
+    }
+
     /// <summary>An amount in the base currency at the latest rate; null when it cannot be converted.</summary>
     public decimal? ToBase(string currency, decimal amount) =>
         currency == baseCurrency ? amount : Latest(currency)?.Convert(amount);

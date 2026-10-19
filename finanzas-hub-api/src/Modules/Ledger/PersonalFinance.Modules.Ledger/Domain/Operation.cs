@@ -83,6 +83,20 @@ public sealed class Operation : AggregateRoot, IOwned
     /// </summary>
     public Guid? FundedByGoalId { get; private set; }
 
+    /// <summary>
+    /// The price in the currency something was sold in, when the account was charged in its own: US$ 15.49 of
+    /// Netflix that the card charged as S/ 58.71. Only a reference; the amount that counts is the entry's.
+    /// </summary>
+    public decimal? OriginalAmount { get; private set; }
+
+    public string? OriginalCurrency { get; private set; }
+
+    /// <summary>
+    /// Units of the base currency per unit of the account's that the person stated for this transaction, instead of
+    /// the rate of their table for that day. Its entry is valued with it.
+    /// </summary>
+    public decimal? ManualFxRate { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset? VoidedAt { get; private set; }
@@ -365,6 +379,78 @@ public sealed class Operation : AggregateRoot, IOwned
         return Result.Success();
     }
 
+    /// <summary>States what the transaction cost in the currency it was priced in, or clears it with two nulls.</summary>
+    public Result PriceIn(decimal? amount, string? currency)
+    {
+        if (amount is null && string.IsNullOrWhiteSpace(currency))
+        {
+            (OriginalAmount, OriginalCurrency) = (null, null);
+            return Result.Success();
+        }
+
+        if (!IsTransaction)
+        {
+            return Error.Validation("ledger.transaction.original_price_invalid", "Only an income or an expense has a price in another currency.");
+        }
+
+        if (amount is null || string.IsNullOrWhiteSpace(currency))
+        {
+            return Error.Validation("ledger.transaction.original_price_incomplete", "State both the price and its currency.");
+        }
+
+        var priced = BuildingBlocks.Domain.Currency.From(currency);
+        if (priced.IsFailure)
+        {
+            return priced.Error;
+        }
+
+        if (priced.Value.Code == _entries.Single().Currency)
+        {
+            return Error.Validation("ledger.transaction.original_currency_same", "A price in the currency of the account is just the amount.");
+        }
+
+        if (amount <= 0)
+        {
+            return Error.Validation("ledger.amount_invalid", "The amount must be greater than zero.");
+        }
+
+        var money = Money.Create(amount.Value, priced.Value);
+        if (money.IsFailure)
+        {
+            return money.Error;
+        }
+
+        (OriginalAmount, OriginalCurrency) = (amount, priced.Value.Code);
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Values the transaction at a rate the person states, like the one the bank applied; null goes back to the rate
+    /// of their table. Only an amount in a currency other than the base one has a rate.
+    /// </summary>
+    public Result UseRate(decimal? rate, string? baseCurrency)
+    {
+        if (rate is null)
+        {
+            ManualFxRate = null;
+            return Result.Success();
+        }
+
+        if (!IsTransaction || baseCurrency is null || _entries.Single().Currency == baseCurrency)
+        {
+            return Error.Validation("ledger.transaction.fx_rate_not_needed", "Only an amount in a currency other than the base one has an exchange rate.");
+        }
+
+        if (rate <= 0 || rate > ExchangeRate.MaxRate || decimal.Round(rate.Value, ExchangeRate.MaxDecimals) != rate)
+        {
+            return Error.Validation(
+                "ledger.transaction.fx_rate_invalid", $"An exchange rate is greater than zero and has at most {ExchangeRate.MaxDecimals} decimal places.");
+        }
+
+        ManualFxRate = rate;
+        return Result.Success();
+    }
+
     public Result SetTags(IReadOnlyCollection<Guid> tagIds)
     {
         var editable = EnsureOwnTransaction("tagged");
@@ -541,6 +627,14 @@ public sealed class Entry : Entity, IOwned
         BaseAmount = rate?.Convert(Amount);
         FxRate = rate?.Rate;
         FxRateDate = rate?.AsOf;
+    }
+
+    /// <summary>Records what the entry is worth in the base currency at a rate the person stated for it.</summary>
+    internal void ValueAt(decimal rate, string baseCurrency)
+    {
+        BaseAmount = decimal.Round(Amount * rate, BuildingBlocks.Domain.Currency.From(baseCurrency).Value.MinorUnits, MidpointRounding.AwayFromZero);
+        FxRate = rate;
+        FxRateDate = OccurredOn;
     }
 
     internal static Result Validate(Account account, decimal amount)

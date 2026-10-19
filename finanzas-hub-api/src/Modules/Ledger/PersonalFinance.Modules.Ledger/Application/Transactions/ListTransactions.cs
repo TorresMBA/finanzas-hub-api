@@ -12,7 +12,11 @@ using PersonalFinance.Modules.Ledger.Domain;
 namespace PersonalFinance.Modules.Ledger.Application.Transactions;
 
 /// <summary>Income and expenses of one currency among what the filter matches. Currencies are never added together.</summary>
-public sealed record CurrencyTotalsResponse(string Currency, decimal Income, decimal Expense, decimal Net, int Count);
+/// <param name="BaseNet">
+/// The net brought to the base currency, each amount at what it was worth when it was registered. Null without a
+/// base currency, or when part of it could not be converted.
+/// </param>
+public sealed record CurrencyTotalsResponse(string Currency, decimal Income, decimal Expense, decimal Net, int Count, decimal? BaseNet = null);
 
 /// <summary>
 /// The same income and expenses, every currency brought to the base currency of the workspace. An amount in
@@ -32,8 +36,10 @@ public sealed record TransactionPageResponse(
 /// <param name="CategoryId">Matches the category and its subcategories.</param>
 /// <param name="Tag">A tag name.</param>
 /// <param name="Text">Searched in the description, the merchant and the note.</param>
+/// <param name="Currency">Movements on an account of that currency; a transfer matches by either of its sides.</param>
 public sealed record ListTransactionsQuery(
-    OperationKind? Kind, OperationStatus? Status, Guid? AccountId, Guid? CategoryId, string? Tag, string? Text, DateOnly? From, DateOnly? To, string? Cursor, int? Limit)
+    OperationKind? Kind, OperationStatus? Status, Guid? AccountId, Guid? CategoryId, string? Tag, string? Text, DateOnly? From, DateOnly? To, string? Cursor, int? Limit,
+    string? Currency = null)
     : IQuery<TransactionPageResponse>;
 
 internal sealed class ListTransactionsHandler(ILedgerDb db, TransactionReader reader, ICategoryLookup categories, ITagLookup tags, ExchangeRateBook rates)
@@ -65,6 +71,18 @@ internal sealed class ListTransactionsHandler(ILedgerDb db, TransactionReader re
         if (query.AccountId is { } accountId)
         {
             operations = operations.Where(operation => operation.Entries.Any(entry => entry.AccountId == accountId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Currency))
+        {
+            var currency = BuildingBlocks.Domain.Currency.From(query.Currency);
+            if (currency.IsFailure)
+            {
+                return currency.Error;
+            }
+
+            var code = currency.Value.Code;
+            operations = operations.Where(operation => operation.Entries.Any(entry => entry.Currency == code));
         }
 
         if (query.CategoryId is { } categoryId)
@@ -166,7 +184,17 @@ internal sealed class ListTransactionsHandler(ILedgerDb db, TransactionReader re
             {
                 var income = group.Where(row => row.Kind == OperationKind.Income).Sum(row => row.Total);
                 var expense = group.Where(row => row.Kind == OperationKind.Expense).Sum(row => row.Total);
-                return new CurrencyTotalsResponse(group.Key, income, expense, income - expense, group.Sum(row => row.Count));
+
+                // The same net in the base currency; null when part of it cannot be converted.
+                var inBase = new BaseSum(table);
+                foreach (var row in group)
+                {
+                    var sign = row.Kind == OperationKind.Income ? 1m : -1m;
+                    inBase.Add(row.Currency, sign * row.Unvalued, sign * row.Valued);
+                }
+
+                var baseNet = table.BaseCurrency is null || inBase.Missing.Count > 0 ? (decimal?)null : inBase.Total;
+                return new CurrencyTotalsResponse(group.Key, income, expense, income - expense, group.Sum(row => row.Count), baseNet);
             })
             .ToList();
         return (byCurrency, inBase);

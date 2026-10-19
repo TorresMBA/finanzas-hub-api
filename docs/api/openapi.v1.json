@@ -4310,6 +4310,39 @@
         }
       }
     },
+    "/api/v1/currencies": {
+      "get": {
+        "tags": [
+          "Ledger"
+        ],
+        "operationId": "ListCurrencies",
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CurrencyResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/transactions": {
       "get": {
         "tags": [
@@ -4403,6 +4436,13 @@
                 "string"
               ],
               "format": "int32"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -10621,6 +10661,44 @@
           "withdrawal"
         ]
       },
+      "ConversionResponse": {
+        "required": [
+          "baseCurrency",
+          "baseAmount",
+          "rate",
+          "rateDate",
+          "isManual"
+        ],
+        "type": "object",
+        "properties": {
+          "baseCurrency": {
+            "type": "string"
+          },
+          "baseAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "rate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "rateDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "isManual": {
+            "type": "boolean"
+          }
+        }
+      },
       "CreateBudgetRequest": {
         "required": [
           "categoryId",
@@ -11120,6 +11198,38 @@
           }
         }
       },
+      "CurrencyResponse": {
+        "required": [
+          "code",
+          "symbol",
+          "name",
+          "pluralName",
+          "minorUnits"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "pluralName": {
+            "type": "string"
+          },
+          "minorUnits": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "CurrencyTotalsResponse": {
         "required": [
           "currency",
@@ -11164,6 +11274,15 @@
               "string"
             ],
             "format": "int32"
+          },
+          "baseNet": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -11740,6 +11859,32 @@
             "items": {
               "type": "string"
             }
+          },
+          "originalAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "originalCurrency": {
+            "maxLength": 3,
+            "minLength": 3,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fxRate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -13784,6 +13929,36 @@
           "voided"
         ]
       },
+      "OriginalPriceResponse": {
+        "required": [
+          "amount",
+          "currency",
+          "marketRate"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "marketRate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "ParticipantRole": {
         "enum": [
           "owner",
@@ -13930,6 +14105,32 @@
             "items": {
               "type": "string"
             }
+          },
+          "originalAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "originalCurrency": {
+            "maxLength": 3,
+            "minLength": 3,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fxRate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -13996,6 +14197,15 @@
               "null",
               "string"
             ]
+          },
+          "fee": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -14947,10 +15157,16 @@
         }
       },
       "SetAccountFavoriteRequest": {
+        "required": [
+          "isFavorite"
+        ],
         "type": "object",
         "properties": {
           "isFavorite": {
-            "type": "boolean"
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -15779,6 +15995,26 @@
           "fundedByGoal": {
             "type": "boolean",
             "default": false
+          },
+          "conversion": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ConversionResponse"
+              }
+            ]
+          },
+          "originalPrice": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OriginalPriceResponse"
+              }
+            ]
           }
         }
       },
@@ -15856,6 +16092,24 @@
           },
           "isCardPayment": {
             "type": "boolean"
+          },
+          "marketRate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "fee": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },

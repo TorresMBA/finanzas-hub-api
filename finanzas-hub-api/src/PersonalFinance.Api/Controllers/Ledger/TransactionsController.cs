@@ -39,6 +39,23 @@ public class TransactionRequest
     /// <summary>Names of tags. A name that is not a tag yet becomes one.</summary>
     [MaxLength(Operation.MaxTags)]
     public IReadOnlyList<string>? Tags { get; init; }
+
+    /// <summary>
+    /// The price in the currency something was sold in, when the account was charged in its own: US$ 15.49 of a
+    /// subscription paid with a card in soles. Sent with <see cref="OriginalCurrency"/>; only a reference.
+    /// </summary>
+    public decimal? OriginalAmount { get; init; }
+
+    [StringLength(3, MinimumLength = 3)]
+    public string? OriginalCurrency { get; init; }
+
+    /// <summary>
+    /// Units of the base currency per unit of the account's, when the person wants this rate instead of the one of
+    /// their table for that day. Only for an account in a currency other than the base one.
+    /// </summary>
+    public decimal? FxRate { get; init; }
+
+    internal ForeignTerms Foreign => new(OriginalAmount, OriginalCurrency, FxRate);
 }
 
 public sealed class PostTransactionRequest : TransactionRequest
@@ -69,8 +86,10 @@ public sealed class TransactionsController : ApiControllerBase
     public async Task<IActionResult> List(
         Guid workspaceId, [FromQuery] OperationKind? type, [FromQuery] OperationStatus? status, [FromQuery] Guid? accountId, [FromQuery] Guid? categoryId,
         [FromQuery] string? tag, [FromQuery(Name = "q")] string? text, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] string? cursor,
-        [FromQuery] int? limit, [FromServices] IQueryHandler<ListTransactionsQuery, TransactionPageResponse> handler, CancellationToken cancellationToken) =>
-        ToActionResult(await handler.HandleAsync(new ListTransactionsQuery(type, status, accountId, categoryId, tag, text, from, to, cursor, limit), cancellationToken), Ok);
+        [FromQuery] int? limit, [FromQuery] string? currency, [FromServices] IQueryHandler<ListTransactionsQuery, TransactionPageResponse> handler,
+        CancellationToken cancellationToken) =>
+        ToActionResult(
+            await handler.HandleAsync(new ListTransactionsQuery(type, status, accountId, categoryId, tag, text, from, to, cursor, limit, currency), cancellationToken), Ok);
 
     /// <summary>What each category moved in a period, in the base currency. Transfers count for no category.</summary>
     [HttpGet("category-totals", Name = "GetCategoryTotals")]
@@ -104,7 +123,7 @@ public sealed class TransactionsController : ApiControllerBase
 
         var command = new PostTransactionCommand(
             request.Type!.Value, request.AccountId!.Value, request.Amount!.Value, request.CategoryId!.Value, request.OccurredOn!.Value, request.Description,
-            request.Merchant, request.Note, request.Tags, request.Pending, key);
+            request.Merchant, request.Note, request.Tags, request.Pending, key, request.Foreign);
         return ToActionResult(
             await handler.HandleAsync(command, cancellationToken),
             transaction => Created($"/api/v1/workspaces/{workspaceId}/transactions/{transaction.Id}", transaction));
@@ -122,7 +141,7 @@ public sealed class TransactionsController : ApiControllerBase
     {
         var command = new EditTransactionCommand(
             transactionId, request.Type!.Value, request.AccountId!.Value, request.Amount!.Value, request.CategoryId!.Value, request.OccurredOn!.Value,
-            request.Description, request.Merchant, request.Note, request.Tags);
+            request.Description, request.Merchant, request.Note, request.Tags, request.Foreign);
         return ToActionResult(await handler.HandleAsync(command, cancellationToken), Ok);
     }
 

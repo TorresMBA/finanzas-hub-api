@@ -30,9 +30,19 @@ internal sealed class ExchangeRateBook(ILedgerDb db, IPersonalSpace workspace)
         var table = await LoadAsync(cancellationToken);
         foreach (var entry in operation.Entries)
         {
+            if (entry.Currency != table.BaseCurrency && operation.ManualFxRate is { } stated && table.BaseCurrency is { } baseCurrency)
+            {
+                // The rate the person stated for this transaction wins over the one of their table.
+                entry.ValueAt(stated, baseCurrency);
+                continue;
+            }
+
             entry.ValueWith(entry.Currency == table.BaseCurrency ? null : table.At(entry.Currency, entry.OccurredOn));
         }
     }
+
+    /// <summary>The base currency of the workspace; null until it is chosen.</summary>
+    public string? BaseCurrency => workspace.BaseCurrency;
 }
 
 public sealed record ExchangeRateResponse(string Currency, string BaseCurrency, decimal Rate, DateOnly AsOf);
@@ -107,4 +117,18 @@ internal sealed class SetExchangeRateHandler(ILedgerDb db, LedgerScope scope, IP
         });
         return new ExchangeRateResponse(rate.Currency, rate.BaseCurrency, rate.Rate, rate.AsOf);
     }
+}
+
+/// <param name="MinorUnits">How many decimals an amount in it carries.</param>
+public sealed record CurrencyResponse(string Code, string Symbol, string Name, string PluralName, int MinorUnits);
+
+/// <summary>The currencies an account can have, with how each is written. The same for everyone.</summary>
+public sealed record ListCurrenciesQuery : IQuery<IReadOnlyList<CurrencyResponse>>;
+
+internal sealed class ListCurrenciesHandler : IQueryHandler<ListCurrenciesQuery, IReadOnlyList<CurrencyResponse>>
+{
+    public Task<Result<IReadOnlyList<CurrencyResponse>>> HandleAsync(ListCurrenciesQuery query, CancellationToken cancellationToken) =>
+        Task.FromResult<Result<IReadOnlyList<CurrencyResponse>>>(Currency.Supported
+            .Select(currency => new CurrencyResponse(currency.Code, currency.Symbol, currency.Name, currency.PluralName, currency.MinorUnits))
+            .ToList());
 }

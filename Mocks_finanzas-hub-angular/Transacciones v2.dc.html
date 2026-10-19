@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&amp;display=block">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0a111e;-webkit-font-smoothing:antialiased;font-family:Manrope,system-ui,sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;margin:0;cursor:pointer;text-align:inherit}
+input,select{font:inherit;color:inherit}
+a{color:#4db6f0;text-decoration:none}a:hover{text-decoration:underline}
+[data-theme="dark"]{color-scheme:dark;--bg:#0a111e;--sf:#101a2b;--sf2:#152137;--sf3:#1c2a45;--bd:rgba(148,163,184,.13);--tx:#e8edf4;--tx2:#c2cbd9;--mu:#8d9ab0;--ac:#1cc28c;--acs:rgba(28,194,140,.14);--onac:#03281b;--bl:#4db6f0;--bls:rgba(77,182,240,.14);--rd:#f25b7d;--rds:rgba(242,91,125,.14);--am:#f0b43f;--ams:rgba(240,180,63,.15);--vi:#a093f7;--vis:rgba(160,147,247,.16);--sh:0 1px 2px rgba(0,0,0,.35)}
+</style>
+</helmet>
+<div data-theme="dark" data-screen-label="Transacciones v2" style="min-height:100vh;background:var(--bg);color:var(--tx);padding:28px clamp(16px,3vw,32px) 48px;display:flex;flex-direction:column;gap:18px;max-width:1320px;margin:0 auto">
+
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px">
+    <div style="flex:1 1 320px;min-width:0">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--mu)">OCTUBRE 2026</div>
+      <div style="font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:4px">Transacciones</div>
+      <div style="font-size:13.5px;color:var(--mu);margin-top:4px">Tus ingresos, gastos y transferencias. Solo tú los ves.</div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+      <div style="height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;border-radius:10px;background:var(--sf);border:1px solid var(--bd);font-size:12px;font-weight:700;color:var(--tx2);font-variant-numeric:tabular-nums">
+        <span style="font-family:'Material Symbols Rounded';font-size:17px;line-height:1;color:var(--mu)">currency_exchange</span>
+        <sc-for list="{{ fxChips }}" as="c" hint-placeholder-count="2"><span>{{ c }}</span></sc-for>
+        <span style="color:var(--mu);font-weight:600">· hoy 09:00</span>
+      </div>
+      <button onClick="{{ openGasto }}" style="height:40px;display:flex;align-items:center;gap:8px;padding:0 16px;border-radius:10px;background:var(--ac);color:var(--onac);font-weight:800;font-size:13px"><span style="font-family:'Material Symbols Rounded';font-size:19px;line-height:1">add</span>Nueva transacción</button>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+    <div style="display:flex;gap:2px;padding:3px;background:var(--sf);border:1px solid var(--bd);border-radius:11px">
+      <sc-for list="{{ typeTabs }}" as="t" hint-placeholder-count="4">
+        <button onClick="{{ t.on }}" style="height:30px;padding:0 12px;border-radius:8px;font-size:12.5px;font-weight:700;background:{{ t.bg }};color:{{ t.fg }}">{{ t.l }}</button>
+      </sc-for>
+    </div>
+    <div style="flex:1 1 220px;min-width:0;height:38px;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:10px;background:var(--sf);border:1px solid var(--bd);color:var(--mu);font-size:12.5px">
+      <span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1">search</span>Buscar por descripción, comercio o nota
+    </div>
+    <div style="display:flex;gap:2px;padding:3px;background:var(--sf);border:1px solid var(--bd);border-radius:11px">
+      <sc-for list="{{ curTabs }}" as="t" hint-placeholder-count="4">
+        <button onClick="{{ t.on }}" style="height:30px;padding:0 11px;border-radius:8px;font-size:12.5px;font-weight:700;background:{{ t.bg }};color:{{ t.fg }}">{{ t.l }}</button>
+      </sc-for>
+    </div>
+    <button style="height:38px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:10px;background:var(--sf);border:1px solid var(--bd);font-size:12.5px;font-weight:700;color:var(--tx2)"><span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1;color:var(--mu)">tune</span>Más filtros</button>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
+    <div style="flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:14px">
+
+      <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--sh);padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px">
+          <div style="font-size:12.5px;font-weight:700;color:var(--mu)">{{ sum.title }}</div>
+          <span style="padding:3px 8px;border-radius:99px;background:var(--sf2);font-size:11px;font-weight:800;color:var(--tx2)">{{ sum.badge }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+          <sc-for list="{{ sum.kpis }}" as="k" hint-placeholder-count="3">
+            <div style="padding:12px 14px;border-radius:12px;background:var(--sf2)">
+              <div style="font-size:11.5px;color:var(--mu);font-weight:700">{{ k.l }}</div>
+              <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px;color:{{ k.c }}">{{ k.v }}</div>
+              <div style="font-size:11px;color:var(--mu);margin-top:2px;font-variant-numeric:tabular-nums">{{ k.s }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ sum.showBreak }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;border-top:1px solid var(--bd);padding-top:6px">
+            <div style="display:grid;grid-template-columns:minmax(70px,1fr) repeat(3,minmax(0,1fr)) minmax(0,1fr) 20px;gap:10px;padding:6px 8px;font-size:11px;font-weight:700;color:var(--mu)">
+              <span>Moneda</span><span style="text-align:right">Ingresos</span><span style="text-align:right">Gastos</span><span style="text-align:right">Neto</span><span style="text-align:right">En {{ base }}</span><span></span>
+            </div>
+            <sc-for list="{{ sum.rows }}" as="b" hint-placeholder-count="3">
+              <button onClick="{{ b.on }}" style="display:grid;grid-template-columns:minmax(70px,1fr) repeat(3,minmax(0,1fr)) minmax(0,1fr) 20px;gap:10px;align-items:center;padding:8px;border-radius:9px;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums" style-hover="background:var(--sf2)">
+                <span style="display:flex;align-items:center;gap:6px"><span style="padding:2px 6px;border-radius:6px;background:var(--sf3);font-size:10.5px;font-weight:800;color:var(--tx2)">{{ b.code }}</span></span>
+                <span style="text-align:right;color:var(--ac)">{{ b.inc }}</span>
+                <span style="text-align:right">{{ b.exp }}</span>
+                <span style="text-align:right;color:{{ b.nc }}">{{ b.net }}</span>
+                <span style="text-align:right;color:var(--mu)">{{ b.baseNet }}</span>
+                <span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;color:var(--mu)">chevron_right</span>
+              </button>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;overflow:hidden">
+        <sc-for list="{{ groups }}" as="g" hint-placeholder-count="2">
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 16px;background:var(--sf2);border-bottom:1px solid var(--bd);font-size:12px;font-weight:800">
+              <span>{{ g.day }}</span>
+              <span style="color:var(--mu);font-weight:700;font-variant-numeric:tabular-nums">{{ g.total }}</span>
+            </div>
+            <sc-for list="{{ g.items }}" as="r" hint-placeholder-count="4">
+              <button onClick="{{ r.on }}" style="width:100%;display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bd);background:{{ r.bg }}" style-hover="background:var(--sf2)">
+                <span style="width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;background:{{ r.ibg }};color:{{ r.ifg }};font-family:'Material Symbols Rounded';font-size:19px;line-height:1">{{ r.icon }}</span>
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <span style="font-weight:800;font-size:13.5px">{{ r.name }}</span>
+                    <sc-if value="{{ r.pending }}" hint-placeholder-val="{{ false }}">
+                      <span style="padding:2px 7px;border-radius:99px;background:var(--ams);color:var(--am);font-size:10.5px;font-weight:800">Por revisar</span>
+                    </sc-if>
+                  </div>
+                  <div style="font-size:12px;color:var(--mu);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.meta }}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-variant-numeric:tabular-nums;flex:none">
+                  <span style="display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:800;color:{{ r.ac }}">{{ r.amt }}</span>
+                  <sc-if value="{{ r.hasSub }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:11.5px;color:var(--mu);font-weight:600">{{ r.sub }}</span>
+                  </sc-if>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:14px;position:sticky;top:20px">
+      <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;gap:12px;align-items:center">
+          <span style="width:40px;height:40px;flex:none;border-radius:11px;display:grid;place-items:center;background:{{ sel.ibg }};color:{{ sel.ifg }};font-family:'Material Symbols Rounded';font-size:21px;line-height:1">{{ sel.icon }}</span>
+          <div style="min-width:0">
+            <div style="font-weight:800;font-size:15px">{{ sel.name }}</div>
+            <div style="font-size:12px;color:var(--mu)">{{ sel.day }}</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:28px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:{{ sel.ac }}">{{ sel.amt }}</div>
+          <sc-if value="{{ sel.hasSub }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:13px;color:var(--mu);font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums">{{ sel.sub }}</div>
+          </sc-if>
+        </div>
+        <div style="display:flex;flex-direction:column">
+          <sc-for list="{{ sel.fields }}" as="f" hint-placeholder-count="4">
+            <div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--bd);font-size:12.5px"><span style="color:var(--mu)">{{ f.l }}</span><span style="font-weight:700;text-align:right">{{ f.v }}</span></div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ sel.fx }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:12px;border-radius:12px;background:var(--sf2);display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800"><span style="font-family:'Material Symbols Rounded';font-size:17px;line-height:1;color:var(--bl)">currency_exchange</span>Conversión a {{ base }}</div>
+            <sc-for list="{{ sel.fxRows }}" as="f" hint-placeholder-count="3">
+              <div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;font-variant-numeric:tabular-nums"><span style="color:var(--mu)">{{ f.l }}</span><span style="font-weight:700;text-align:right;color:{{ f.c }}">{{ f.v }}</span></div>
+            </sc-for>
+            <div style="font-size:11.5px;color:var(--mu);text-wrap:pretty">{{ sel.fxNote }}</div>
+            <button style="align-self:flex-start;font-size:12px;font-weight:800;color:var(--bl)">Ajustar tipo de cambio</button>
+          </div>
+        </sc-if>
+        <div style="display:flex;gap:8px">
+          <button style="height:32px;padding:0 12px;border-radius:9px;background:var(--sf2);border:1px solid var(--bd);font-size:12.5px;font-weight:800">Editar</button>
+          <button style="height:32px;padding:0 12px;border-radius:9px;background:var(--sf2);border:1px solid var(--bd);font-size:12.5px;font-weight:800">Anular</button>
+        </div>
+      </div>
+
+      <div style="background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px">
+        <div>
+          <div style="font-size:12.5px;font-weight:700;color:var(--mu)">Patrimonio en {{ base }} · al tipo de cambio de hoy</div>
+          <div style="font-size:24px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:2px">{{ pat.total }}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ pat.rows }}" as="p" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-variant-numeric:tabular-nums">
+                <span style="display:flex;gap:6px;align-items:center"><span style="padding:1px 6px;border-radius:6px;background:var(--sf3);font-size:10.5px;font-weight:800;color:var(--tx2)">{{ p.code }}</span><span style="color:var(--mu)">{{ p.native }}</span></span>
+                <span style="font-weight:700">{{ p.base }}</span>
+              </div>
+              <div style="height:6px;border-radius:99px;background:var(--sf3)"><div style="height:6px;border-radius:99px;width:{{ p.w }};background:{{ p.c }}"></div></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:10px;background:var(--sf2);font-size:12px;font-variant-numeric:tabular-nums">
+          <span style="color:var(--tx2)">Efecto del tipo de cambio este mes</span>
+          <span style="font-weight:800;color:{{ pat.fxC }}">{{ pat.fx }}</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--mu);text-wrap:pretty">Tus saldos en otras monedas se revalúan cada día. Esa variación cambia tu patrimonio, pero no cuenta como ingreso ni gasto.</div>
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;background:rgba(3,8,16,.66);display:flex;justify-content:center;align-items:flex-start;padding:32px 20px;z-index:20;overflow:auto">
+      <div style="width:min(460px,100%);margin:auto;background:var(--sf);border:1px solid var(--bd);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:17px;font-weight:800">Nueva transacción</div>
+          <button onClick="{{ closeModal }}" style="width:30px;height:30px;border-radius:8px;background:var(--sf2);display:grid;place-items:center;font-family:'Material Symbols Rounded';font-size:18px;line-height:1;color:var(--mu)">close</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:3px;background:var(--sf2);border-radius:11px">
+          <sc-for list="{{ mTabs }}" as="t" hint-placeholder-count="3">
+            <button onClick="{{ t.on }}" style="height:32px;border-radius:8px;font-size:12.5px;font-weight:800;text-align:center;background:{{ t.bg }};color:{{ t.fg }}">{{ t.l }}</button>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ m.isTx }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label style="font-size:12px;font-weight:800">Descripción</label>
+            <input value="{{ m.desc }}" onChange="{{ m.setDesc }}" placeholder="ej. Compra de la semana" style="height:40px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);padding:0 12px;font-size:13.5px;font-weight:600;outline:0" style-focus="border-color:var(--ac)">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;position:relative">
+            <label style="font-size:12px;font-weight:800">Cuenta</label>
+            <button onClick="{{ pa.toggle }}" style="min-height:52px;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:var(--sf2);border:1px solid {{ pa.bd }};box-shadow:{{ pa.ring }}" style-hover="background:var(--sf3)">
+              <span style="width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;background:{{ pa.ibg }};color:{{ pa.ifg }};font-family:'Material Symbols Rounded';font-size:19px;line-height:1">{{ pa.icon }}</span>
+              <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                <span style="font-size:13.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ pa.name }}</span>
+                <span style="font-size:11.5px;color:var(--mu);font-variant-numeric:tabular-nums">Saldo {{ pa.bal }}</span>
+              </span>
+              <span style="padding:2px 7px;border-radius:6px;background:var(--sf3);font-size:10.5px;font-weight:800;color:var(--tx2)">{{ pa.cur }}</span>
+              <span style="font-family:'Material Symbols Rounded';font-size:20px;line-height:1;color:var(--mu)">{{ pa.chev }}</span>
+            </button>
+            <sc-if value="{{ pa.open }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:5;background:var(--sf);border:1px solid var(--bd);border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.55);padding:6px;display:flex;flex-direction:column;gap:2px;max-height:340px;overflow:auto">
+                <sc-for list="{{ pa.groups }}" as="g" hint-placeholder-count="3">
+                  <div style="display:flex;flex-direction:column;gap:2px">
+                    <div style="display:flex;justify-content:space-between;padding:8px 8px 4px;font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--mu)"><span>{{ g.label }}</span><span style="font-variant-numeric:tabular-nums;letter-spacing:0">{{ g.total }}</span></div>
+                    <sc-for list="{{ g.items }}" as="o" hint-placeholder-count="2">
+                      <button onClick="{{ o.on }}" disabled="{{ o.dis }}" style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;background:{{ o.bg }};opacity:{{ o.op }}" style-hover="background:var(--sf2)">
+                        <span style="width:30px;height:30px;flex:none;border-radius:9px;display:grid;place-items:center;background:{{ o.ibg }};color:{{ o.ifg }};font-family:'Material Symbols Rounded';font-size:17px;line-height:1">{{ o.icon }}</span>
+                        <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                          <span style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.name }}</span>
+                          <span style="font-size:11px;color:var(--mu)">{{ o.hint }}</span>
+                        </span>
+                        <span style="font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ o.bc }}">{{ o.bal }}</span>
+                        <span style="width:18px;font-family:'Material Symbols Rounded';font-size:18px;line-height:1;color:var(--ac)">{{ o.check }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </sc-for>
+                <div style="height:1px;background:var(--bd);margin:4px 2px"></div>
+                <button style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;font-size:12.5px;font-weight:800;color:var(--ac)" style-hover="background:var(--sf2)"><span style="width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--acs);font-family:'Material Symbols Rounded';font-size:18px;line-height:1">add</span>Nueva cuenta</button>
+              </div>
+            </sc-if>
+          </div>
+          <div style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:10px">
+            <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+              <label style="font-size:12px;font-weight:800">Monto</label>
+              <div style="position:relative;min-width:0">
+                <div style="height:40px;display:flex;align-items:center;gap:6px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);padding:0 10px 0 4px">
+                  <button onClick="{{ m.toggleCur }}" style="height:30px;flex:none;display:flex;align-items:center;gap:2px;padding:0 4px 0 8px;border-radius:7px;background:var(--sf3);font-size:12.5px;font-weight:800">{{ m.psym }}<span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;color:var(--mu)">expand_more</span></button>
+                  <input value="{{ m.amt }}" onChange="{{ m.setAmt }}" placeholder="0.00" inputmode="decimal" style="flex:1;min-width:0;width:100%;background:none;border:0;outline:0;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums">
+                </div>
+                <sc-if value="{{ m.curOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;left:0;top:calc(100% + 6px);z-index:6;width:230px;background:var(--sf);border:1px solid var(--bd);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.55);padding:6px;display:flex;flex-direction:column;gap:2px">
+                    <div style="padding:6px 8px 4px;font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--mu)">MONEDA DE LA COMPRA</div>
+                    <sc-for list="{{ m.curOpts }}" as="o" hint-placeholder-count="3">
+                      <button onClick="{{ o.on }}" style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:9px;background:{{ o.bg }}" style-hover="background:var(--sf2)">
+                        <span style="width:34px;font-size:12.5px;font-weight:800">{{ o.sym }}</span>
+                        <span style="flex:1;display:flex;flex-direction:column;gap:1px"><span style="font-size:13px;font-weight:700">{{ o.name }}</span><span style="font-size:11px;color:var(--mu)">{{ o.hint }}</span></span>
+                        <span style="width:18px;font-family:'Material Symbols Rounded';font-size:18px;line-height:1;color:var(--ac)">{{ o.check }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+              <label style="font-size:12px;font-weight:800">Fecha</label>
+              <div style="height:40px;display:flex;align-items:center;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);padding:0 10px;font-size:13px">18/10/2026</div>
+            </div>
+          </div>
+          <sc-if value="{{ m.showQuick }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:-4px">
+              <span style="font-size:11.5px;color:var(--mu)">¿Compraste en otra moneda?</span>
+              <sc-for list="{{ m.quick }}" as="q" hint-placeholder-count="2">
+                <button onClick="{{ q.on }}" style="height:24px;display:flex;align-items:center;gap:4px;padding:0 9px;border-radius:99px;background:var(--bls);color:var(--bl);font-size:11.5px;font-weight:800" style-hover="background:var(--sf3)"><span style="font-family:'Material Symbols Rounded';font-size:14px;line-height:1">currency_exchange</span>{{ q.l }}</button>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ m.diffCur }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ m.resetCur }}" style="align-self:flex-start;margin-top:-4px;font-size:11.5px;font-weight:800;color:var(--mu)" style-hover="color:var(--tx)">Volver a {{ m.acctCur }}</button>
+          </sc-if>
+          <sc-if value="{{ m.foreign }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:10px;background:var(--bls)">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;font-variant-numeric:tabular-nums">
+                <span style="display:flex;align-items:center;gap:6px;font-weight:800"><span style="font-family:'Material Symbols Rounded';font-size:16px;line-height:1;color:var(--bl)">currency_exchange</span>{{ m.conv }}</span>
+                <button onClick="{{ m.toggleRate }}" style="font-size:12px;font-weight:800;color:var(--bl)">{{ m.rateBtn }}</button>
+              </div>
+              <sc-if value="{{ m.editRate }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:8px;font-size:12.5px">
+                  <span style="color:var(--tx2)">1 {{ m.sym }} =</span>
+                  <div style="height:34px;flex:1;display:flex;align-items:center;gap:6px;border-radius:8px;background:var(--sf2);border:1px solid var(--bd);padding:0 8px"><span style="color:var(--mu);font-weight:800">{{ baseSym }}</span><input value="{{ m.rate }}" onChange="{{ m.setRate }}" style="flex:1;min-width:0;width:100%;background:none;border:0;outline:0;font-weight:700;font-variant-numeric:tabular-nums"></div>
+                </div>
+              </sc-if>
+              <div style="font-size:11.5px;color:var(--tx2);text-wrap:pretty">{{ m.rateNote }}</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ m.diffCur }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:12px;background:var(--bls)">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:800"><span style="font-family:'Material Symbols Rounded';font-size:17px;line-height:1;color:var(--bl)">credit_card</span><span>Compra en {{ m.pcode }}, pagada con {{ m.acctName }}</span></div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:12px;font-weight:700;color:var(--tx2)">Se cobra en tu cuenta</span>
+                <div style="height:40px;display:flex;align-items:center;gap:8px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);padding:0 10px"><span style="font-weight:800;color:var(--mu);font-size:13px">{{ m.sym }}</span><input value="{{ m.charged }}" onChange="{{ m.setCharged }}" inputmode="decimal" style="flex:1;min-width:0;width:100%;background:none;border:0;outline:0;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums"></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;font-variant-numeric:tabular-nums">
+                <div style="display:flex;justify-content:space-between;gap:10px"><span style="color:var(--tx2)">Tipo de cambio del banco</span><span style="font-weight:800">{{ m.bankRate }}</span></div>
+                <div style="display:flex;justify-content:space-between;gap:10px"><span style="color:var(--tx2)">Mercado hoy</span><span style="font-weight:700">{{ m.mktRate }}</span></div>
+                <div style="display:flex;justify-content:space-between;gap:10px"><span style="color:var(--tx2)">Recargo por cambio</span><span style="font-weight:800;color:{{ m.surC }}">{{ m.sur }}</span></div>
+                <sc-if value="{{ m.chargedForeign }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;justify-content:space-between;gap:10px"><span style="color:var(--tx2)">En tu moneda base</span><span style="font-weight:700">{{ m.chargedBase }}</span></div>
+                </sc-if>
+              </div>
+              <div style="font-size:11.5px;color:var(--tx2);text-wrap:pretty">Es un estimado. Cuando llegue tu estado de cuenta, ajusta el monto cobrado: el gasto se guarda en {{ m.acctCur }} y el precio original en {{ m.pcode }} queda como referencia.</div>
+            </div>
+          </sc-if>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label style="font-size:12px;font-weight:800">Categoría</label>
+            <div style="height:40px;display:flex;align-items:center;justify-content:space-between;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);padding:0 10px;font-size:13px;color:var(--mu)">Elige una categoría<span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1">expand_more</span></div>
+          </div>
+          <button onClick="{{ m.toggleMore }}" style="align-self:flex-start;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;color:var(--tx2)"><span style="font-family:'Material Symbols Rounded';font-size:18px;line-height:1;color:var(--mu)">{{ m.moreIcon }}</span>{{ m.moreLabel }}<sc-if value="{{ m.moreBadge }}" hint-placeholder-val="{{ false }}"><span style="min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--acs);color:var(--ac);font-size:11px;display:grid;place-items:center">{{ m.moreCount }}</span></sc-if></button>
+          <sc-if value="{{ m.more }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <label style="font-size:12px;font-weight:800">Etiquetas</label>
+                <div style="min-height:40px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);padding:6px 8px">
+                  <sc-for list="{{ m.tags }}" as="t" hint-placeholder-count="1">
+                    <span style="height:26px;display:flex;align-items:center;gap:4px;padding:0 4px 0 9px;border-radius:99px;background:var(--sf3);font-size:12px;font-weight:800">#&nbsp;{{ t.l }}<button onClick="{{ t.rm }}" style="width:18px;height:18px;border-radius:99px;display:grid;place-items:center;font-family:'Material Symbols Rounded';font-size:14px;line-height:1;color:var(--mu)" style-hover="color:var(--tx)">close</button></span>
+                  </sc-for>
+                  <input value="{{ m.tagIn }}" onChange="{{ m.setTagIn }}" onKeyDown="{{ m.tagKey }}" placeholder="{{ m.tagPh }}" style="flex:1;min-width:90px;height:26px;background:none;border:0;outline:0;font-size:13px">
+                </div>
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px">
+                  <span style="font-size:11.5px;color:var(--mu)">Sugeridas:</span>
+                  <sc-for list="{{ m.sugg }}" as="t" hint-placeholder-count="3">
+                    <button onClick="{{ t.on }}" style="height:24px;padding:0 9px;border-radius:99px;border:1px dashed var(--bd);font-size:11.5px;font-weight:700;color:var(--tx2)" style-hover="background:var(--sf2);color:var(--tx)">+ {{ t.l }}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <label style="font-size:12px;font-weight:800">Comercio</label>
+                <input value="{{ m.shop }}" onChange="{{ m.setShop }}" placeholder="ej. Amazon, Tottus, Uber" style="height:40px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);padding:0 12px;font-size:13.5px;font-weight:600;outline:0">
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <label style="font-size:12px;font-weight:800">Nota</label>
+                <textarea value="{{ m.note }}" onChange="{{ m.setNote }}" placeholder="Algo que quieras recordar" rows="2" style="border-radius:10px;background:var(--sf2);border:1px solid var(--bd);padding:10px 12px;font:inherit;font-size:13.5px;font-weight:600;color:inherit;outline:0;resize:vertical"></textarea>
+              </div>
+              <button onClick="{{ m.pend.on }}" style="display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd)">
+                <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:800">Pendiente de revisar</span><span style="font-size:11.5px;color:var(--mu);text-wrap:pretty">{{ m.pend.d }}</span></span>
+                <span style="width:36px;height:20px;flex:none;border-radius:99px;background:{{ m.pend.bg }};padding:2px;display:flex;justify-content:{{ m.pend.jc }};margin-top:2px"><span style="width:16px;height:16px;border-radius:99px;background:var(--tx)"></span></span>
+              </button>
+              <button onClick="{{ m.rep.on }}" style="display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd)">
+                <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:800">Repetir cada mes</span><span style="font-size:11.5px;color:var(--mu);text-wrap:pretty">{{ m.rep.d }}</span></span>
+                <span style="width:36px;height:20px;flex:none;border-radius:99px;background:{{ m.rep.bg }};padding:2px;display:flex;justify-content:{{ m.rep.jc }};margin-top:2px"><span style="width:16px;height:16px;border-radius:99px;background:var(--tx)"></span></span>
+              </button>
+            </div>
+          </sc-if>
+        </sc-if>
+
+        <sc-if value="{{ m.isTr }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:12px;color:var(--mu);text-wrap:pretty">Mueve dinero entre dos cuentas tuyas. No es ingreso ni gasto, y tu patrimonio no cambia (salvo la comisión del cambio, si hay).</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label style="font-size:12px;font-weight:800">Descripción</label>
+            <input value="{{ m.desc }}" onChange="{{ m.setDesc }}" placeholder="Transferencia" style="height:40px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);padding:0 12px;font-size:13.5px;font-weight:600;outline:0" style-focus="border-color:var(--ac)">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;position:relative">
+            <label style="font-size:12px;font-weight:800">Desde</label>
+            <button onClick="{{ pa.toggle }}" style="min-height:52px;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:var(--sf2);border:1px solid {{ pa.bd }};box-shadow:{{ pa.ring }}" style-hover="background:var(--sf3)">
+              <span style="width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;background:{{ pa.ibg }};color:{{ pa.ifg }};font-family:'Material Symbols Rounded';font-size:19px;line-height:1">{{ pa.icon }}</span>
+              <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                <span style="font-size:13.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ pa.name }}</span>
+                <span style="font-size:11.5px;color:var(--mu);font-variant-numeric:tabular-nums">Saldo {{ pa.bal }}</span>
+              </span>
+              <span style="padding:2px 7px;border-radius:6px;background:var(--sf3);font-size:10.5px;font-weight:800;color:var(--tx2)">{{ pa.cur }}</span>
+              <span style="font-family:'Material Symbols Rounded';font-size:20px;line-height:1;color:var(--mu)">{{ pa.chev }}</span>
+            </button>
+            <sc-if value="{{ pa.open }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:5;background:var(--sf);border:1px solid var(--bd);border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.55);padding:6px;display:flex;flex-direction:column;gap:2px;max-height:340px;overflow:auto">
+                <sc-for list="{{ pa.groups }}" as="g" hint-placeholder-count="3">
+                  <div style="display:flex;flex-direction:column;gap:2px">
+                    <div style="display:flex;justify-content:space-between;padding:8px 8px 4px;font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--mu)"><span>{{ g.label }}</span><span style="font-variant-numeric:tabular-nums;letter-spacing:0">{{ g.total }}</span></div>
+                    <sc-for list="{{ g.items }}" as="o" hint-placeholder-count="2">
+                      <button onClick="{{ o.on }}" disabled="{{ o.dis }}" style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;background:{{ o.bg }};opacity:{{ o.op }}" style-hover="background:var(--sf2)">
+                        <span style="width:30px;height:30px;flex:none;border-radius:9px;display:grid;place-items:center;background:{{ o.ibg }};color:{{ o.ifg }};font-family:'Material Symbols Rounded';font-size:17px;line-height:1">{{ o.icon }}</span>
+                        <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                          <span style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.name }}</span>
+                          <span style="font-size:11px;color:var(--mu)">{{ o.hint }}</span>
+                        </span>
+                        <span style="font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ o.bc }}">{{ o.bal }}</span>
+                        <span style="width:18px;font-family:'Material Symbols Rounded';font-size:18px;line-height:1;color:var(--ac)">{{ o.check }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </sc-for>
+                <div style="height:1px;background:var(--bd);margin:4px 2px"></div>
+                <button style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;font-size:12.5px;font-weight:800;color:var(--ac)" style-hover="background:var(--sf2)"><span style="width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--acs);font-family:'Material Symbols Rounded';font-size:18px;line-height:1">add</span>Nueva cuenta</button>
+              </div>
+            </sc-if>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label style="font-size:12px;font-weight:800">Monto que envías</label>
+            <div style="min-width:0;height:40px;display:flex;align-items:center;gap:8px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);padding:0 10px"><span style="font-weight:800;color:var(--mu);font-size:13px">{{ m.sym }}</span><input value="{{ m.amt }}" onChange="{{ m.setAmt }}" placeholder="0.00" inputmode="decimal" style="flex:1;min-width:0;width:100%;background:none;border:0;outline:0;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums"></div>
+          </div>
+          <div style="display:flex;justify-content:center;margin:-4px 0"><span style="width:28px;height:28px;border-radius:99px;background:var(--sf2);border:1px solid var(--bd);display:grid;place-items:center;font-family:'Material Symbols Rounded';font-size:17px;line-height:1;color:var(--mu)">arrow_downward</span></div>
+          <div style="display:flex;flex-direction:column;gap:6px;position:relative">
+            <label style="font-size:12px;font-weight:800">Hacia</label>
+            <button onClick="{{ pt.toggle }}" style="min-height:52px;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:var(--sf2);border:1px solid {{ pt.bd }};box-shadow:{{ pt.ring }}" style-hover="background:var(--sf3)">
+              <span style="width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;background:{{ pt.ibg }};color:{{ pt.ifg }};font-family:'Material Symbols Rounded';font-size:19px;line-height:1">{{ pt.icon }}</span>
+              <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                <span style="font-size:13.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ pt.name }}</span>
+                <span style="font-size:11.5px;color:var(--mu);font-variant-numeric:tabular-nums">Saldo {{ pt.bal }}</span>
+              </span>
+              <span style="padding:2px 7px;border-radius:6px;background:var(--sf3);font-size:10.5px;font-weight:800;color:var(--tx2)">{{ pt.cur }}</span>
+              <span style="font-family:'Material Symbols Rounded';font-size:20px;line-height:1;color:var(--mu)">{{ pt.chev }}</span>
+            </button>
+            <sc-if value="{{ pt.open }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:5;background:var(--sf);border:1px solid var(--bd);border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.55);padding:6px;display:flex;flex-direction:column;gap:2px;max-height:340px;overflow:auto">
+                <sc-for list="{{ pt.groups }}" as="g" hint-placeholder-count="3">
+                  <div style="display:flex;flex-direction:column;gap:2px">
+                    <div style="display:flex;justify-content:space-between;padding:8px 8px 4px;font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--mu)"><span>{{ g.label }}</span><span style="font-variant-numeric:tabular-nums;letter-spacing:0">{{ g.total }}</span></div>
+                    <sc-for list="{{ g.items }}" as="o" hint-placeholder-count="2">
+                      <button onClick="{{ o.on }}" disabled="{{ o.dis }}" style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;background:{{ o.bg }};opacity:{{ o.op }}" style-hover="background:var(--sf2)">
+                        <span style="width:30px;height:30px;flex:none;border-radius:9px;display:grid;place-items:center;background:{{ o.ibg }};color:{{ o.ifg }};font-family:'Material Symbols Rounded';font-size:17px;line-height:1">{{ o.icon }}</span>
+                        <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                          <span style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.name }}</span>
+                          <span style="font-size:11px;color:var(--mu)">{{ o.hint }}</span>
+                        </span>
+                        <span style="font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ o.bc }}">{{ o.bal }}</span>
+                        <span style="width:18px;font-family:'Material Symbols Rounded';font-size:18px;line-height:1;color:var(--ac)">{{ o.check }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </sc-for>
+                <div style="height:1px;background:var(--bd);margin:4px 2px"></div>
+                <button style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;font-size:12.5px;font-weight:800;color:var(--ac)" style-hover="background:var(--sf2)"><span style="width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--acs);font-family:'Material Symbols Rounded';font-size:18px;line-height:1">add</span>Nueva cuenta</button>
+              </div>
+            </sc-if>
+          </div>
+          <sc-if value="{{ m.crossCur }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <label style="font-size:12px;font-weight:800">Monto que recibes</label>
+              <div style="min-width:0;height:40px;display:flex;align-items:center;gap:8px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);padding:0 10px"><span style="font-weight:800;color:var(--mu);font-size:13px">{{ m.toSym }}</span><input value="{{ m.toAmt }}" onChange="{{ m.setToAmt }}" placeholder="0.00" inputmode="decimal" style="flex:1;min-width:0;width:100%;background:none;border:0;outline:0;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums"></div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ m.crossCur }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:10px;background:var(--bls);font-size:12.5px;font-variant-numeric:tabular-nums">
+              <div style="display:flex;justify-content:space-between;gap:10px"><span style="color:var(--tx2)">Tipo de cambio aplicado</span><span style="font-weight:800">{{ m.implied }}</span></div>
+              <div style="display:flex;justify-content:space-between;gap:10px"><span style="color:var(--tx2)">Mercado hoy</span><span style="font-weight:700">{{ m.market }}</span></div>
+              <div style="display:flex;justify-content:space-between;gap:10px"><span style="color:var(--tx2)">Costo del cambio</span><span style="font-weight:800;color:{{ m.costC }}">{{ m.cost }}</span></div>
+              <div style="font-size:11.5px;color:var(--tx2);text-wrap:pretty">Escribe lo que realmente llegó a la cuenta destino. El costo se registra como gasto en «Comisiones».</div>
+            </div>
+          </sc-if>
+        </sc-if>
+
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+          <button onClick="{{ closeModal }}" style="height:40px;padding:0 16px;border-radius:10px;background:var(--sf2);border:1px solid var(--bd);font-weight:800;font-size:13px">Cancelar</button>
+          <button onClick="{{ closeModal }}" style="height:40px;padding:0 16px;border-radius:10px;background:var(--ac);color:var(--onac);font-weight:800;font-size:13px">Registrar</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;monedaBase&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;PEN&quot;,&quot;USD&quot;,&quot;EUR&quot;],&quot;default&quot;:&quot;PEN&quot;,&quot;tsType&quot;:&quot;'PEN'|'USD'|'EUR'&quot;},&quot;equivalentes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;modal&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;cerrado&quot;,&quot;gasto&quot;,&quot;compra USD con soles&quot;,&quot;transferencia&quot;],&quot;default&quot;:&quot;cerrado&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const SYM = { PEN: 'S/', USD: 'US$', EUR: '€' };
+const TODAY = { PEN: 1, USD: 3.74, EUR: 4.06 };
+const START = { PEN: 1, USD: 3.71, EUR: 4.02 };
+const ACCTS = {
+  sueldo: { n: 'Cuenta Sueldo', cur: 'PEN', bal: 4820, ic: 'account_balance', h: 'Cuenta bancaria' },
+  billetera: { n: 'Billetera', cur: 'PEN', bal: 182, ic: 'account_balance_wallet', h: 'Efectivo' },
+  visa: { n: 'Visa Signature', cur: 'PEN', bal: -640.3, ic: 'credit_card', h: 'Tarjeta de crédito' },
+  spot: { n: 'Cuenta Spot', cur: 'USD', bal: 1245.5, ic: 'account_balance', h: 'Cuenta bancaria' },
+  euro: { n: 'Cuenta Euro', cur: 'EUR', bal: 345, ic: 'euro', h: 'Cuenta bancaria' },
+  sol: { n: 'Inversión: Solana', cur: 'USD', bal: 980.25, ic: 'trending_up', h: 'Inversión' }
+};
+const IC = {
+  g: ['payments', 'var(--acs)', 'var(--ac)'], b: ['work', 'var(--bls)', 'var(--bl)'], v: ['school', 'var(--bls)', 'var(--bl)'],
+  f: ['restaurant', 'var(--ams)', 'var(--am)'], t: ['swap_horiz', 'var(--bls)', 'var(--bl)'], s: ['flag', 'var(--sf3)', 'var(--tx2)'],
+  h: ['bolt', 'var(--ams)', 'var(--am)'], c: ['local_taxi', 'var(--vis)', 'var(--vi)'], m: ['movie', 'var(--rds)', 'var(--rd)']
+};
+const TX = [
+  { id: 1, d: 'Domingo, 18 de octubre', n: 'gfgdfg', cat: 'Sueldo', a: 'euro', amt: 50, k: 'inc', ic: 'g', r: 4.06, tags: '# fijo' },
+  { id: 2, d: 'Domingo, 18 de octubre', n: 'Pago de proyecto', cat: 'Consultoría', a: 'spot', amt: 150, k: 'inc', ic: 'b', r: 3.74 },
+  { id: 3, d: 'Domingo, 18 de octubre', n: 'Testing compra', cat: 'Cursos', a: 'euro', amt: -5, k: 'exp', ic: 'v', r: 4.06 },
+  { id: 4, d: 'Domingo, 18 de octubre', n: 'Aliexpress', cat: 'Salidas', a: 'spot', amt: -15, k: 'exp', ic: 'f', r: 3.74 },
+  { id: 5, d: 'Domingo, 18 de octubre', n: 'Inversión en Solana', a: 'spot', to: 'sol', amt: 80.25, toAmt: 80.25, k: 'tr', ic: 't', r: 3.74 },
+  { id: 6, d: 'Domingo, 18 de octubre', n: 'Compra de dólares', a: 'sueldo', to: 'spot', amt: 1000, toAmt: 265.25, k: 'tr', ic: 't', r: 3.74 },
+  { id: 7, d: 'Domingo, 18 de octubre', n: 'Taxi aeropuerto', cat: 'Transporte', a: 'billetera', amt: -18.5, k: 'exp', ic: 'c', r: 1, pend: true },
+  { id: 8, d: 'Sábado, 17 de octubre', n: 'Reembolso en Depa', cat: 'Servicios del hogar', a: 'visa', amt: 33.33, k: 'inc', ic: 'h', r: 1 },
+  { id: 9, d: 'Sábado, 17 de octubre', n: 'Netflix', cat: 'Suscripciones', a: 'visa', amt: -58.71, k: 'exp', ic: 'm', r: 1, oc: 'USD', oa: -15.49, mr: 3.76 },
+  { id: 10, d: 'Sábado, 17 de octubre', n: 'Saldo inicial', cat: 'Ajuste', a: 'billetera', amt: 2, k: 'inc', ic: 's', r: 1 },
+  { id: 11, d: 'Sábado, 17 de octubre', n: 'Interfaz', cat: 'Delivery', a: 'sueldo', amt: -50, k: 'exp', ic: 'f', r: 1 }
+];
+const n2 = v => Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (v, cur, sign) => (sign ? (v > 0 ? '+' : v < 0 ? '−' : '') : (v < 0 ? '−' : '')) + SYM[cur] + ' ' + n2(v);
+const rateStr = (cur, base, r) => '1 ' + SYM[cur] + ' = ' + SYM[base] + ' ' + (r).toFixed(cur === 'EUR' || cur === 'USD' ? (base === 'PEN' ? 2 : 4) : 4);
+
+class Component extends DCLogic {
+  state = { type: 'all', cur: 'all', sel: 1, modal: undefined, dd: null, mDesc: '', mCur: null, mCharged: '', more: false, tags: [], tagIn: '', shop: '', note: '', pend: false, rep: false, mAcct: 'euro', mAmt: '50.00', mTo: 'spot', mToAmt: '', mRate: '', editRate: false };
+
+  componentDidMount() { this.applyPreset(); }
+  componentDidUpdate(pp) { if (pp.modal !== this.props.modal) this.applyPreset(); }
+  applyPreset() {
+    if (this.props.modal === 'compra USD con soles') this.setState({ modal: 'gasto', dd: null, mAcct: 'visa', mCur: 'USD', mAmt: '15.49', mCharged: '', mDesc: 'Netflix' });
+    else this.setState({ modal: undefined });
+  }
+  renderVals() {
+    const base = this.props.monedaBase ?? 'PEN';
+    const showEq = this.props.equivalentes ?? true;
+    const modal = this.state.modal !== undefined ? this.state.modal : (this.props.modal ?? 'cerrado');
+    const today = c => TODAY[c] / TODAY[base];
+    const toBase = (v, cur, r) => cur === 'PEN' ? v / TODAY[base] : (cur === base ? v : v * r / TODAY[base]);
+    const s = this.state;
+
+    const fxChips = ['USD', 'EUR', 'PEN'].filter(c => c !== base).slice(0, 2).map(c => rateStr(c, base, today(c)));
+
+    const typeTabs = [['all', 'Todas'], ['inc', 'Ingresos'], ['exp', 'Gastos'], ['tr', 'Transferencias']].map(([k, l]) => ({
+      l, on: () => this.setState({ type: k }), bg: s.type === k ? 'var(--sf3)' : 'transparent', fg: s.type === k ? 'var(--tx)' : 'var(--mu)'
+    }));
+    const curTabs = [['all', 'Todas'], ['PEN', 'S/ PEN'], ['USD', 'US$ USD'], ['EUR', '€ EUR']].map(([k, l]) => ({
+      l, on: () => this.setState({ cur: k }), bg: s.cur === k ? 'var(--sf3)' : 'transparent', fg: s.cur === k ? 'var(--tx)' : 'var(--mu)'
+    }));
+
+    const curOf = t => ACCTS[t.a].cur;
+    const touches = (t, c) => curOf(t) === c || (t.to && ACCTS[t.to].cur === c);
+    const list = TX.filter(t => (s.type === 'all' || t.k === s.type) && (s.cur === 'all' || touches(t, s.cur)));
+
+    // summary
+    const flows = TX.filter(t => t.k !== 'tr');
+    const agg = (arr, f) => arr.reduce((a, t) => a + f(t), 0);
+    let sum;
+    if (s.cur === 'all') {
+      const inc = agg(flows.filter(t => t.amt > 0), t => toBase(t.amt, curOf(t), t.r));
+      const exp = agg(flows.filter(t => t.amt < 0), t => toBase(-t.amt, curOf(t), t.r));
+      sum = {
+        title: 'Octubre · todas las monedas', badge: 'Convertido a ' + base,
+        kpis: [
+          { l: 'Ingresos', v: fmt(inc, base), c: 'var(--ac)', s: 'Al tipo de cambio de cada día' },
+          { l: 'Gastos', v: fmt(exp, base), c: 'var(--tx)', s: 'Al tipo de cambio de cada día' },
+          { l: 'Neto', v: fmt(inc - exp, base, true), c: inc - exp >= 0 ? 'var(--ac)' : 'var(--rd)', s: 'Transferencias excluidas' }
+        ],
+        showBreak: true,
+        rows: ['PEN', 'USD', 'EUR'].map(c => {
+          const f = flows.filter(t => curOf(t) === c);
+          const i = agg(f.filter(t => t.amt > 0), t => t.amt), e = agg(f.filter(t => t.amt < 0), t => -t.amt);
+          const nb = agg(f, t => toBase(t.amt, c, t.r));
+          return { code: c, inc: fmt(i, c), exp: fmt(e, c), net: fmt(i - e, c, true), nc: i - e >= 0 ? 'var(--ac)' : 'var(--rd)', baseNet: c === base ? '—' : '≈ ' + fmt(nb, base, true), on: () => this.setState({ cur: c }) };
+        })
+      };
+    } else {
+      const c = s.cur, f = flows.filter(t => curOf(t) === c);
+      const i = agg(f.filter(t => t.amt > 0), t => t.amt), e = agg(f.filter(t => t.amt < 0), t => -t.amt);
+      const eq = v => c === base ? 'Moneda base' : '≈ ' + fmt(v, base) + ' hoy';
+      sum = {
+        title: 'Octubre · solo movimientos en ' + c, badge: 'Monto original',
+        kpis: [
+          { l: 'Ingresos', v: fmt(i, c), c: 'var(--ac)', s: eq(i * today(c)) },
+          { l: 'Gastos', v: fmt(e, c), c: 'var(--tx)', s: eq(e * today(c)) },
+          { l: 'Neto', v: fmt(i - e, c, true), c: i - e >= 0 ? 'var(--ac)' : 'var(--rd)', s: eq((i - e) * today(c)) }
+        ],
+        showBreak: false, rows: []
+      };
+    }
+
+    const rowOf = t => {
+      const c = curOf(t), ic = IC[t.ic];
+      let amt, ac, sub = '', meta;
+      if (t.k === 'tr') {
+        const tc = ACCTS[t.to].cur;
+        meta = ACCTS[t.a].n + ' → ' + ACCTS[t.to].n;
+        ac = 'var(--tx2)';
+        if (tc !== c) { amt = fmt(t.amt, c) + ' → ' + fmt(t.toAmt, tc); sub = '1 ' + SYM[tc] + ' = ' + SYM[c] + ' ' + (t.amt / t.toAmt).toFixed(3); }
+        else { amt = fmt(t.amt, c); if (c !== base && showEq) sub = '≈ ' + fmt(toBase(t.amt, c, t.r), base); }
+      } else {
+        meta = t.cat + ' · ' + ACCTS[t.a].n;
+        amt = fmt(t.amt, c, true); ac = t.amt > 0 ? 'var(--ac)' : 'var(--tx)';
+        if (t.oc) sub = fmt(-t.oa, t.oc) + ' · 1 ' + SYM[t.oc] + ' = ' + SYM[c] + ' ' + (t.amt / t.oa).toFixed(3);
+        else if (c !== base && showEq) sub = '≈ ' + fmt(toBase(t.amt, c, t.r), base, true);
+      }
+      return { ...t, name: t.n, icon: ic[0], ibg: ic[1], ifg: ic[2], meta, amt, ac, sub, hasSub: !!sub, pending: !!t.pend, cur: c,
+        bg: s.sel === t.id ? 'var(--sf2)' : 'transparent', on: () => this.setState({ sel: t.id }) };
+    };
+
+    const days = [];
+    list.forEach(t => { let g = days.find(d => d.day === t.d); if (!g) days.push(g = { day: t.d, items: [] }); g.items.push(rowOf(t)); });
+    days.forEach(g => {
+      const src = TX.filter(t => t.d === g.day && t.k !== 'tr' && (s.cur === 'all' || curOf(t) === s.cur));
+      if (s.cur === 'all' || s.cur === base) g.total = 'Neto ' + fmt(agg(src, t => toBase(t.amt, curOf(t), t.r)), base, true) + (s.cur === 'all' ? ' · en ' + base : '');
+      else g.total = 'Neto ' + fmt(agg(src, t => t.amt), s.cur, true);
+    });
+
+    // selected
+    const st = TX.find(t => t.id === s.sel) || TX[0];
+    const sr = rowOf(st), sc = curOf(st);
+    let fields, fx = false, fxRows = [], fxNote = '', selSub = '';
+    if (st.k === 'tr') {
+      const tc = ACCTS[st.to].cur;
+      fields = [{ l: 'Tipo', v: 'Transferencia' }, { l: 'Desde', v: ACCTS[st.a].n + ' · ' + sc }, { l: 'Hacia', v: ACCTS[st.to].n + ' · ' + tc }, { l: 'Estado', v: 'Confirmada' }];
+      if (tc !== sc) {
+        fx = true;
+        const eff = st.amt / st.toAmt, mkt = TODAY[tc] / TODAY[sc];
+        const cost = (st.toAmt * mkt - st.amt) * -1;
+        fxRows = [
+          { l: 'Enviaste', v: fmt(st.amt, sc), c: 'var(--tx)' }, { l: 'Recibiste', v: fmt(st.toAmt, tc), c: 'var(--tx)' },
+          { l: 'Tipo aplicado', v: '1 ' + SYM[tc] + ' = ' + SYM[sc] + ' ' + eff.toFixed(3), c: 'var(--tx)' },
+          { l: 'Mercado ese día', v: '1 ' + SYM[tc] + ' = ' + SYM[sc] + ' ' + mkt.toFixed(3), c: 'var(--tx)' },
+          { l: 'Costo del cambio', v: fmt(-cost, sc), c: 'var(--rd)' }
+        ];
+        fxNote = 'Tu patrimonio solo baja por el costo del cambio; el resto es el mismo dinero en otra moneda.';
+        selSub = 'Recibiste ' + fmt(st.toAmt, tc);
+      } else if (sc !== base) selSub = '≈ ' + fmt(toBase(st.amt, sc, st.r), base);
+    } else {
+      fields = [{ l: 'Tipo', v: st.k === 'inc' ? 'Ingreso' : 'Gasto' }, { l: 'Categoría', v: st.cat }, { l: 'Cuenta', v: ACCTS[st.a].n + ' · ' + sc }, { l: 'Estado', v: st.pend ? 'Por revisar' : 'Confirmada' }];
+      if (st.oc) {
+        fx = true;
+        const eff = st.amt / st.oa, sur = (eff - st.mr) * Math.abs(st.oa);
+        selSub = 'Precio original ' + fmt(-st.oa, st.oc);
+        fxRows = [
+          { l: 'Precio', v: fmt(-st.oa, st.oc), c: 'var(--tx)' }, { l: 'Cobrado en ' + ACCTS[st.a].n, v: fmt(-st.amt, sc), c: 'var(--tx)' },
+          { l: 'Tipo del banco', v: '1 ' + SYM[st.oc] + ' = ' + SYM[sc] + ' ' + eff.toFixed(3), c: 'var(--tx)' },
+          { l: 'Mercado ese día', v: '1 ' + SYM[st.oc] + ' = ' + SYM[sc] + ' ' + st.mr.toFixed(3), c: 'var(--tx)' },
+          { l: 'Recargo por cambio', v: fmt(-sur, sc), c: 'var(--rd)' }
+        ];
+        fxNote = 'El gasto cuenta en ' + sc + ' por lo que realmente salió de tu cuenta. El precio en ' + st.oc + ' queda como referencia.';
+      } else if (sc !== base) {
+        fx = true;
+        const atReg = toBase(st.amt, sc, st.r), now = st.amt * today(sc);
+        selSub = '≈ ' + fmt(atReg, base, true) + ' al registrarse';
+        fxRows = [
+          { l: 'Tipo de cambio usado', v: rateStr(sc, base, st.r / TODAY[base]), c: 'var(--tx)' },
+          { l: 'Fuente', v: 'Automático · ' + st.d.split(', ')[1], c: 'var(--tx)' },
+          { l: 'Equivale hoy', v: fmt(now, base, true), c: 'var(--tx)' }
+        ];
+        fxNote = 'Tus reportes y presupuestos usan el tipo de cambio de este día y no cambian aunque el dólar o el euro se muevan.';
+      }
+    }
+    const sel = { ...sr, day: st.d, amt: st.k === 'tr' ? fmt(st.amt, sc) : sr.amt, sub: selSub, hasSub: !!selSub, fields, fx, fxRows, fxNote };
+
+    // patrimonio
+    const byCur = {};
+    Object.values(ACCTS).forEach(a => { byCur[a.cur] = (byCur[a.cur] || 0) + a.bal; });
+    const pr = Object.entries(byCur).map(([c, v]) => ({ c, v, b: v * today(c), start: v * START[c] / START[base] }));
+    const tot = pr.reduce((a, p) => a + p.b, 0);
+    const fxEff = pr.filter(p => p.c !== base).reduce((a, p) => a + (p.b - p.start), 0);
+    const colors = { PEN: 'var(--ac)', USD: 'var(--bl)', EUR: 'var(--vi)' };
+    const pat = {
+      total: fmt(tot, base),
+      rows: pr.sort((a, b) => b.b - a.b).map(p => ({ code: p.c, native: p.c === base ? 'Moneda base' : fmt(p.v, p.c), base: fmt(p.b, base), w: Math.max(2, p.b / tot * 100) + '%', c: colors[p.c] })),
+      fx: fmt(fxEff, base, true), fxC: fxEff >= 0 ? 'var(--ac)' : 'var(--rd)'
+    };
+
+    // modal
+    const isTr = modal === 'transferencia';
+    const ma = ACCTS[s.mAcct], mc = ma.cur, mt = ACCTS[s.mTo], tc = mt.cur;
+    const rate = s.mRate !== '' ? parseFloat(s.mRate) || 0 : today(mc);
+    const amtN = parseFloat(s.mAmt) || 0;
+    const crossCur = isTr && tc !== mc;
+    const toAmtN = crossCur ? (s.mToAmt === '' ? +(amtN * TODAY[mc] / TODAY[tc] * 0.993).toFixed(2) : parseFloat(s.mToAmt) || 0) : amtN;
+    const mkt = TODAY[mc] / TODAY[tc];
+    const costSrc = (amtN * mkt - toAmtN) / mkt;
+    const pc = !isTr && s.mCur ? s.mCur : mc, diffCur = !isTr && pc !== mc;
+    const bankR = TODAY[pc] / TODAY[mc] * 1.005;
+    const chargedN = s.mCharged !== '' ? parseFloat(s.mCharged) || 0 : +(amtN * bankR).toFixed(2);
+    const effR = amtN ? chargedN / amtN : 0, mktR = TODAY[pc] / TODAY[mc], surN = (effR - mktR) * amtN;
+    const CURN = { PEN: 'Soles', USD: 'Dólares', EUR: 'Euros' };
+    const extrasN = s.tags.length + (s.shop ? 1 : 0) + (s.note ? 1 : 0) + (s.pend ? 1 : 0) + (s.rep ? 1 : 0);
+    const addTag = v => { v = v.trim().replace(/^#/, ''); if (v && !s.tags.includes(v)) this.setState(p => ({ tags: [...p.tags, v], tagIn: '' })); else this.setState({ tagIn: '' }); };
+    const tog = (k, on, off) => ({ on: () => this.setState(p => ({ [k]: !p[k] })), bg: s[k] ? 'var(--ac)' : 'var(--sf3)', jc: s[k] ? 'flex-end' : 'flex-start', d: s[k] ? on : off });
+    const m = {
+      showQuick: !isTr && !diffCur,
+      quick: ['USD', 'EUR', 'PEN'].filter(c => c !== mc).map(c => ({ l: 'Pagar en ' + SYM[c], on: () => this.setState({ mCur: c, mCharged: '', dd: null }) })),
+      resetCur: () => this.setState({ mCur: null, mCharged: '' }),
+      psym: SYM[pc], pcode: pc, diffCur, acctName: ma.n, acctCur: mc, curOpen: s.dd === 'cur',
+      toggleCur: () => this.setState(p => ({ dd: p.dd === 'cur' ? null : 'cur' })),
+      curOpts: ['PEN', 'USD', 'EUR'].map(c => ({ sym: SYM[c], name: CURN[c], hint: c === mc ? 'Moneda de la cuenta' : 'Se convierte a ' + mc, check: c === pc ? 'check' : '', bg: c === pc ? 'var(--sf2)' : 'transparent', on: () => this.setState({ mCur: c === mc ? null : c, dd: null, mCharged: '' }) })),
+      charged: s.mCharged !== '' ? s.mCharged : chargedN.toFixed(2), setCharged: e => this.setState({ mCharged: e.target.value }),
+      bankRate: '1 ' + SYM[pc] + ' = ' + SYM[mc] + ' ' + (amtN ? effR : bankR).toFixed(3), mktRate: '1 ' + SYM[pc] + ' = ' + SYM[mc] + ' ' + mktR.toFixed(3),
+      sur: Math.abs(surN) < 0.005 ? 'Sin recargo' : fmt(surN, mc) + ' (' + (amtN ? (surN / (amtN * mktR) * 100).toFixed(1) : '0') + '%)', surC: surN > 0.005 ? 'var(--rd)' : 'var(--ac)',
+      chargedForeign: mc !== base, chargedBase: '≈ ' + fmt(chargedN * today(mc), base),
+      more: s.more, toggleMore: () => this.setState(p => ({ more: !p.more })),
+      moreIcon: s.more ? 'expand_less' : 'add', moreLabel: s.more ? 'Ocultar detalles' : 'Etiquetas, comercio, nota, repetir', moreBadge: !s.more && extrasN > 0, moreCount: extrasN,
+      tags: s.tags.map(t => ({ l: t, rm: () => this.setState(p => ({ tags: p.tags.filter(x => x !== t) })) })),
+      tagIn: s.tagIn, tagPh: s.tags.length ? 'Agregar…' : 'Escribe y presiona Enter',
+      setTagIn: e => { const v = e.target.value; if (v.endsWith(',')) addTag(v.slice(0, -1)); else this.setState({ tagIn: v }); },
+      tagKey: e => { if (e.key === 'Enter') { e.preventDefault(); addTag(s.tagIn); } else if (e.key === 'Backspace' && !s.tagIn && s.tags.length) this.setState(p => ({ tags: p.tags.slice(0, -1) })); },
+      sugg: ['fijo', 'trabajo', 'viaje', 'online'].filter(t => !s.tags.includes(t)).map(t => ({ l: t, on: () => addTag(t) })),
+      shop: s.shop, setShop: e => this.setState({ shop: e.target.value }), note: s.note, setNote: e => this.setState({ note: e.target.value }),
+      pend: tog('pend', 'Aparece marcada en la lista. Cuenta en el saldo igual.', 'Márcala si aún debes confirmar el monto o la categoría.'),
+      rep: tog('rep', 'Se registrará el día 18 de cada mes, desde noviembre. La detienes en el Calendario.', 'Para gastos fijos como suscripciones o alquiler.'),
+      isTx: !isTr, isTr, acct: s.mAcct, to: s.mTo, sym: SYM[mc], toSym: SYM[tc], amt: s.mAmt,
+      toAmt: s.mToAmt !== '' ? s.mToAmt : String(toAmtN.toFixed(2)), sameCur: !crossCur, crossCur, toBg: crossCur ? 'var(--sf2)' : 'var(--sf)',
+      foreign: !isTr && !diffCur && mc !== base, editRate: s.editRate, rate: s.mRate !== '' ? s.mRate : today(mc).toFixed(4),
+      conv: '≈ ' + fmt(amtN * rate, base) + ' · ' + rateStr(mc, base, rate),
+      rateBtn: s.editRate ? 'Usar el de hoy' : 'Editar',
+      rateNote: s.mRate !== '' ? 'Tipo de cambio manual: úsalo si tu banco te cobró uno distinto.' : 'Tipo de cambio de hoy. Se guarda con la transacción y no cambia después.',
+      implied: '1 ' + SYM[tc] + ' = ' + SYM[mc] + ' ' + (toAmtN ? (amtN / toAmtN).toFixed(3) : '—'),
+      market: '1 ' + SYM[tc] + ' = ' + SYM[mc] + ' ' + (1 / mkt).toFixed(3),
+      cost: costSrc > 0.005 ? '−' + SYM[mc] + ' ' + n2(costSrc) : 'Sin costo', costC: costSrc > 0.005 ? 'var(--rd)' : 'var(--ac)',
+      desc: s.mDesc, setDesc: e => this.setState({ mDesc: e.target.value }),
+      setAcct: e => this.setState({ mAcct: e.target.value, mRate: '', editRate: false, mToAmt: '', mCharged: '' }),
+      setTo: e => this.setState({ mTo: e.target.value, mToAmt: '' }),
+      setAmt: e => this.setState({ mAmt: e.target.value, mToAmt: '', mCharged: '' }),
+      setToAmt: e => this.setState({ mToAmt: e.target.value }),
+      setRate: e => this.setState({ mRate: e.target.value }),
+      toggleRate: () => this.setState(p => ({ editRate: !p.editRate, mRate: '' }))
+    };
+    const CN = { PEN: 'SOLES · PEN', USD: 'DÓLARES · USD', EUR: 'EUROS · EUR' };
+    const ACOL = { PEN: ['var(--acs)', 'var(--ac)'], USD: ['var(--bls)', 'var(--bl)'], EUR: ['var(--vis)', 'var(--vi)'] };
+    const mkPicker = (key, cur, other) => {
+      const ac = ACCTS[cur], open = s.dd === key;
+      return {
+        open, name: ac.n, cur: ac.cur, bal: fmt(ac.bal, ac.cur), icon: ac.ic, ibg: ACOL[ac.cur][0], ifg: ACOL[ac.cur][1],
+        chev: open ? 'expand_less' : 'expand_more', bd: open ? 'var(--ac)' : 'var(--bd)', ring: open ? '0 0 0 3px var(--acs)' : 'none',
+        toggle: () => this.setState({ dd: open ? null : key }),
+        groups: ['PEN', 'USD', 'EUR'].map(c => {
+          const items = Object.entries(ACCTS).filter(([, a]) => a.cur === c);
+          return {
+            label: CN[c], total: fmt(items.reduce((t, [, a]) => t + a.bal, 0), c),
+            items: items.map(([v, a]) => {
+              const dis = other === v;
+              return {
+                name: a.n, hint: dis ? 'Cuenta de origen' : a.h, bal: fmt(a.bal, a.cur), bc: a.bal < 0 ? 'var(--rd)' : 'var(--tx2)',
+                icon: a.ic, ibg: ACOL[c][0], ifg: ACOL[c][1], check: v === cur ? 'check' : '', bg: v === cur ? 'var(--sf2)' : 'transparent',
+                dis, op: dis ? .4 : 1,
+                on: () => this.setState(key === 'pa' ? { mAcct: v, dd: null, mRate: '', editRate: false, mToAmt: '', mCharged: '', mCur: s.mCur === a.cur ? null : s.mCur } : { mTo: v, dd: null, mToAmt: '' })
+              };
+            })
+          };
+        })
+      };
+    };
+    const pa = mkPicker('pa', s.mAcct, null), pt = mkPicker('pt', s.mTo, s.mAcct);
+    const mTabs = [['gasto', 'Gasto'], ['ingreso', 'Ingreso'], ['transferencia', 'Transferencia']].map(([k, l]) => ({
+      l, on: () => this.setState(k === 'transferencia' ? { modal: k, dd: null, mAcct: 'sueldo', mTo: 'spot', mAmt: '1000.00', mToAmt: '' } : { modal: k, dd: null }),
+      bg: modal === k ? 'var(--sf3)' : 'transparent', fg: modal === k ? 'var(--tx)' : 'var(--mu)'
+    }));
+
+    return {
+      base, baseSym: SYM[base], fxChips, typeTabs, curTabs, sum, groups: days, sel, pat,
+      modalOpen: modal !== 'cerrado', mTabs, m, pa, pt,
+      acctOptsA: Object.entries(ACCTS).map(([v, a]) => ({ v, l: a.n + ' · ' + a.cur, s: v === s.mAcct })),
+      acctOptsT: Object.entries(ACCTS).map(([v, a]) => ({ v, l: a.n + ' · ' + a.cur, s: v === s.mTo })),
+      openGasto: () => this.setState({ modal: 'gasto', dd: null, mAcct: 'sueldo', mAmt: '', mCur: null, mCharged: '' }),
+      closeModal: () => this.setState({ modal: 'cerrado', dd: null })
+    };
+  }
+}
+</script>
+</body>
+</html>

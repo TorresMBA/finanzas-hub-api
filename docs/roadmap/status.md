@@ -26,14 +26,14 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 
 ## Última verificación
 
-17-oct-2026, tras cerrar los pendientes pequeños de las fases (ver «Resuelto», filas del 17-oct-2026). Migración `AddFavoritesGroupIconsAndVoidedContributions`.
+18-oct-2026, tras Transacciones v2 con divisas (ver `docs/modules/ledger.md`, «Divisas en Transacciones»). Migración `TransactionForeignTerms`.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 290 en verde (168 unitarios, 19 de arquitectura, 103 de integración) |
-| Frontend: build, tests y lint | Build correcto, 132 tests, lint limpio. Tres avisos de tamaño de estilos (`shared.scss`, `group-view.scss`, `budgets.scss`) que vienen del rediseño v2 |
-| E2E en Chrome | 32 en verde, contra una base desechable. El nuevo (`layout.spec.ts`) recorre las 13 secciones en tablet (768 px) y móvil (390 px) con tema claro, comprueba que nada desborda y guarda una captura de cada una; se revisaron a ojo |
+| Backend: tests | 294 en verde (168 unitarios, 19 de arquitectura, 107 de integración), contrato OpenAPI incluido |
+| Frontend: build, tests y lint | Build correcto, 139 tests, lint limpio. Tres avisos de tamaño de estilos (`shared.scss`, `group-view.scss`, `budgets.scss`) que vienen del rediseño v2 |
+| E2E en Chrome | Del 17-oct-2026, no se volvió a correr con Transacciones v2: 32 en verde, contra una base desechable. El nuevo (`layout.spec.ts`) recorre las 13 secciones en tablet (768 px) y móvil (390 px) con tema claro, comprueba que nada desborda y guarda una captura de cada una; se revisaron a ojo |
 
 ## Pendientes que dejaron las fases cerradas
 
@@ -74,9 +74,11 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 
 | Pendiente | Se retoma |
 |---|---|
-| Comisión de una transferencia como gasto vinculado | Sin fecha. Hoy se registra aparte, como un gasto más |
+| Comisión de una transferencia como gasto vinculado | Hecho el 18-oct-2026: `fee` en la transferencia, gasto en «Comisiones» que se anula con ella |
 | Editar una transferencia | Sin fecha. Se anula y se registra de nuevo |
 | Historial de tipos de cambio en pantalla | Fase 14. Se guarda una fila por día; la pantalla solo muestra y cambia el vigente |
+| Efecto del tipo de cambio del mes en el patrimonio (Transacciones v2) | Sin fecha. Necesita valorar el saldo de inicio de mes con el tipo de ese día; la tarjeta de patrimonio por moneda ya está |
+| Más monedas | Fase 14, con la fuente automática de tipos. El catálogo ya es uno solo (`Currency`, `GET /currencies`); faltan monedas de más de 2 decimales, más decimales en los tipos de cambio (COP o JPY frente a una base USD) y topes de monto para monedas de valor bajo |
 
 ### Fase 5
 
