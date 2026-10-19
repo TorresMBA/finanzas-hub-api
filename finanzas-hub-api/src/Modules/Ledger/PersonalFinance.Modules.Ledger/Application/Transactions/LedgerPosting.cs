@@ -24,6 +24,8 @@ internal sealed class LedgerPosting(
 {
     private const string GoalsModule = "goals";
     private const string InvestmentsModule = "investments";
+    private const string AuditModule = "ledger";
+    private const string AuditOperation = "operation";
 
     public async Task<Result<Guid>> PostTransactionAsync(LedgerTransactionRequest request, CancellationToken cancellationToken)
     {
@@ -68,7 +70,7 @@ internal sealed class LedgerPosting(
         }
 
         // Not announced: the reactions to a movement (budgets, notices) read under the current person, who is not its owner.
-        audit.Record(new AuditEntry("ledger", "ledger.transaction.voided", "operation", operation.Id)
+        audit.Record(new AuditEntry(AuditModule, "ledger.transaction.voided", AuditOperation, operation.Id)
         {
             OwnerUserId = operation.OwnerUserId,
             After = new { Status = operation.Status.ToString(), operation.VoidReason, VoidedByCounterpart = true }
@@ -92,7 +94,7 @@ internal sealed class LedgerPosting(
         }
 
         operation.Announce(LedgerOperationChange.Voided);
-        audit.Record(new AuditEntry("ledger", "ledger.transaction.voided", "operation", operation.Id)
+        audit.Record(new AuditEntry(AuditModule, "ledger.transaction.voided", AuditOperation, operation.Id)
         {
             OwnerUserId = operation.OwnerUserId,
             After = new { Status = operation.Status.ToString(), operation.VoidReason, SourceModule = GoalsModule }
@@ -145,7 +147,7 @@ internal sealed class LedgerPosting(
         }
 
         db.Operations.Add(operation);
-        audit.Record(new AuditEntry("ledger", "ledger.transfer.posted", "operation", operation.Id)
+        audit.Record(new AuditEntry(AuditModule, "ledger.transfer.posted", AuditOperation, operation.Id)
         {
             OwnerUserId = operation.OwnerUserId,
             After = Snapshot.Of(operation)
@@ -177,7 +179,7 @@ internal sealed class LedgerPosting(
         var operation = posted.Value;
         await rates.ValueAsync(operation, cancellationToken);
         db.Operations.Add(operation);
-        audit.Record(new AuditEntry("ledger", "ledger.refund.posted", "operation", operation.Id)
+        audit.Record(new AuditEntry(AuditModule, "ledger.refund.posted", AuditOperation, operation.Id)
         {
             OwnerUserId = operation.OwnerUserId,
             After = new { operation.CategoryId, amount, account.Currency, occurredOn }
@@ -242,7 +244,7 @@ internal sealed class LedgerPosting(
             }
 
             db.Accounts.Add(opened.Value);
-            audit.Record(new AuditEntry("ledger", "ledger.account.opened", "account", opened.Value.Id)
+            audit.Record(new AuditEntry(AuditModule, "ledger.account.opened", "account", opened.Value.Id)
             {
                 OwnerUserId = userId,
                 After = new { opened.Value.Name, Type = type.ToString(), opened.Value.Currency }

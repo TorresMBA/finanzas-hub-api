@@ -407,38 +407,18 @@ internal sealed class CloseGoalHandler(GoalReader reader, ILedgerPosting ledger,
             return GoalErrors.NotFound;
         }
 
-        var plan = goal.RefundPlan();
+        // Read before closing: archiving moves nothing, so the plan is only carried out when cancelling.
+        var plan = command.Cancel ? goal.RefundPlan() : [];
         var closed = goal.Close(userId, command.Cancel ? GoalStatus.Cancelled : GoalStatus.Archived);
         if (closed.IsFailure)
         {
             return closed.Error;
         }
 
-        // Giving up the goal gives the money back: what each participant still had in it returns to the accounts it
-        // came from, in their own ledger. What came from an account they archived stays in their fund.
-        var kept = new HashSet<Guid>();
-        if (command.Cancel)
+        var kept = await GiveBackAsync(goal, plan, cancellationToken);
+        if (kept.IsFailure)
         {
-            var today = reader.Today();
-            foreach (var (from, amount) in plan)
-            {
-                var returnId = Guid.CreateVersion7();
-                var returned = await ledger.ReturnGoalMoneyAsync(
-                    from.LedgerOperationId, from.UserId, amount, today, $"Devolución de {goal.Name}", returnId, cancellationToken);
-                if (returned.IsFailure)
-                {
-                    return returned.Error;
-                }
-
-                if (returned.Value is { } operationId)
-                {
-                    goal.Record(returnId, from.UserId, ContributionType.Withdrawal, amount, today, operationId, clock.UtcNow);
-                }
-                else
-                {
-                    kept.Add(from.UserId);
-                }
-            }
+            return kept.Error;
         }
 
         audit.Record(new AuditEntry("goals", "goals.goal.closed", "goal", goal.Id)
@@ -453,13 +433,54 @@ internal sealed class CloseGoalHandler(GoalReader reader, ILedgerPosting ledger,
         {
             await notifier.NotifyAsync(
                 goal, [other], NotificationSeverity.Info, $"La meta «{goal.Name}» se {(command.Cancel ? "canceló" : "archivó")}",
-                !command.Cancel ? "Lo que aportaste sigue en tu fondo: puedes retirarlo desde la meta."
-                : kept.Contains(other) ? "Lo que aportaste volvió a tus cuentas, salvo lo que vino de una cuenta archivada: eso sigue en tu fondo y puedes retirarlo desde la meta."
-                : "Lo que aportaste volvió a las cuentas de donde salió.",
-                $"goal-closed:{goal.Id}", cancellationToken);
+                NoticeBody(command.Cancel, kept.Value.Contains(other)), $"goal-closed:{goal.Id}", cancellationToken);
         }
 
         return await reader.DescribeAsync(goal, cancellationToken);
+    }
+
+    /// <summary>
+    /// Giving up the goal gives the money back: what each participant still had in it returns to the accounts it
+    /// came from, in their own ledger. What came from an account they archived stays in their fund.
+    /// </summary>
+    /// <returns>Who kept part of their money in the fund.</returns>
+    private async Task<Result<HashSet<Guid>>> GiveBackAsync(Goal goal, IReadOnlyList<(GoalContribution From, decimal Amount)> plan, CancellationToken cancellationToken)
+    {
+        var kept = new HashSet<Guid>();
+        var today = reader.Today();
+        foreach (var (from, amount) in plan)
+        {
+            var returnId = Guid.CreateVersion7();
+            var returned = await ledger.ReturnGoalMoneyAsync(
+                from.LedgerOperationId, from.UserId, amount, today, $"Devolución de {goal.Name}", returnId, cancellationToken);
+            if (returned.IsFailure)
+            {
+                return returned.Error;
+            }
+
+            if (returned.Value is { } operationId)
+            {
+                goal.Record(returnId, from.UserId, ContributionType.Withdrawal, amount, today, operationId, clock.UtcNow);
+            }
+            else
+            {
+                kept.Add(from.UserId);
+            }
+        }
+
+        return kept;
+    }
+
+    private static string NoticeBody(bool cancelled, bool keptSome)
+    {
+        if (!cancelled)
+        {
+            return "Lo que aportaste sigue en tu fondo: puedes retirarlo desde la meta.";
+        }
+
+        return keptSome
+            ? "Lo que aportaste volvió a tus cuentas, salvo lo que vino de una cuenta archivada: eso sigue en tu fondo y puedes retirarlo desde la meta."
+            : "Lo que aportaste volvió a las cuentas de donde salió.";
     }
 }
 
