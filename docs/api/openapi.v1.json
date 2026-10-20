@@ -1650,6 +1650,132 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspaceId}/shared-groups/{groupId}/expenses/{expenseId}/link-account": {
+      "post": {
+        "tags": [
+          "SharedExpenses"
+        ],
+        "operationId": "LinkSharedExpenseAccount",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "groupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "expenseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkSharedExpenseAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedGroupDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/shared-groups/{groupId}/expenses/{expenseId}/cancel": {
       "post": {
         "tags": [
@@ -13364,6 +13490,29 @@
           }
         }
       },
+      "LinkSharedExpenseAccountRequest": {
+        "required": [
+          "accountId",
+          "categoryId"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "categoryId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
       "LoginRequest": {
         "required": [
           "email",
@@ -14343,6 +14492,13 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "expenseId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -15209,13 +15365,53 @@
           }
         }
       },
+      "SharedDebtItemResponse": {
+        "required": [
+          "expenseId",
+          "description",
+          "occurredOn",
+          "amount",
+          "pending"
+        ],
+        "type": "object",
+        "properties": {
+          "expenseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": {
+            "type": "string"
+          },
+          "occurredOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "amount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "pending": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "SharedDebtResponse": {
         "required": [
           "fromUserId",
           "fromName",
           "toUserId",
           "toName",
-          "amount"
+          "amount",
+          "items"
         ],
         "type": "object",
         "properties": {
@@ -15240,6 +15436,12 @@
               "string"
             ],
             "format": "double"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SharedDebtItemResponse"
+            }
           }
         }
       },
@@ -15256,7 +15458,9 @@
           "myShare",
           "myPending",
           "shares",
-          "canCancel"
+          "canCancel",
+          "canLinkAccount",
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -15316,6 +15520,13 @@
           },
           "canCancel": {
             "type": "boolean"
+          },
+          "canLinkAccount": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -15546,7 +15757,8 @@
           "occurredOn",
           "isVoided",
           "canVoid",
-          "canLinkAccount"
+          "canLinkAccount",
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -15588,6 +15800,10 @@
           },
           "canLinkAccount": {
             "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

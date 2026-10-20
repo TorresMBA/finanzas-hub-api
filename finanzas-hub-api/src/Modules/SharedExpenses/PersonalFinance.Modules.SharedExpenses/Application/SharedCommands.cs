@@ -260,6 +260,47 @@ internal sealed class CreateSharedExpenseHandler(SharedGroupReader reader, ILedg
     }
 }
 
+/// <summary>
+/// Who paid an expense puts it in one of their accounts later, when they did not when registering it. The whole
+/// expense goes in, on its own date; what the others repay then takes away from it as refunds.
+/// </summary>
+public sealed record LinkSharedExpenseAccountCommand(Guid GroupId, Guid ExpenseId, Guid AccountId, Guid CategoryId, string IdempotencyKey)
+    : ICommand<SharedGroupDetailResponse>, IIdempotentCommand;
+
+internal sealed class LinkSharedExpenseAccountHandler(SharedGroupReader reader, ILedgerPosting ledger, IAuditLog audit)
+    : ICommandHandler<LinkSharedExpenseAccountCommand, SharedGroupDetailResponse>
+{
+    public async Task<Result<SharedGroupDetailResponse>> HandleAsync(LinkSharedExpenseAccountCommand command, CancellationToken cancellationToken)
+    {
+        if (reader.UserId is not { } userId || await reader.FindAsync(command.GroupId, cancellationToken) is not { } group)
+        {
+            return SharedErrors.NotFound;
+        }
+
+        var found = group.ExpenseToLink(userId, command.ExpenseId);
+        if (found.IsFailure)
+        {
+            return found.Error;
+        }
+
+        var expense = found.Value;
+        var posted = await ledger.PostTransactionAsync(
+            new LedgerTransactionRequest(true, command.AccountId, expense.TotalAmount, command.CategoryId, expense.OccurredOn, expense.Description, $"shared:expense:{expense.Id}"),
+            cancellationToken);
+        if (posted.IsFailure)
+        {
+            return posted.Error;
+        }
+
+        group.LinkPayerOperation(expense, posted.Value, command.CategoryId);
+        audit.Record(new AuditEntry("shared-expenses", "shared.expense.linked", "shared_group", group.Id)
+        {
+            ScopeType = "shared-group", ScopeId = group.Id, After = new { command.ExpenseId }
+        });
+        return await reader.DescribeAsync(group, cancellationToken);
+    }
+}
+
 public sealed record CancelSharedExpenseCommand(Guid GroupId, Guid ExpenseId) : ICommand<SharedGroupDetailResponse>;
 
 internal sealed class CancelSharedExpenseHandler(SharedGroupReader reader, ILedgerPosting ledger, SharedNotifier notifier, IAuditLog audit, IClock clock)
@@ -315,8 +356,10 @@ internal sealed class CancelSharedExpenseHandler(SharedGroupReader reader, ILedg
 /// </summary>
 /// <param name="FromUserId">Who pays: the one who owed.</param>
 /// <param name="CategoryId">For who pays, the category of their expense. For who is paid, left out to use the one the expense was registered under.</param>
+/// <param name="ExpenseId">The one expense the payment is for. Left out, it covers the oldest expenses first.</param>
 public sealed record RecordSettlementCommand(
-    Guid GroupId, Guid FromUserId, Guid ToUserId, decimal Amount, DateOnly? OccurredOn, Guid? AccountId, Guid? CategoryId, string IdempotencyKey)
+    Guid GroupId, Guid FromUserId, Guid ToUserId, decimal Amount, DateOnly? OccurredOn, Guid? AccountId, Guid? CategoryId, string IdempotencyKey,
+    Guid? ExpenseId = null)
     : ICommand<SharedGroupDetailResponse>, IIdempotentCommand;
 
 internal sealed class RecordSettlementHandler(
@@ -330,7 +373,8 @@ internal sealed class RecordSettlementHandler(
             return SharedErrors.NotFound;
         }
 
-        var recorded = group.RecordSettlement(userId, command.FromUserId, command.ToUserId, command.Amount, command.OccurredOn ?? reader.Today(), clock.UtcNow);
+        var recorded = group.RecordSettlement(
+            userId, command.FromUserId, command.ToUserId, command.Amount, command.OccurredOn ?? reader.Today(), clock.UtcNow, command.ExpenseId);
         if (recorded.IsFailure)
         {
             return recorded.Error;
@@ -374,6 +418,11 @@ internal sealed class SettlementLedger(ILedgerPosting ledger)
 {
     public async Task<Result> PostAsync(SharedGroup group, Settlement settlement, Guid userId, Guid accountId, Guid? categoryId, CancellationToken cancellationToken)
     {
+        // A payment that went to one expense says which in the ledger: «Pago de «Cena» en Depa».
+        var what = settlement.Allocations.Count == 1
+                   && group.Expenses.FirstOrDefault(expense => expense.Id == settlement.Allocations.First().ExpenseId) is { } expense
+            ? $" de «{expense.Description}»"
+            : string.Empty;
         Result<Guid> posted;
         if (userId == settlement.FromUserId)
         {
@@ -384,7 +433,7 @@ internal sealed class SettlementLedger(ILedgerPosting ledger)
 
             posted = await ledger.PostTransactionAsync(
                 new LedgerTransactionRequest(
-                    true, accountId, settlement.Amount, expenseCategory, settlement.OccurredOn, $"Pago en {group.Name}", $"shared:settlement:{settlement.Id}:from"),
+                    true, accountId, settlement.Amount, expenseCategory, settlement.OccurredOn, $"Pago{what} en {group.Name}", $"shared:settlement:{settlement.Id}:from"),
                 cancellationToken);
         }
         else
@@ -394,7 +443,7 @@ internal sealed class SettlementLedger(ILedgerPosting ledger)
                 return Error.Validation("shared.settlement.category_required", "Choose the category the expense was registered under.");
             }
 
-            posted = await ledger.PostRefundAsync(accountId, settlement.Amount, refundCategory, settlement.OccurredOn, $"Reembolso en {group.Name}", cancellationToken);
+            posted = await ledger.PostRefundAsync(accountId, settlement.Amount, refundCategory, settlement.OccurredOn, $"Reembolso{what} en {group.Name}", cancellationToken);
         }
 
         if (posted.IsFailure)

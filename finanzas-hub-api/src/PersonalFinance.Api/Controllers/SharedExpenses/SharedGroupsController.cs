@@ -93,6 +93,18 @@ public sealed class RecordSettlementRequest
 
     /// <summary>For who pays, the category of the expense. For who is paid, left out to use the one of the original expense.</summary>
     public Guid? CategoryId { get; init; }
+
+    /// <summary>The one expense the payment is for, never more than what is still owed of it. Left out, it covers the oldest expenses first.</summary>
+    public Guid? ExpenseId { get; init; }
+}
+
+public sealed class LinkSharedExpenseAccountRequest
+{
+    [Required]
+    public Guid? AccountId { get; init; }
+
+    [Required]
+    public Guid? CategoryId { get; init; }
 }
 
 public sealed class LinkSettlementAccountRequest
@@ -203,6 +215,26 @@ public sealed class SharedGroupsController : ApiControllerBase
             detail => Created($"/api/v1/workspaces/{workspaceId}/shared-groups/{groupId}", detail));
     }
 
+    /// <summary>Who paid the expense puts it in one of their accounts, when they did not when registering it.</summary>
+    [HttpPost("{groupId:guid}/expenses/{expenseId:guid}/link-account", Name = "LinkSharedExpenseAccount")]
+    [ProducesResponseType<SharedGroupDetailResponse>(StatusCodes.Status200OK)]
+    [Problem(StatusCodes.Status400BadRequest)]
+    [Problem(StatusCodes.Status403Forbidden)]
+    [Problem(StatusCodes.Status409Conflict)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> LinkExpenseAccount(
+        Guid workspaceId, Guid groupId, Guid expenseId, LinkSharedExpenseAccountRequest request, [FromHeader(Name = IdempotencyKeyHeader)] string? idempotencyKey,
+        [FromServices] ICommandHandler<LinkSharedExpenseAccountCommand, SharedGroupDetailResponse> handler, CancellationToken cancellationToken)
+    {
+        if (!TryReadIdempotencyKey(idempotencyKey, out var key, out var problem))
+        {
+            return problem;
+        }
+
+        return ToActionResult(
+            await handler.HandleAsync(new LinkSharedExpenseAccountCommand(groupId, expenseId, request.AccountId!.Value, request.CategoryId!.Value, key), cancellationToken), Ok);
+    }
+
     /// <summary>Who registered the expense or who paid it. Not once someone repaid part of it.</summary>
     [HttpPost("{groupId:guid}/expenses/{expenseId:guid}/cancel", Name = "CancelSharedExpense")]
     [ProducesResponseType<SharedGroupDetailResponse>(StatusCodes.Status200OK)]
@@ -232,7 +264,8 @@ public sealed class SharedGroupsController : ApiControllerBase
         return ToActionResult(
             await handler.HandleAsync(
                 new RecordSettlementCommand(
-                    groupId, request.FromUserId!.Value, request.ToUserId!.Value, request.Amount!.Value, request.OccurredOn, request.AccountId, request.CategoryId, key),
+                    groupId, request.FromUserId!.Value, request.ToUserId!.Value, request.Amount!.Value, request.OccurredOn, request.AccountId, request.CategoryId, key,
+                    request.ExpenseId),
                 cancellationToken),
             detail => Created($"/api/v1/workspaces/{workspaceId}/shared-groups/{groupId}", detail));
     }

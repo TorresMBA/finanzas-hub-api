@@ -2,7 +2,7 @@
 
 Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance de cada una está en [phases.md](phases.md), junto con lo que se verificó al cerrarla; aquí solo va en qué punto está y qué quedó pendiente.
 
-Última actualización: 17-oct-2026.
+Última actualización: 19-oct-2026.
 
 | Fase | Contenido | Estado | Cerrada |
 |---|---|---|---|
@@ -32,8 +32,15 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
 | Backend: tests | 294 en verde (168 unitarios, 19 de arquitectura, 107 de integración), contrato OpenAPI incluido |
-| Frontend: build, tests y lint | Build correcto, 139 tests, lint limpio. Tres avisos de tamaño de estilos (`shared.scss`, `group-view.scss`, `budgets.scss`) que vienen del rediseño v2 |
-| E2E en Chrome | Del 17-oct-2026, no se volvió a correr con Transacciones v2: 32 en verde, contra una base desechable. El nuevo (`layout.spec.ts`) recorre las 13 secciones en tablet (768 px) y móvil (390 px) con tema claro, comprueba que nada desborda y guarda una captura de cada una; se revisaron a ojo |
+| Frontend: build, tests y lint | 19-oct-2026: build correcto, 143 tests, lint limpio. Tres avisos de tamaño de estilos (`shared.scss`, `group-view.scss`, `budgets.scss`) que vienen del rediseño v2 |
+| E2E en Chrome | 19-oct-2026: 32 en verde, dos corridas seguidas, contra una base desechable. Se pusieron al día con la interfaz v2: el selector de cuentas (`pickAccount` en `e2e/support.ts`), las etiquetas de la categoría como sugerencias, «Anuladas» dentro de «Más filtros», el registro de inversiones en dos pasos y el saludo de Inicio. `layout.spec.ts` recorre las 13 secciones en tablet (768 px) y móvil (390 px) con tema claro, comprueba que nada desborda y guarda una captura de cada una; se revisaron a ojo |
+
+## Mejoras fuera de fase
+
+| Mejora | Fecha | Qué hace |
+|---|---|---|
+| Ocultar saldos | 19-oct-2026 | Botón con un ojo en la barra superior que cambia las cifras por `S/ ••••`; se recuerda en el dispositivo, como el tema (`core/privacy/privacy-store.ts`). Afecta a Inicio (salvo las barras del flujo), los totales y el patrimonio de Transacciones (la lista no), Cuentas, Inversiones y la búsqueda; el resto de secciones no cambia. Para sumar otra pantalla: el pipe `privateMoney` en la plantilla, o `formatMoney(…, { hidden })` leyendo `AMOUNTS_HIDDEN`. Solo oculta lo que se ve: la API sigue enviando los montos |
+| Selector de cuentas, saldos y «Más filtros» de Transacciones | 19-oct-2026 | El selector ya no se reabre al elegir una cuenta dentro de un campo; los saldos se recargan tras guardar, anular o confirmar; el panel de «Más filtros» ya no hereda la altura de «Cargar más» |
 
 ## Pendientes que dejaron las fases cerradas
 

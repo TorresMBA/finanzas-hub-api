@@ -147,4 +147,55 @@ public class SharedExpensesTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.NotFound, (await ana.Client.PostWithKeyAsync(settlements, new { fromUserId = ana.UserId, toUserId = brian.UserId, amount = 1m })).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await ana.Client.PostAsync(remind, null)).StatusCode);
     }
+
+    [Fact]
+    public async Task An_expense_goes_into_an_account_later_and_a_debt_is_paid_one_expense_at_a_time()
+    {
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var hub = brian.PersonalWorkspaceId;
+        var juanEmail = Accounts.NewEmail("juan");
+        var juan = await api.RegisterAsync("Juan", invitationToken: await api.InviteAsync(brian, hub, juanEmail), email: juanEmail);
+        var bcp = (await brian.OpenAccountAsync("BCP", 1000m)).Id();
+        var food = await brian.CategoryIdAsync("Supermercado");
+        var created = await PostAsync(brian, Url(hub), new { name = "Depa", memberUserIds = new[] { juan.UserId } });
+        var groupId = created.GetProperty("group").Id();
+        var expenses = Url(hub, $"/{groupId}/expenses");
+        var both = new object[] { new { userId = brian.UserId }, new { userId = juan.UserId } };
+
+        // Brian registers two expenses without putting them in an account.
+        await PostAsync(brian, expenses, new { description = "Mercado", totalAmount = 100m, paidByUserId = brian.UserId, occurredOn = "2026-10-01", splitType = "equal", participants = both });
+        var detail = await PostAsync(brian, expenses, new { description = "Cena", totalAmount = 60m, paidByUserId = brian.UserId, occurredOn = "2026-10-02", splitType = "equal", participants = both });
+        var market = Expense(detail, "Mercado");
+        Assert.True(market.GetProperty("canLinkAccount").GetBoolean());
+
+        // Later he puts the market in BCP: the whole 100, once. Juan cannot, and does not see whether Brian did.
+        var link = $"{expenses}/{market.Id()}/link-account";
+        Assert.Equal("shared.expense.account_of_payer_only", await Accounts.CodeOfAsync(await juan.Client.PostWithKeyAsync(link, new { accountId = bcp, categoryId = food })));
+        var linked = await PostAsync(brian, link, new { accountId = bcp, categoryId = food });
+        Assert.False(Expense(linked, "Mercado").GetProperty("canLinkAccount").GetBoolean());
+        Assert.True(Expense(linked, "Cena").GetProperty("canLinkAccount").GetBoolean());
+        Assert.Equal(900m, await brian.BalanceAsync(bcp));
+        Assert.Equal("shared.expense.already_linked", await Accounts.CodeOfAsync(await brian.Client.PostWithKeyAsync(link, new { accountId = bcp, categoryId = food })));
+        var juansView = await juan.Client.GetFromJsonAsync<JsonElement>(Url(hub, $"/{groupId}"));
+        Assert.False(Expense(juansView, "Mercado").GetProperty("canLinkAccount").GetBoolean());
+
+        // Juan owes 80, made of both expenses, oldest first.
+        var debt = Assert.Single(juansView.GetProperty("debts").EnumerateArray());
+        Assert.Equal(80m, debt.Money("amount"));
+        var items = debt.GetProperty("items").EnumerateArray().ToList();
+        Assert.Equal(["Mercado", "Cena"], items.Select(item => item.GetProperty("description").GetString()));
+        Assert.Equal([50m, 30m], items.Select(item => item.Money("pending")));
+
+        // He pays the dinner alone: the market stays owed. Not more than its 30, and not an expense he owes nothing of.
+        var settlements = Url(hub, $"/{groupId}/settlements");
+        var dinner = items[1].GetProperty("expenseId").GetGuid();
+        Assert.Equal("shared.settlement.exceeds_debt", await Accounts.CodeOfAsync(
+            await juan.Client.PostWithKeyAsync(settlements, new { fromUserId = juan.UserId, toUserId = brian.UserId, amount = 31m, expenseId = dinner })));
+        Assert.Equal("shared.settlement.expense_not_owed", await Accounts.CodeOfAsync(
+            await juan.Client.PostWithKeyAsync(settlements, new { fromUserId = brian.UserId, toUserId = juan.UserId, amount = 1m, expenseId = dinner })));
+        var paid = await PostAsync(juan, settlements, new { fromUserId = juan.UserId, toUserId = brian.UserId, amount = 30m, expenseId = dinner });
+        Assert.Equal(("settled", "pending"), (Expense(paid, "Cena").GetProperty("status").GetString(), Expense(paid, "Mercado").GetProperty("status").GetString()));
+        var left = Assert.Single(Assert.Single(paid.GetProperty("debts").EnumerateArray()).GetProperty("items").EnumerateArray());
+        Assert.Equal(("Mercado", 50m), (left.GetProperty("description").GetString(), left.Money("pending")));
+    }
 }

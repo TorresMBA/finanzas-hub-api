@@ -485,10 +485,20 @@ public sealed class SharedGroup : AggregateRoot
     }
 
     /// <summary>
-    /// One member repays another. It can be registered by either of the two and never exceeds what is owed. The
-    /// money goes to the oldest expenses first, so each one ends up saying how much of it was repaid.
+    /// The expenses one member still owes another a part of, oldest first: what <see cref="Owed"/> adds up, in the
+    /// order a payment covers them.
     /// </summary>
-    public Result<Settlement> RecordSettlement(Guid actorUserId, Guid fromUserId, Guid toUserId, decimal amount, DateOnly occurredOn, DateTimeOffset now)
+    public IEnumerable<SharedExpense> OwedExpenses(Guid fromUserId, Guid toUserId) =>
+        _expenses.Where(expense => !expense.IsCancelled && expense.PaidByUserId == toUserId && expense.ShareOf(fromUserId) is { Pending: > 0 })
+            .OrderBy(expense => expense.OccurredOn).ThenBy(expense => expense.CreatedAt);
+
+    /// <summary>
+    /// One member repays another. It can be registered by either of the two and never exceeds what is owed. The
+    /// money goes to the oldest expenses first, so each one ends up saying how much of it was repaid; or, when it
+    /// names an expense, to that one alone and never beyond what is still owed of it.
+    /// </summary>
+    public Result<Settlement> RecordSettlement(
+        Guid actorUserId, Guid fromUserId, Guid toUserId, decimal amount, DateOnly occurredOn, DateTimeOffset now, Guid? expenseId = null)
     {
         if (ActiveMember(actorUserId) is null || (actorUserId != fromUserId && actorUserId != toUserId))
         {
@@ -500,14 +510,24 @@ public sealed class SharedGroup : AggregateRoot
             return AmountInvalid;
         }
 
-        if (amount > Owed(fromUserId, toUserId))
+        var owed = OwedExpenses(fromUserId, toUserId).ToList();
+        if (expenseId is { } id)
+        {
+            owed = owed.Where(expense => expense.Id == id).ToList();
+            if (owed.Count == 0)
+            {
+                return Error.BusinessRule("shared.settlement.expense_not_owed", "Nothing is owed of that expense between these two people.");
+            }
+        }
+
+        if (amount > owed.Sum(expense => expense.ShareOf(fromUserId)!.Pending))
         {
             return Error.BusinessRule("shared.settlement.exceeds_debt", "The payment is more than what is owed.");
         }
 
         var settlement = new Settlement(NewId(), fromUserId, toUserId, amount, occurredOn, actorUserId, now);
         var left = amount;
-        foreach (var expense in _expenses.Where(expense => !expense.IsCancelled && expense.PaidByUserId == toUserId).OrderBy(expense => expense.OccurredOn).ThenBy(expense => expense.CreatedAt))
+        foreach (var expense in owed)
         {
             if (left == 0 || expense.ShareOf(fromUserId) is not { Pending: > 0 } share)
             {
@@ -592,6 +612,32 @@ public sealed class SharedGroup : AggregateRoot
         return (actorUserId == settlement.FromUserId ? settlement.FromOperationId : settlement.ToOperationId) is not null
             ? Error.Conflict("shared.settlement.already_linked", "You already registered this payment in one of your accounts.")
             : settlement;
+    }
+
+    /// <summary>
+    /// The expense, for who paid it to put it in one of their accounts later, when they did not when registering it.
+    /// Nobody else writes it in their ledger.
+    /// </summary>
+    public Result<SharedExpense> ExpenseToLink(Guid actorUserId, Guid expenseId)
+    {
+        if (_expenses.FirstOrDefault(candidate => candidate.Id == expenseId) is not { } expense)
+        {
+            return Error.NotFound("shared.expense.not_found", "The expense was not found.");
+        }
+
+        if (ActiveMember(actorUserId) is null || actorUserId != expense.PaidByUserId)
+        {
+            return Error.Forbidden("shared.expense.account_of_payer_only", "Only who paid can register the expense in one of their accounts.");
+        }
+
+        if (expense.IsCancelled)
+        {
+            return Error.BusinessRule("shared.expense.cancelled", "That expense was cancelled.");
+        }
+
+        return expense.PayerOperationId is not null
+            ? Error.Conflict("shared.expense.already_linked", "You already registered this expense in one of your accounts.")
+            : expense;
     }
 
     /// <summary>The category the first expense this payment covered was registered under by who paid it, if they did.</summary>

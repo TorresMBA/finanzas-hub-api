@@ -21,23 +21,31 @@ internal static class SharedErrors
 /// </param>
 public sealed record SharedMemberResponse(Guid UserId, string DisplayName, GroupRole Role, decimal Balance, bool IsMe);
 
+/// <summary>One expense a debt is made of: its part in it, and how much of that part is still owed.</summary>
+public sealed record SharedDebtItemResponse(Guid ExpenseId, string Description, DateOnly OccurredOn, decimal Amount, decimal Pending);
+
 /// <summary>What one member still owes another, as it stands: the unpaid parts of expenses the second one paid.</summary>
-public sealed record SharedDebtResponse(Guid FromUserId, string FromName, Guid ToUserId, string ToName, decimal Amount);
+/// <param name="Items">The expenses it is made of, oldest first: the order a payment of all of it covers them.</param>
+public sealed record SharedDebtResponse(Guid FromUserId, string FromName, Guid ToUserId, string ToName, decimal Amount, IReadOnlyList<SharedDebtItemResponse> Items);
 
 public sealed record SharedShareResponse(Guid UserId, string DisplayName, decimal Amount, decimal PaidAmount);
 
 /// <param name="MyShare">The part of the person asking; zero when the expense was not split with them.</param>
 /// <param name="MyPending">What the person asking still owes of it to who paid.</param>
 /// <param name="CanCancel">Whether the person asking registered it or paid it.</param>
+/// <param name="CanLinkAccount">Whether the person asking paid it and has not put it in one of their accounts yet.</param>
+/// <param name="CreatedAt">When it was registered: orders the activity within a day.</param>
 public sealed record SharedExpenseResponse(
     Guid Id, string Description, decimal TotalAmount, Guid PaidByUserId, string PaidByName, DateOnly OccurredOn, SplitType SplitType, SharedExpenseStatus Status,
-    decimal MyShare, decimal MyPending, IReadOnlyList<SharedShareResponse> Shares, bool CanCancel);
+    decimal MyShare, decimal MyPending, IReadOnlyList<SharedShareResponse> Shares, bool CanCancel, bool CanLinkAccount, DateTimeOffset CreatedAt);
 
 /// <summary>A payment between two members: who paid whom, how much and when.</summary>
 /// <param name="CanVoid">Whether the person asking registered it and it is still recent enough to be voided.</param>
 /// <param name="CanLinkAccount">Whether the person asking is one of the two and has not put it in one of their accounts yet.</param>
+/// <param name="CreatedAt">When it was registered: orders the activity within a day.</param>
 public sealed record SharedSettlementResponse(
-    Guid Id, Guid FromUserId, string FromName, Guid ToUserId, string ToName, decimal Amount, DateOnly OccurredOn, bool IsVoided, bool CanVoid, bool CanLinkAccount);
+    Guid Id, Guid FromUserId, string FromName, Guid ToUserId, string ToName, decimal Amount, DateOnly OccurredOn, bool IsVoided, bool CanVoid, bool CanLinkAccount,
+    DateTimeOffset CreatedAt);
 
 /// <summary>A group in the list, with what the person asking needs to know at a glance. Everything here is about them.</summary>
 /// <param name="MyBalance">Positive: the group owes the person asking. Negative: they owe.</param>
@@ -135,7 +143,12 @@ internal sealed class SharedGroupReader(ISharedExpensesDb db, IWorkspaceDirector
         var debts = everyone.Where(other => other != me)
             .SelectMany(other => new[] { (debtor: me, creditor: other, Amount: group.Owed(me, other)), (debtor: other, creditor: me, Amount: group.Owed(other, me)) })
             .Where(debt => debt.Amount > 0)
-            .Select(debt => new SharedDebtResponse(debt.debtor, NameOf(names, debt.debtor), debt.creditor, NameOf(names, debt.creditor), debt.Amount));
+            .Select(debt => new SharedDebtResponse(
+                debt.debtor, NameOf(names, debt.debtor), debt.creditor, NameOf(names, debt.creditor), debt.Amount,
+                group.OwedExpenses(debt.debtor, debt.creditor)
+                    .Select(expense => (Expense: expense, Share: expense.ShareOf(debt.debtor)!))
+                    .Select(item => new SharedDebtItemResponse(item.Expense.Id, item.Expense.Description, item.Expense.OccurredOn, item.Share.Amount, item.Share.Pending))
+                    .ToList()));
 
         return new SharedGroupDetailResponse(
             Summarize(group, names), group.IsAdmin(me),
@@ -150,7 +163,8 @@ internal sealed class SharedGroupReader(ISharedExpensesDb db, IWorkspaceDirector
                     expense.SplitType, expense.Status, expense.ShareOf(me)?.Amount ?? 0m,
                     expense.IsCancelled || expense.PaidByUserId == me ? 0m : expense.ShareOf(me)?.Pending ?? 0m,
                     expense.Shares.Select(share => new SharedShareResponse(share.UserId, NameOf(names, share.UserId), share.Amount, share.PaidAmount)).ToList(),
-                    !expense.IsCancelled && (expense.CreatedByUserId == me || expense.PaidByUserId == me)))
+                    !expense.IsCancelled && (expense.CreatedByUserId == me || expense.PaidByUserId == me),
+                    !expense.IsCancelled && expense.PaidByUserId == me && expense.PayerOperationId is null, expense.CreatedAt))
                 .ToList(),
             group.Settlements.Where(settlement => settlement.FromUserId == me || settlement.ToUserId == me)
                 .OrderByDescending(settlement => settlement.OccurredOn).ThenByDescending(settlement => settlement.CreatedAt).Take(LatestSettlements)
@@ -159,7 +173,8 @@ internal sealed class SharedGroupReader(ISharedExpensesDb db, IWorkspaceDirector
                     settlement.Amount, settlement.OccurredOn, settlement.IsVoided,
                     settlement.RecordedByUserId == me && SharedGroup.CanStillVoid(settlement, now) && group.VoidsLeft(me, now) > 0,
                     !settlement.IsVoided
-                    && ((settlement.FromUserId == me && settlement.FromOperationId is null) || (settlement.ToUserId == me && settlement.ToOperationId is null))))
+                    && ((settlement.FromUserId == me && settlement.FromOperationId is null) || (settlement.ToUserId == me && settlement.ToOperationId is null)),
+                    settlement.CreatedAt))
                 .ToList(),
             group.VoidsLeft(me, now));
     }
