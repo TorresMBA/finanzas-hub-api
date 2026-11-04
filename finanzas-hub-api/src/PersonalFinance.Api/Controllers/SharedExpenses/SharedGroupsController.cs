@@ -190,6 +190,16 @@ public sealed class SharedGroupsController : ApiControllerBase
         CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new ArchiveSharedGroupCommand(groupId), cancellationToken), Ok);
 
+    /// <summary>Only who created the group, and only while nothing was ever registered in it. One with history is archived.</summary>
+    [HttpDelete("{groupId:guid}", Name = "DeleteSharedGroup")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [Problem(StatusCodes.Status403Forbidden)]
+    [Problem(StatusCodes.Status409Conflict)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Delete(
+        Guid workspaceId, Guid groupId, [FromServices] ICommandHandler<DeleteSharedGroupCommand, Unit> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new DeleteSharedGroupCommand(groupId), cancellationToken), _ => NoContent());
+
     /// <summary>Registers what one member paid for several, split equally, by percentage, by amount or by parts.</summary>
     [HttpPost("{groupId:guid}/expenses", Name = "CreateSharedExpense")]
     [ProducesResponseType<SharedGroupDetailResponse>(StatusCodes.Status201Created)]

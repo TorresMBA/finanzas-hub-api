@@ -14,17 +14,21 @@ namespace PersonalFinance.Modules.Workspaces.Application.Workspaces;
 /// The workspace the person got with their account. The private finances of its owner live there and are the
 /// same whichever workspace is open; the others only add what is shared.
 /// </param>
+/// <param name="Kind">
+/// What the workspace is for. Only a Personal one has goals, shared expenses and other members; a Business or Other
+/// one keeps its own books, which only its owner uses.
+/// </param>
 /// <param name="OwnerName">
 /// Who owns the workspace. Only in the list of the workspaces of a person, where two called the same ("Personal",
 /// theirs and the one they were invited to) have to be told apart; null elsewhere.
 /// </param>
 public sealed record WorkspaceResponse(
     Guid Id, string Name, string? BaseCurrency, string TimeZone, WorkspaceStatus Status, WorkspaceRole Role, int MemberCount, bool IsPersonal,
-    string? OwnerName = null)
+    WorkspaceKind Kind, string? OwnerName = null)
 {
     internal static WorkspaceResponse From(Workspace workspace, WorkspaceRole role, string? ownerName = null) => new(
         workspace.Id, workspace.Name, workspace.BaseCurrency, workspace.TimeZone, workspace.Status, role,
-        workspace.Memberships.Count(membership => membership.Status == MembershipStatus.Active), workspace.IsPersonal, ownerName);
+        workspace.Memberships.Count(membership => membership.Status == MembershipStatus.Active), workspace.IsPersonal, workspace.Kind, ownerName);
 }
 
 public sealed record GetMyWorkspacesQuery : IQuery<IReadOnlyList<WorkspaceResponse>>;
@@ -64,7 +68,7 @@ internal sealed class GetWorkspaceHandler(IWorkspacesDb db, IWorkspaceContext co
     }
 }
 
-public sealed record CreateWorkspaceCommand(string Name) : ICommand<WorkspaceResponse>;
+public sealed record CreateWorkspaceCommand(string Name, WorkspaceKind Kind = WorkspaceKind.Personal) : ICommand<WorkspaceResponse>;
 
 internal sealed class CreateWorkspaceHandler(IWorkspacesDb db, ICurrentUser currentUser, IAuditLog audit, IClock clock) : ICommandHandler<CreateWorkspaceCommand, WorkspaceResponse>
 {
@@ -75,7 +79,7 @@ internal sealed class CreateWorkspaceHandler(IWorkspacesDb db, ICurrentUser curr
             return Task.FromResult<Result<WorkspaceResponse>>(WorkspaceErrors.Unauthenticated);
         }
 
-        var created = Workspace.Create(command.Name, userId, clock.UtcNow);
+        var created = Workspace.Create(command.Name, userId, clock.UtcNow, command.Kind);
         if (created.IsFailure)
         {
             return Task.FromResult<Result<WorkspaceResponse>>(created.Error);
@@ -83,7 +87,7 @@ internal sealed class CreateWorkspaceHandler(IWorkspacesDb db, ICurrentUser curr
 
         var workspace = created.Value;
         db.Workspaces.Add(workspace);
-        audit.Record(new AuditEntry("workspaces", "workspaces.workspace.created", "workspace", workspace.Id) { WorkspaceId = workspace.Id, After = new { workspace.Name } });
+        audit.Record(new AuditEntry("workspaces", "workspaces.workspace.created", "workspace", workspace.Id) { WorkspaceId = workspace.Id, After = new { workspace.Name, Kind = workspace.Kind.ToString() } });
         return Task.FromResult<Result<WorkspaceResponse>>(WorkspaceResponse.From(workspace, WorkspaceRole.Owner));
     }
 }
@@ -149,5 +153,100 @@ internal sealed class UpdateWorkspaceHandler(IWorkspacesDb db, IWorkspaceContext
             After = new { workspace.Name, workspace.TimeZone }
         });
         return WorkspaceResponse.From(workspace, context.Role!.Value);
+    }
+}
+
+/// <summary>Whether the person asking can delete the workspace now, and why not when they cannot.</summary>
+/// <param name="Reason">The code of the rule that stops it, the same one deleting would answer. Null when it can be deleted.</param>
+public sealed record WorkspaceDeletionResponse(bool CanDelete, string? Reason);
+
+/// <summary>
+/// Decides whether a workspace can go (ADR-024): the workspace's own rules first, then every module that keeps
+/// something of it. Categories, notices and invitations do not count: they go with it.
+/// </summary>
+internal sealed class WorkspaceDeletion(IEnumerable<IWorkspaceContents> modules)
+{
+    public static readonly Error NotEmpty =
+        Error.BusinessRule("workspaces.workspace.not_empty", "The workspace has accounts, movements, budgets, goals or other data. Archive it instead.");
+
+    public async Task<Result> CheckAsync(Workspace workspace, Guid actorUserId, CancellationToken cancellationToken)
+    {
+        var allowed = workspace.CanDelete(actorUserId);
+        if (allowed.IsFailure)
+        {
+            return allowed;
+        }
+
+        foreach (var module in modules)
+        {
+            if (await module.HasDataAsync(workspace.Id, cancellationToken))
+            {
+                return NotEmpty;
+            }
+        }
+
+        return Result.Success();
+    }
+
+    public async Task RemoveLeftoversAsync(Guid workspaceId, CancellationToken cancellationToken)
+    {
+        foreach (var module in modules)
+        {
+            await module.RemoveLeftoversAsync(workspaceId, cancellationToken);
+        }
+    }
+}
+
+public sealed record GetWorkspaceDeletionQuery : IQuery<WorkspaceDeletionResponse>;
+
+internal sealed class GetWorkspaceDeletionHandler(IWorkspacesDb db, IWorkspaceContext context, ICurrentUser currentUser, WorkspaceDeletion deletion)
+    : IQueryHandler<GetWorkspaceDeletionQuery, WorkspaceDeletionResponse>
+{
+    public async Task<Result<WorkspaceDeletionResponse>> HandleAsync(GetWorkspaceDeletionQuery query, CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId || await db.CurrentAsync(context, cancellationToken) is not { } workspace)
+        {
+            return WorkspaceErrors.NotFound;
+        }
+
+        var allowed = await deletion.CheckAsync(workspace, userId, cancellationToken);
+        return new WorkspaceDeletionResponse(allowed.IsSuccess, allowed.IsFailure ? allowed.Error.Code : null);
+    }
+}
+
+/// <summary>Deletes a workspace nothing was registered in (ADR-024), with what it set up on its own. One with data is archived instead.</summary>
+public sealed record DeleteWorkspaceCommand : ICommand<Unit>;
+
+internal sealed class DeleteWorkspaceHandler(
+    IWorkspacesDb db, IWorkspaceContext context, ICurrentUser currentUser, WorkspaceDeletion deletion, IRowLock rows, IAuditLog audit)
+    : ICommandHandler<DeleteWorkspaceCommand, Unit>
+{
+    public async Task<Result<Unit>> HandleAsync(DeleteWorkspaceCommand command, CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId || context.WorkspaceId is not { } workspaceId)
+        {
+            return WorkspaceErrors.NotFound;
+        }
+
+        // Locked before reading, so nobody joins it meanwhile.
+        await rows.LockAsync<Workspace>(workspaceId, cancellationToken);
+        if (await db.CurrentAsync(context, cancellationToken) is not { } workspace)
+        {
+            return WorkspaceErrors.NotFound;
+        }
+
+        var allowed = await deletion.CheckAsync(workspace, userId, cancellationToken);
+        if (allowed.IsFailure)
+        {
+            return allowed.Error;
+        }
+
+        await deletion.RemoveLeftoversAsync(workspace.Id, cancellationToken);
+        db.Workspaces.Remove(workspace);
+        audit.Record(new AuditEntry("workspaces", "workspaces.workspace.deleted", "workspace", workspace.Id)
+        {
+            Before = new { workspace.Name, Kind = workspace.Kind.ToString() }
+        });
+        return Unit.Value;
     }
 }

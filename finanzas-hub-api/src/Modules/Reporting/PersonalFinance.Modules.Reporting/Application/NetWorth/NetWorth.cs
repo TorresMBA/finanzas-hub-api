@@ -26,7 +26,7 @@ internal sealed class GetNetWorthHandler(NetWorthCalculator calculator) : IQuery
 /// The one definition of net worth. The ledger counts the capital of the investments; what they gained on top of it
 /// comes from their valuations, never further than today: the interest of days still to come is not money yet.
 /// </summary>
-internal sealed class NetWorthCalculator(ILedgerQueries ledger, IPortfolioValuation portfolio, IPersonalSpace space, IClock clock)
+internal sealed class NetWorthCalculator(ILedgerQueries ledger, IPortfolioValuation portfolio, IBook space, IClock clock)
 {
     public async Task<NetWorthResponse> OnAsync(DateOnly asOf, CancellationToken cancellationToken)
     {

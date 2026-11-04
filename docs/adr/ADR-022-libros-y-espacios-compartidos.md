@@ -1,6 +1,6 @@
 # ADR-022: Libros privados y espacios compartidos
 
-- Estado: propuesto
+- Estado: reemplazado por [ADR-023](ADR-023-tipos-de-espacio.md)
 - Fecha: 2026-10-16
 - Cambia: [ADR-021](ADR-021-finanzas-privadas-de-la-persona.md) en parte. Lo privado sigue siendo de la persona, pero una persona puede tener varios libros
 

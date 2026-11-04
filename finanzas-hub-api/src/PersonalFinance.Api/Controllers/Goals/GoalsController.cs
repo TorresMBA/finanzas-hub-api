@@ -233,4 +233,14 @@ public sealed class GoalsController : ApiControllerBase
     public async Task<IActionResult> Cancel(
         Guid workspaceId, Guid goalId, [FromServices] ICommandHandler<CloseGoalCommand, GoalResponse> handler, CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new CloseGoalCommand(goalId, true), cancellationToken), Ok);
+
+    /// <summary>Only its owner, and only while nobody has put money in it. One with history is archived or cancelled.</summary>
+    [HttpDelete("{goalId:guid}", Name = "DeleteGoal")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [Problem(StatusCodes.Status403Forbidden)]
+    [Problem(StatusCodes.Status409Conflict)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Delete(
+        Guid workspaceId, Guid goalId, [FromServices] ICommandHandler<DeleteGoalCommand, Unit> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new DeleteGoalCommand(goalId), cancellationToken), _ => NoContent());
 }

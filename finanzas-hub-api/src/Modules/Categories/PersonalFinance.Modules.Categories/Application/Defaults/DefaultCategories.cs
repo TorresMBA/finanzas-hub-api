@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.BuildingBlocks.Application.Events;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
+using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Categories.Application.Abstractions;
 using PersonalFinance.Modules.Categories.Domain;
@@ -16,7 +17,7 @@ namespace PersonalFinance.Modules.Categories.Application.Defaults;
 /// </summary>
 internal sealed class DefaultCategoriesSeeder(ICategoriesDb db, IAuditLog audit, IClock clock)
 {
-    public async Task<int> SeedAsync(Guid workspaceId, Guid userId, CancellationToken cancellationToken)
+    public async Task<int> SeedAsync(Guid workspaceId, Guid userId, WorkspaceKind kind, CancellationToken cancellationToken)
     {
         // The person receiving the categories is not always the one making the request: someone who registers
         // from an invitation is not signed in yet. So the owner filter is replaced by an explicit condition.
@@ -30,7 +31,7 @@ internal sealed class DefaultCategoriesSeeder(ICategoriesDb db, IAuditLog audit,
 
         var now = clock.UtcNow;
         var created = 0;
-        foreach (var template in DefaultCatalog.Categories)
+        foreach (var template in DefaultCatalog.For(kind))
         {
             var root = Category.CreateRoot(workspaceId, userId, template.Kind, template.Name, template.Icon, template.Color, now, template.Key).Value;
             if (roots.Any(existing => existing.SystemKey == template.Key || (existing.ArchivedAt == null && existing.NameKey == root.NameKey)))
@@ -79,8 +80,11 @@ internal sealed class DefaultCategoriesSeeder(ICategoriesDb db, IAuditLog audit,
 internal sealed class SeedCategoriesOnOnboardingCompleted(DefaultCategoriesSeeder seeder) : IDomainEventHandler<OnboardingCompleted>
 {
     public Task HandleAsync(OnboardingCompleted domainEvent, CancellationToken cancellationToken) =>
-        // Categories are private, so they go where the private finances of the owner live: their personal workspace.
-        domainEvent.IsPersonal ? seeder.SeedAsync(domainEvent.WorkspaceId, domainEvent.OwnerUserId, cancellationToken) : Task.CompletedTask;
+        // Categories are private, so they go where the private finances of the owner live: their personal workspace,
+        // or the business or other workspace that keeps its own books. A shared Personal workspace has none.
+        domainEvent.HasOwnBooks
+            ? seeder.SeedAsync(domainEvent.WorkspaceId, domainEvent.OwnerUserId, domainEvent.Kind, cancellationToken)
+            : Task.CompletedTask;
 }
 
 public sealed record SeededCategoriesResponse(int Created);
@@ -88,11 +92,11 @@ public sealed record SeededCategoriesResponse(int Created);
 /// <summary>For someone whose categories were never seeded, or who wants back the defaults they are missing.</summary>
 public sealed record SeedDefaultCategoriesCommand : ICommand<SeededCategoriesResponse>;
 
-internal sealed class SeedDefaultCategoriesHandler(DefaultCategoriesSeeder seeder, CategoryFamilies families)
+internal sealed class SeedDefaultCategoriesHandler(DefaultCategoriesSeeder seeder, CategoryFamilies families, IWorkspaceContext workspace)
     : ICommandHandler<SeedDefaultCategoriesCommand, SeededCategoriesResponse>
 {
     public async Task<Result<SeededCategoriesResponse>> HandleAsync(SeedDefaultCategoriesCommand command, CancellationToken cancellationToken) =>
         families.Owner is not (var workspaceId, var userId)
             ? CategoryErrors.Unauthenticated
-            : new SeededCategoriesResponse(await seeder.SeedAsync(workspaceId, userId, cancellationToken));
+            : new SeededCategoriesResponse(await seeder.SeedAsync(workspaceId, userId, workspace.Kind ?? WorkspaceKind.Personal, cancellationToken));
 }

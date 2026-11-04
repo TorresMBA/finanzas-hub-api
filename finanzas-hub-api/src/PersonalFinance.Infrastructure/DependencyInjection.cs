@@ -76,12 +76,13 @@ public static class DependencyInjection
         services.AddScoped<ActorContext>();
         services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<ActorContext>());
         services.AddScoped<IWorkspaceContext>(provider => provider.GetRequiredService<ActorContext>());
-        services.AddScoped<IPersonalSpace>(provider => provider.GetRequiredService<ActorContext>());
+        services.AddScoped<IBook>(provider => provider.GetRequiredService<ActorContext>());
         services.AddScoped<IActorContextInitializer>(provider => provider.GetRequiredService<ActorContext>());
         services.AddScoped<CorrelationContext>();
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<IAuditLog, AuditLogWriter>();
+        services.AddScoped<IRowLock, RowLock>();
         services.AddScoped<DomainEventDispatcher>();
         services.AddScoped<RealtimeBuffer>();
         services.AddScoped<IRealtimeNotifier>(provider => provider.GetRequiredService<RealtimeBuffer>());

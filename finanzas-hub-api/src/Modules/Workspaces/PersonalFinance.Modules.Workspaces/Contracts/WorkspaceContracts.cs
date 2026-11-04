@@ -3,8 +3,12 @@ using PersonalFinance.BuildingBlocks.Domain;
 namespace PersonalFinance.Modules.Workspaces.Contracts;
 
 /// <summary>A person who belongs to a workspace in use, with what is needed to act as them there.</summary>
-/// <param name="IsPersonal">Whether the workspace is the personal one of this person.</param>
-public sealed record ActiveMembership(Guid WorkspaceId, Guid UserId, WorkspaceRole Role, string? BaseCurrency, string TimeZone, bool IsPersonal);
+/// <param name="HasOwnBooks">
+/// Whether this person keeps books in this workspace: it is their personal one, or a business or another set of
+/// books of theirs.
+/// </param>
+public sealed record ActiveMembership(
+    Guid WorkspaceId, Guid UserId, WorkspaceRole Role, string? BaseCurrency, string TimeZone, bool HasOwnBooks, WorkspaceKind Kind);
 
 /// <summary>Someone who belongs to a workspace, as another member may know them: who they are, nothing about their money.</summary>
 public sealed record WorkspaceMember(Guid UserId, string DisplayName);

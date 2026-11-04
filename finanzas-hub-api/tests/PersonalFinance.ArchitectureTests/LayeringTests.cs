@@ -45,7 +45,21 @@ public class LayeringTests
         "PersonalFinance.Modules.Ledger.Application.Transactions.LedgerPosting",
         // Finds the goal an expense voided from Transacciones was paid with, whatever workspace is open: by the
         // expense and by who spent it, never by the workspace.
-        "PersonalFinance.Modules.Goals.Application.ReturnSpentMoneyToGoal"
+        "PersonalFinance.Modules.Goals.Application.ReturnSpentMoneyToGoal",
+        // Reaches another book of the signed-in person for a transfer between books (ADR-023): the destination
+        // account, the other leg and that book's rates. Every query states that person as the owner.
+        "PersonalFinance.Modules.Ledger.Application.Transfers.OtherBooks",
+        // Before deleting a workspace its owner asked to delete, whether each module keeps anything of it, and then
+        // what goes with it (IWorkspaceContents, ADR-024). They filter by that workspace only and answer a yes or no.
+        "PersonalFinance.Modules.Ledger.Application.LedgerUsage",
+        "PersonalFinance.Modules.Budgets.Application.BudgetsUsage",
+        "PersonalFinance.Modules.Scheduling.Application.SchedulingUsage",
+        "PersonalFinance.Modules.Integrations.Application.IntegrationsUsage",
+        "PersonalFinance.Modules.Investments.Application.InvestmentsUsage",
+        "PersonalFinance.Modules.Goals.Application.GoalsUsage",
+        "PersonalFinance.Modules.SharedExpenses.Application.SharedExpensesUsage",
+        "PersonalFinance.Modules.Notifications.Application.NotificationsUsage",
+        "PersonalFinance.Modules.Categories.Application.CategoriesUsage"
     ];
 
     [Fact]

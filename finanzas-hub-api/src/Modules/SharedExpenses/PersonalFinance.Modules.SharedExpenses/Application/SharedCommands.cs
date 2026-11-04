@@ -1,6 +1,7 @@
 using System.Globalization;
 using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
+using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Ledger.Contracts;
 using PersonalFinance.Modules.Notifications.Contracts;
@@ -37,7 +38,8 @@ internal sealed class SharedNotifier(INotificationPublisher notifications, IReal
 /// <param name="MemberUserIds">Other members of the workspace to split with. The creator is always in.</param>
 public sealed record CreateSharedGroupCommand(string Name, string? Currency, IReadOnlyList<Guid>? MemberUserIds, string? Icon = null) : ICommand<SharedGroupDetailResponse>;
 
-internal sealed class CreateSharedGroupHandler(ISharedExpensesDb db, SharedGroupReader reader, SharedNotifier notifier, IAuditLog audit, IClock clock)
+internal sealed class CreateSharedGroupHandler(
+    ISharedExpensesDb db, SharedGroupReader reader, SharedNotifier notifier, IWorkspaceContext workspace, IAuditLog audit, IClock clock)
     : ICommandHandler<CreateSharedGroupCommand, SharedGroupDetailResponse>
 {
     public async Task<Result<SharedGroupDetailResponse>> HandleAsync(CreateSharedGroupCommand command, CancellationToken cancellationToken)
@@ -45,6 +47,12 @@ internal sealed class CreateSharedGroupHandler(ISharedExpensesDb db, SharedGroup
         if (reader.UserId is not { } userId || reader.WorkspaceId is not { } workspaceId)
         {
             return SharedErrors.NotFound;
+        }
+
+        var collaborative = workspace.RequireCollaboration();
+        if (collaborative.IsFailure)
+        {
+            return collaborative.Error;
         }
 
         var currency = (command.Currency ?? reader.BaseCurrency)?.Trim().ToUpperInvariant();
@@ -183,6 +191,37 @@ internal sealed class ArchiveSharedGroupHandler(SharedGroupReader reader, Shared
         audit.Record(new AuditEntry("shared-expenses", "shared.group.archived", "shared_group", group.Id) { ScopeType = "shared-group", ScopeId = group.Id });
         notifier.Signal(group, userId);
         return await reader.DescribeAsync(group, cancellationToken);
+    }
+}
+
+/// <summary>Deletes a group where nothing was ever registered (ADR-024). One with history is archived instead.</summary>
+public sealed record DeleteSharedGroupCommand(Guid GroupId) : ICommand<Unit>;
+
+internal sealed class DeleteSharedGroupHandler(ISharedExpensesDb db, SharedGroupReader reader, SharedNotifier notifier, IRowLock rows, IAuditLog audit)
+    : ICommandHandler<DeleteSharedGroupCommand, Unit>
+{
+    public async Task<Result<Unit>> HandleAsync(DeleteSharedGroupCommand command, CancellationToken cancellationToken)
+    {
+        // Locked before reading, so an expense registered meanwhile is either seen here or refused afterwards.
+        await rows.LockAsync<SharedGroup>(command.GroupId, cancellationToken);
+        if (reader.UserId is not { } userId || await reader.FindAsync(command.GroupId, cancellationToken) is not { } group)
+        {
+            return SharedErrors.NotFound;
+        }
+
+        var allowed = group.CanDelete(userId);
+        if (allowed.IsFailure)
+        {
+            return allowed.Error;
+        }
+
+        db.SharedGroups.Remove(group);
+        audit.Record(new AuditEntry("shared-expenses", "shared.group.deleted", "shared_group", group.Id)
+        {
+            ScopeType = "shared-group", ScopeId = group.Id, Before = new { group.Name, group.Currency }
+        });
+        notifier.Signal(group, userId);
+        return Unit.Value;
     }
 }
 

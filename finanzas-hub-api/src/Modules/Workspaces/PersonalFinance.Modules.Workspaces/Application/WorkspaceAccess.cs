@@ -19,10 +19,16 @@ internal sealed class WorkspaceAccess(IWorkspacesDb db) : IWorkspaceAccess
             return null;
         }
 
-        // Whichever workspace is open, the private finances of the person are those of their personal one.
+        // A business or another set of books keeps its own (ADR-023): the workspace itself is where they are.
+        if (membership.Kind != WorkspaceKind.Personal)
+        {
+            return membership;
+        }
+
+        // Whichever Personal workspace is open, the private finances of the person are those of their personal one.
         var personal = await db.Workspaces.AsNoTracking()
             .Where(workspace => workspace.IsPersonal && workspace.OwnerUserId == userId && workspace.Status != WorkspaceStatus.Archived)
-            .Select(workspace => new PersonalSpaceInfo(workspace.Id, workspace.BaseCurrency, workspace.TimeZone))
+            .Select(workspace => new BookInfo(workspace.Id, workspace.BaseCurrency, workspace.TimeZone))
             .FirstOrDefaultAsync(cancellationToken);
         return membership with { Personal = personal };
     }
@@ -43,7 +49,8 @@ internal sealed class WorkspaceAccess(IWorkspacesDb db) : IWorkspaceAccess
                 db.Workspaces.AsNoTracking().Where(workspace => workspace.Status != WorkspaceStatus.Archived),
                 membership => membership.WorkspaceId,
                 workspace => workspace.Id,
-                (membership, workspace) => new WorkspaceMembershipInfo(workspace.Id, membership.UserId, membership.Role, workspace.BaseCurrency, workspace.TimeZone))
+                (membership, workspace) => new WorkspaceMembershipInfo(
+                    workspace.Id, membership.UserId, membership.Role, workspace.BaseCurrency, workspace.TimeZone, null, workspace.Kind))
             .SingleOrDefaultAsync(cancellationToken);
 }
 
@@ -71,7 +78,8 @@ internal sealed class WorkspaceDirectory(IWorkspacesDb db, IUserDirectory users)
                 workspace => workspace.Id,
                 (membership, workspace) => new ActiveMembership(
                     workspace.Id, membership.UserId, membership.Role, workspace.BaseCurrency, workspace.TimeZone,
-                    workspace.IsPersonal && workspace.OwnerUserId == membership.UserId))
+                    (workspace.IsPersonal || workspace.Kind != WorkspaceKind.Personal) && workspace.OwnerUserId == membership.UserId,
+                    workspace.Kind))
             .ToListAsync(cancellationToken);
 }
 

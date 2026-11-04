@@ -409,6 +409,15 @@ public sealed class SharedGroup : AggregateRoot
         return Result.Success();
     }
 
+    /// <summary>A group where nothing was ever registered, not even a cancelled expense, leaves no history behind (ADR-024).</summary>
+    public bool IsUnused => _expenses.Count == 0 && _settlements.Count == 0;
+
+    /// <summary>Only who created it, and only while it is unused; otherwise it is archived.</summary>
+    public Result CanDelete(Guid actorUserId) =>
+        !IsAdmin(actorUserId) ? AdminRequired
+        : !IsUnused ? Error.BusinessRule("shared.group.in_use", "The group has expenses or payments. Archive it instead.")
+        : Result.Success();
+
     /// <summary>Registers what one member paid for several. Who paid may or may not be among those it is split among.</summary>
     public Result<SharedExpense> AddExpense(
         Guid actorUserId, string? description, decimal totalAmount, Guid paidByUserId, DateOnly occurredOn, SplitType splitType,

@@ -290,7 +290,7 @@ internal sealed class LedgerQueries(ILedgerDb db, AccountBalances balances, NetW
         return operations.Select(operation =>
         {
             var entry = operation.Entries.FirstOrDefault(candidate => candidate.Direction == EntryDirection.Out) ?? operation.Entries.First();
-            var arriving = operation.Kind == OperationKind.Transfer ? operation.Entries.First(candidate => candidate.Direction == EntryDirection.In) : null;
+            var arriving = operation.Kind == OperationKind.Transfer ? operation.Entries.FirstOrDefault(candidate => candidate.Direction == EntryDirection.In) : null;
             return new LedgerMovement(
                 operation.Id,
                 operation.Kind switch

@@ -72,6 +72,72 @@ public sealed class TransfersController : ApiControllerBase
     }
 }
 
+public sealed class PostBookTransferRequest
+{
+    /// <summary>An account of the book open in the route.</summary>
+    [Required]
+    public Guid? FromAccountId { get; init; }
+
+    /// <summary>The workspace whose book receives the money: for a Personal one, the personal book of the signed-in person.</summary>
+    [Required]
+    public Guid? ToWorkspaceId { get; init; }
+
+    /// <summary>An account of that book.</summary>
+    [Required]
+    public Guid? ToAccountId { get; init; }
+
+    /// <summary>What leaves the origin account, in its currency.</summary>
+    [Required]
+    public decimal? Amount { get; init; }
+
+    /// <summary>What arrives, in the currency of the destination. Required when the two currencies differ.</summary>
+    public decimal? DestinationAmount { get; init; }
+
+    [Required]
+    public DateOnly? OccurredOn { get; init; }
+
+    /// <summary>"Transferencia entre libros" when left out.</summary>
+    [StringLength(Operation.MaxDescriptionLength)]
+    public string? Description { get; init; }
+
+    [StringLength(Operation.MaxNoteLength)]
+    public string? Note { get; init; }
+}
+
+/// <summary>
+/// Money moving between two books of the signed-in person, like from their personal account to that of their
+/// business (ADR-023). Each book lists, reads and voids its own leg; voiding one voids the other.
+/// </summary>
+[Tags("Ledger")]
+[Route("api/v1/workspaces/{workspaceId:guid}/book-transfers")]
+[Problem(StatusCodes.Status401Unauthorized)]
+[Problem(StatusCodes.Status404NotFound)]
+public sealed class BookTransfersController : ApiControllerBase
+{
+    /// <summary>Registers a transfer to another book: one movement out in this book and one in in the other. In neither is it an income or an expense.</summary>
+    [HttpPost(Name = "PostBookTransfer")]
+    [ProducesResponseType<TransactionResponse>(StatusCodes.Status201Created)]
+    [Problem(StatusCodes.Status400BadRequest)]
+    [Problem(StatusCodes.Status409Conflict)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Post(
+        Guid workspaceId, PostBookTransferRequest request, [FromHeader(Name = IdempotencyKeyHeader)] string? idempotencyKey,
+        [FromServices] ICommandHandler<PostBookTransferCommand, TransactionResponse> handler, CancellationToken cancellationToken)
+    {
+        if (!TryReadIdempotencyKey(idempotencyKey, out var key, out var problem))
+        {
+            return problem;
+        }
+
+        var command = new PostBookTransferCommand(
+            request.FromAccountId!.Value, request.ToWorkspaceId!.Value, request.ToAccountId!.Value, request.Amount!.Value, request.DestinationAmount,
+            request.OccurredOn!.Value, request.Description, request.Note, key);
+        return ToActionResult(
+            await handler.HandleAsync(command, cancellationToken),
+            transfer => Created($"/api/v1/workspaces/{workspaceId}/transactions/{transfer.Id}", transfer));
+    }
+}
+
 public sealed class SetExchangeRateRequest
 {
     /// <summary>Units of the base currency of the workspace for one unit of the currency.</summary>

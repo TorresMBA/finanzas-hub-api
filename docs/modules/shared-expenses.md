@@ -49,3 +49,5 @@ Diferido: borrador y edición de un gasto, elegir a qué gastos va un pago, "Div
 ### Pantalla
 
 Lista de grupos (qué hay por saldar en cada uno) y detalle (con quién, y gasto a gasto quién pagó su parte). El resumen de cada grupo lo calcula el servidor para quien pregunta; la pantalla no suma deudas por su cuenta.
+
+**Eliminar (ADR-024).** `DELETE W/shared-groups/{id}` borra, solo para quien lo creó, un grupo donde nunca se registró un gasto, tampoco cancelado, ni un pago; si no, se archiva. `SharedGroupDetailResponse.canDelete` lo dice. Solo hay grupos en espacios de tipo Personal (ADR-023).

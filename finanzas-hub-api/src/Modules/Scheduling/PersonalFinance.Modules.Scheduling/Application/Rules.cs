@@ -134,6 +134,34 @@ internal sealed class ChangeRuleStatusHandler(ISchedulingDb db, ScheduleReader r
     }
 }
 
+/// <summary>Deletes a rule that never registered a movement (ADR-024). One that did is ended instead, so what it registered keeps its origin.</summary>
+public sealed record DeleteRecurringRuleCommand(Guid RuleId) : ICommand<Unit>;
+
+internal sealed class DeleteRecurringRuleHandler(ISchedulingDb db, IRowLock rows, IAuditLog audit) : ICommandHandler<DeleteRecurringRuleCommand, Unit>
+{
+    public async Task<Result<Unit>> HandleAsync(DeleteRecurringRuleCommand command, CancellationToken cancellationToken)
+    {
+        // Locked before reading, so the daily cycle cannot register a date meanwhile.
+        await rows.LockAsync<RecurringRule>(command.RuleId, cancellationToken);
+        if (await db.RecurringRules.SingleOrDefaultAsync(candidate => candidate.Id == command.RuleId, cancellationToken) is not { } rule)
+        {
+            return SchedulingErrors.RuleNotFound;
+        }
+
+        if (!rule.IsUnused)
+        {
+            return Error.BusinessRule("scheduling.rule.in_use", "The rule already registered movements. End it instead.");
+        }
+
+        db.RecurringRules.Remove(rule);
+        audit.Record(new AuditEntry("scheduling", "scheduling.rule.deleted", "recurring_rule", rule.Id)
+        {
+            OwnerUserId = rule.OwnerUserId, Before = new { rule.Description, rule.Amount, rule.Currency }
+        });
+        return Unit.Value;
+    }
+}
+
 /// <summary>Registers in the ledger a date of a rule that is due. The amount can be the real one when it differs from the planned.</summary>
 public sealed record ConfirmOccurrenceCommand(Guid RuleId, DateOnly Date, decimal? Amount) : ICommand<Unit>, IIdempotentCommand
 {

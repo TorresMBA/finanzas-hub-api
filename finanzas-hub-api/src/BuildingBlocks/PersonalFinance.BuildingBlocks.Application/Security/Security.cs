@@ -19,20 +19,25 @@ public interface ICurrentUser
     bool IsAuthenticated => UserId is not null;
 }
 
-/// <summary>The personal workspace of a person: where their private finances live, whichever workspace they are looking at.</summary>
-public sealed record PersonalSpaceInfo(Guid WorkspaceId, string? BaseCurrency, string TimeZone);
+/// <summary>A workspace that keeps books: where the private finances of a person live.</summary>
+public sealed record BookInfo(Guid WorkspaceId, string? BaseCurrency, string TimeZone);
 
-/// <param name="Personal">The personal workspace of the member. When left out, this workspace itself is taken as theirs.</param>
+/// <param name="Personal">
+/// Where the private finances of the member are when they are not in this workspace: their personal one, for a
+/// workspace of kind Personal. When left out, this workspace itself holds them (a business, or the personal one).
+/// </param>
 public sealed record WorkspaceMembershipInfo(
-    Guid WorkspaceId, Guid UserId, WorkspaceRole Role, string? BaseCurrency, string TimeZone, PersonalSpaceInfo? Personal = null);
+    Guid WorkspaceId, Guid UserId, WorkspaceRole Role, string? BaseCurrency, string TimeZone, BookInfo? Personal = null,
+    WorkspaceKind Kind = WorkspaceKind.Personal);
 
 /// <summary>
-/// Where the private finances of the current person live: their personal workspace. Accounts, movements,
-/// categories, budgets and scheduled movements belong to the person, not to the workspace they have open, so
-/// the modules that hold them ask here and never to <see cref="IWorkspaceContext"/>. Someone invited to the
-/// workspace of another person finds their own books there, not an empty set.
+/// The books the current request works on (ADR-023). With a Personal workspace open, they are those of the
+/// personal workspace of the person, whichever Personal workspace it is: someone invited to the workspace of
+/// another person finds their own books there, not an empty set. With a Business or Other workspace open, they are
+/// that workspace's own. Accounts, movements, categories, budgets and scheduled movements go by this, never by
+/// <see cref="IWorkspaceContext"/>.
 /// </summary>
-public interface IPersonalSpace
+public interface IBook
 {
     Guid? WorkspaceId { get; }
 
@@ -44,7 +49,7 @@ public interface IPersonalSpace
 
 /// <summary>
 /// The workspace the current use case runs in, resolved once per request from an active membership. It is what
-/// collaboration happens in (members, goals, shared expenses); private finances go by <see cref="IPersonalSpace"/>.
+/// collaboration happens in (members, goals, shared expenses); private finances go by <see cref="IBook"/>.
 /// </summary>
 public interface IWorkspaceContext
 {
@@ -56,8 +61,13 @@ public interface IWorkspaceContext
 
     string? TimeZone { get; }
 
+    WorkspaceKind? Kind { get; }
+
     /// <summary>Fails with <see cref="ErrorType.Forbidden"/> when the member's role is below <paramref name="minimum"/>.</summary>
     Result Require(WorkspaceRole minimum);
+
+    /// <summary>Fails when the workspace is not of kind Personal: only those have goals, shared expenses and other members.</summary>
+    Result RequireCollaboration();
 }
 
 /// <summary>Implemented by the Workspaces module. Returns null when the user is not an active member.</summary>

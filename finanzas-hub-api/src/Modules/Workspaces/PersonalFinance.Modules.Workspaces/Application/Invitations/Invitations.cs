@@ -60,6 +60,11 @@ internal sealed class InviteMemberHandler(
             return WorkspaceErrors.NotFound;
         }
 
+        if (!workspace.IsShareable)
+        {
+            return Workspace.NotShareable;
+        }
+
         var now = clock.UtcNow;
         var created = Invitation.Create(workspace.Id, command.Email, command.Role, actor, now);
         if (created.IsFailure)

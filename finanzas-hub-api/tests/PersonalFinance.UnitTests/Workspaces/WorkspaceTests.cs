@@ -165,6 +165,32 @@ public class WorkspaceTests
         Assert.Equal(Brian, personal.OwnerUserId);
     }
 
+    [Fact]
+    public void A_business_keeps_its_own_books_for_its_owner_alone()
+    {
+        var business = Workspace.Create("Bodega", Brian, Now, WorkspaceKind.Business).Value;
+        business.CompleteOnboarding("USD", "America/Lima");
+
+        Assert.True(business.HasOwnBooks);
+        Assert.Equal("workspaces.kind_not_shareable", business.Join(Juan, WorkspaceRole.Member, Now).Error.Code);
+        Assert.Contains(business.DomainEvents, domainEvent => domainEvent is OnboardingCompleted { Kind: WorkspaceKind.Business, HasOwnBooks: true });
+        Assert.False(Workspace.Create("Hogar", Brian, Now).Value.HasOwnBooks);
+        Assert.Equal("workspaces.kind_invalid", Workspace.Create("Personal", Brian, Now, WorkspaceKind.Business, isPersonal: true).Error.Code);
+    }
+
+    [Fact]
+    public void A_workspace_is_deleted_only_by_its_owner_once_alone_and_never_the_personal_one()
+    {
+        var personal = Workspace.Create("Personal", Brian, Now, isPersonal: true).Value;
+        Assert.Equal("workspaces.workspace.personal", personal.CanDelete(Brian).Error.Code);
+
+        var home = WorkspaceWith((Juan, WorkspaceRole.Admin));
+        Assert.Equal("workspaces.insufficient_role", home.CanDelete(Juan).Error.Code);
+        Assert.Equal("workspaces.workspace.has_members", home.CanDelete(Brian).Error.Code);
+        home.Remove(Brian, Juan, Now);
+        Assert.True(home.CanDelete(Brian).IsSuccess);
+    }
+
     private static Workspace WorkspaceWith(params (Guid UserId, WorkspaceRole Role)[] members)
     {
         var workspace = Workspace.Create("Hogar", Brian, Now).Value;

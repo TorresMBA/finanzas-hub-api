@@ -15,8 +15,8 @@ namespace PersonalFinance.Modules.Scheduling.Application;
 public sealed record ScheduleOwner(Guid WorkspaceId, Guid UserId, WorkspaceRole Role, string? BaseCurrency, string TimeZone);
 
 /// <summary>
-/// Everyone the cycle has to run for: each person once, in their personal workspace, which is where their
-/// scheduled movements and their accounts live.
+/// Everyone the cycle has to run for: each person once per set of books they keep, their personal workspace and
+/// each business or other workspace of theirs, which is where their scheduled movements and their accounts live.
 /// </summary>
 public sealed record ListScheduleOwnersQuery : IQuery<IReadOnlyList<ScheduleOwner>>;
 
@@ -24,7 +24,7 @@ internal sealed class ListScheduleOwnersHandler(IWorkspaceDirectory directory) :
 {
     public async Task<Result<IReadOnlyList<ScheduleOwner>>> HandleAsync(ListScheduleOwnersQuery query, CancellationToken cancellationToken) =>
         (await directory.ListActiveMembershipsAsync(cancellationToken))
-        .Where(membership => membership.IsPersonal)
+        .Where(membership => membership.HasOwnBooks)
         .Select(membership => new ScheduleOwner(membership.WorkspaceId, membership.UserId, membership.Role, membership.BaseCurrency, membership.TimeZone))
         .ToList();
 }

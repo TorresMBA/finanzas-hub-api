@@ -109,6 +109,15 @@ public sealed class SchedulingController : ApiControllerBase
         Guid workspaceId, Guid ruleId, [FromServices] ICommandHandler<ChangeRuleStatusCommand, RecurringRuleResponse> handler, CancellationToken cancellationToken) =>
         ChangeAsync(ruleId, RuleStatusChange.End, handler, cancellationToken);
 
+    /// <summary>Only while it never registered a movement. One that did is ended.</summary>
+    [HttpDelete("recurring-rules/{ruleId:guid}", Name = "DeleteRecurringRule")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [Problem(StatusCodes.Status409Conflict)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Delete(
+        Guid workspaceId, Guid ruleId, [FromServices] ICommandHandler<DeleteRecurringRuleCommand, Unit> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new DeleteRecurringRuleCommand(ruleId), cancellationToken), _ => NoContent());
+
     /// <summary>Registers in the ledger a date of the rule that is due. Sending it again registers nothing more.</summary>
     [HttpPost("recurring-rules/{ruleId:guid}/occurrences/{date}/confirm", Name = "ConfirmOccurrence")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

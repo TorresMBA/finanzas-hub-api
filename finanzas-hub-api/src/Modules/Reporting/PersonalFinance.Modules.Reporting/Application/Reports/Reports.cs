@@ -52,7 +52,7 @@ public sealed record ReportSummaryResponse(
 public sealed record GetReportSummaryQuery(ReportPeriodKind Period, string Anchor) : IQuery<ReportSummaryResponse>;
 
 /// <summary>Puts a report together from what the ledger and the categories answer, already limited to the current person.</summary>
-internal sealed class ReportBuilder(ILedgerQueries ledger, ICategoryLookup categories, IPersonalSpace workspace, IClock clock)
+internal sealed class ReportBuilder(ILedgerQueries ledger, ICategoryLookup categories, IBook workspace, IClock clock)
 {
     public const int Merchants = 5;
 

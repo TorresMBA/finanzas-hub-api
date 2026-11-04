@@ -24,6 +24,7 @@ erDiagram
     ACCOUNTS ||--o{ ENTRIES : registra
     OPERATIONS ||--|{ ENTRIES : "se compone de"
     OPERATIONS ||--o{ OPERATION_TAGS : etiquetada
+    OPERATIONS |o..o| OPERATIONS : "otra pata entre libros"
     TAGS ||..o{ OPERATION_TAGS : etiqueta
     CATEGORIES ||..o{ OPERATIONS : clasifica
     OPERATIONS ||--o| INSTALLMENT_PLANS : "se paga en cuotas"
@@ -89,6 +90,8 @@ erDiagram
         char3 base_currency
         text time_zone
         text status
+        text kind
+        bool is_personal
         uuid owner_user_id
     }
     MEMBERSHIPS {

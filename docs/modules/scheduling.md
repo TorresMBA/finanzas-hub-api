@@ -41,4 +41,6 @@ Una regla es un ingreso o un gasto, una vez, cada mes o cada año, automática o
 
 Diferido: editar una regla, transferencias programadas, más frecuencias, `IScheduledActionHandler` e `ICalendarItemProvider` (fase 8). Las diferencias con el diseño están en [phases.md](../roadmap/phases.md).
 
-Desde el ADR-021 las reglas viven en el espacio personal de su dueño y el ciclo corre una vez por persona, no una por membresía.
+Desde el ADR-021 las reglas viven en el libro de su dueño (`IBook`) y el ciclo corre una vez por libro: el personal de cada persona y cada Negocio u Otros (ADR-023).
+
+**Eliminar (ADR-024).** `DELETE W/recurring-rules/{id}` borra una regla que nunca registró un movimiento (omitir una fecha no cuenta); si registró alguno, se termina. `RecurringRuleResponse.canDelete` lo dice. Scheduling responde por `IAccountUsage` e `ICategoryUsage`: una cuenta o categoría a la que apunta una regla, terminada o no, no se elimina.

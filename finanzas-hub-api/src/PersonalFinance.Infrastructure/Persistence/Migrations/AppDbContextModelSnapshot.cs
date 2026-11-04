@@ -1283,6 +1283,10 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("category_id");
 
+                    b.Property<Guid?>("CounterpartOperationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("counterpart_operation_id");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -2009,6 +2013,12 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_personal");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(80)
@@ -2048,6 +2058,10 @@ namespace PersonalFinance.Infrastructure.Persistence.Migrations
                     b.ToTable("workspaces", "workspaces", t =>
                         {
                             t.HasCheckConstraint("ck_workspaces_base_currency", "status <> 'Active' OR base_currency IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_workspaces_kind", "kind IN ('Personal', 'Business', 'Other')");
+
+                            t.HasCheckConstraint("ck_workspaces_personal_kind", "NOT is_personal OR kind = 'Personal'");
 
                             t.HasCheckConstraint("ck_workspaces_status", "status IN ('PendingSetup', 'Active', 'Archived')");
                         });

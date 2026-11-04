@@ -114,6 +114,15 @@ public sealed class CategoriesController : ApiControllerBase
         Guid workspaceId, Guid categoryId, [FromServices] ICommandHandler<ArchiveCategoryCommand, CategoryResponse> handler, CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new ArchiveCategoryCommand(categoryId), cancellationToken), Ok);
 
+    /// <summary>Only while nothing ever used it nor any of its subcategories, which go with it. One that was used is archived.</summary>
+    [HttpDelete("{categoryId:guid}", Name = "DeleteCategory")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [Problem(StatusCodes.Status409Conflict)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Delete(
+        Guid workspaceId, Guid categoryId, [FromServices] ICommandHandler<DeleteCategoryCommand, Unit> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new DeleteCategoryCommand(categoryId), cancellationToken), _ => NoContent());
+
     [HttpPost("{categoryId:guid}/restore", Name = "RestoreCategory")]
     [ProducesResponseType<CategoryResponse>(StatusCodes.Status200OK)]
     [Problem(StatusCodes.Status409Conflict)]
@@ -166,4 +175,12 @@ public sealed class TagsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Archive(Guid workspaceId, Guid tagId, [FromServices] ICommandHandler<ArchiveTagCommand, Unit> handler, CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new ArchiveTagCommand(tagId), cancellationToken), _ => NoContent());
+
+    /// <summary>Only while no movement carries it. The categories that suggested it stop doing so.</summary>
+    [HttpDelete("{tagId:guid}", Name = "DeleteTag")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [Problem(StatusCodes.Status409Conflict)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Delete(Guid workspaceId, Guid tagId, [FromServices] ICommandHandler<DeleteTagCommand, Unit> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new DeleteTagCommand(tagId), cancellationToken), _ => NoContent());
 }

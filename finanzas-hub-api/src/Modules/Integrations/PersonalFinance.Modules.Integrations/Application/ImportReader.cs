@@ -61,7 +61,7 @@ public sealed record ImportDetailResponse(
 /// Reads imports and decides where each line stands. Everything read is already limited to the current person,
 /// whose imports, like their ledger, live in their personal workspace.
 /// </summary>
-internal sealed class ImportReader(IIntegrationsDb db, ILedgerQueries ledgerQueries, ILedgerImport ledger, ICurrentUser currentUser, IPersonalSpace workspace)
+internal sealed class ImportReader(IIntegrationsDb db, ILedgerQueries ledgerQueries, ILedgerImport ledger, ICurrentUser currentUser, IBook workspace)
 {
     public const int PageSize = 100;
 

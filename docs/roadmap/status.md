@@ -42,6 +42,19 @@ Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
 | Ocultar saldos | 19-oct-2026 | Botón con un ojo en la barra superior que cambia las cifras por `S/ ••••`; se recuerda en el dispositivo, como el tema (`core/privacy/privacy-store.ts`). Afecta a Inicio (salvo las barras del flujo), los totales y el patrimonio de Transacciones (la lista no), Cuentas, Inversiones y la búsqueda; el resto de secciones no cambia. Para sumar otra pantalla: el pipe `privateMoney` en la plantilla, o `formatMoney(…, { hidden })` leyendo `AMOUNTS_HIDDEN`. Solo oculta lo que se ve: la API sigue enviando los montos |
 | Selector de cuentas, saldos y «Más filtros» de Transacciones | 19-oct-2026 | El selector ya no se reabre al elegir una cuenta dentro de un campo; los saldos se recargan tras guardar, anular o confirmar; el panel de «Más filtros» ya no hereda la altura de «Cargar más» |
 
+## En curso: tipos de espacio (ADR-023)
+
+Empezado el 21-oct-2026, antes de la fase 14. Plan en cinco porciones, y una sexta (F) añadida el 24-oct-2026:
+
+| Porción | Contenido | Estado |
+|---|---|---|
+| A | Tipo de espacio (Personal, Negocio, Otros), libros propios en Negocio y Otros, colaboración solo en Personal | ✅ backend (21-oct-2026, migración `AddWorkspaceKinds`, `IPersonalSpace` → `IBook`). Adelantado de E: elegir el tipo al crear el espacio, el tipo junto al nombre y sin miembros ni invitaciones en Negocio u Otros, y Metas y Gastos compartidos ocultos en el menú y protegidos por ruta (`collaborationGuard`) hasta que la porción C los haga independientes del selector |
+| B | Transferencia entre libros | ✅ (24-oct-2026, migración `AddBookTransfers`). Una pata `Transfer` de un asiento en cada libro, enlazadas por `counterpart_operation_id`; anular una anula la otra. `POST W/book-transfers` y «Libro que recibe» en el formulario de transferencia. Pendiente: sin comisión entre libros, y sin patrimonio consolidado de todos los libros |
+| C | Metas y Gastos compartidos de todos los círculos en una vista (`/me/goals`, `/me/shared-groups`) | ⏳ |
+| D | Invitación sin elegir espacio, gestión del círculo y salida bloqueada con deudas o fondos | ⏳ |
+| E | Frontend de tipos y transferencias | 🚧 Hecho: tipo al crear, tipo junto al nombre, menú según el tipo, eliminar (F) y la transferencia entre libros (B). Falta lo de C y D |
+| F | Eliminar lo que nunca se usó (ADR-024): espacios, grupos, metas, cuentas, categorías, tags y programados, con `canDelete` en las respuestas y «Eliminar» en pantalla solo cuando se puede | ✅ (24-oct-2026, sin migración). Pendiente: la carrera entre módulos sin clave foránea (crear un programado sobre una cuenta en el mismo instante en que se borra) se acepta; las importaciones y las inversiones no tienen «Eliminar» propio, siguen con descartar y cerrar |
+
 ## Pendientes que dejaron las fases cerradas
 
 Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se borra de aquí.

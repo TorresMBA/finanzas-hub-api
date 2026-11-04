@@ -58,11 +58,27 @@ public sealed class Workspace : AggregateRoot
     /// </summary>
     public bool IsPersonal { get; private set; }
 
+    /// <summary>What the workspace is for. It does not change once created.</summary>
+    public WorkspaceKind Kind { get; private set; }
+
+    /// <summary>
+    /// Whether private finances are kept in this very workspace: the personal one of its owner, or a business or
+    /// another set of books. A shared Personal workspace has none; each member brings their own.
+    /// </summary>
+    public bool HasOwnBooks => IsPersonal || Kind != WorkspaceKind.Personal;
+
+    /// <summary>Only a Personal workspace admits other people, and with them goals and shared expenses.</summary>
+    public bool IsShareable => Kind == WorkspaceKind.Personal;
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public IReadOnlyCollection<Membership> Memberships => _memberships;
 
-    public static Result<Workspace> Create(string? name, Guid ownerUserId, DateTimeOffset now, bool isPersonal = false)
+    public static readonly Error NotShareable =
+        Error.BusinessRule("workspaces.kind_not_shareable", "Only a Personal workspace can have other members, goals or shared expenses.");
+
+    public static Result<Workspace> Create(
+        string? name, Guid ownerUserId, DateTimeOffset now, WorkspaceKind kind = WorkspaceKind.Personal, bool isPersonal = false)
     {
         var normalized = NormalizeName(name);
         if (normalized.IsFailure)
@@ -70,7 +86,12 @@ public sealed class Workspace : AggregateRoot
             return normalized.Error;
         }
 
-        var workspace = new Workspace(NewId(), normalized.Value, ownerUserId, now) { IsPersonal = isPersonal };
+        if (!Enum.IsDefined(kind) || (isPersonal && kind != WorkspaceKind.Personal))
+        {
+            return Error.Validation("workspaces.kind_invalid", "The kind of workspace is not valid.");
+        }
+
+        var workspace = new Workspace(NewId(), normalized.Value, ownerUserId, now) { IsPersonal = isPersonal, Kind = kind };
         workspace._memberships.Add(new Membership(workspace.Id, ownerUserId, WorkspaceRole.Owner, now));
         workspace.Raise(new WorkspaceCreated(workspace.Id, ownerUserId));
         return workspace;
@@ -101,7 +122,7 @@ public sealed class Workspace : AggregateRoot
         BaseCurrency = currency.Value.Code;
         TimeZone = zone.Value;
         Status = WorkspaceStatus.Active;
-        Raise(new OnboardingCompleted(Id, OwnerUserId, BaseCurrency, TimeZone, IsPersonal));
+        Raise(new OnboardingCompleted(Id, OwnerUserId, BaseCurrency, TimeZone, Kind, HasOwnBooks));
         return Result.Success();
     }
 
@@ -130,6 +151,11 @@ public sealed class Workspace : AggregateRoot
         if (role == WorkspaceRole.Owner)
         {
             return Error.BusinessRule("workspaces.owner_by_transfer_only", "Ownership is given only by transferring it.");
+        }
+
+        if (!IsShareable)
+        {
+            return NotShareable;
         }
 
         var existing = _memberships.SingleOrDefault(membership => membership.UserId == userId);
@@ -240,6 +266,27 @@ public sealed class Workspace : AggregateRoot
         target!.ChangeRole(WorkspaceRole.Owner);
         OwnerUserId = targetUserId;
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Whether the workspace itself allows deleting it (ADR-024): only its owner, never the personal one, and only once
+    /// nobody else is in it. Whether a module still keeps something of it is asked apart.
+    /// </summary>
+    public Result CanDelete(Guid actorUserId)
+    {
+        if (ActiveMembershipOf(actorUserId) is not { Role: WorkspaceRole.Owner })
+        {
+            return Error.Forbidden("workspaces.insufficient_role", "Only the owner can delete the workspace.");
+        }
+
+        if (IsPersonal)
+        {
+            return Error.BusinessRule("workspaces.workspace.personal", "The personal workspace holds your own finances: it cannot be deleted.");
+        }
+
+        return _memberships.Any(membership => membership.Status == MembershipStatus.Active && membership.UserId != actorUserId)
+            ? Error.BusinessRule("workspaces.workspace.has_members", "Other people are still in the workspace. Remove them first.")
+            : Result.Success();
     }
 
     private (Membership? Actor, Membership? Target, Error? Error) Resolve(Guid actorUserId, Guid targetUserId)

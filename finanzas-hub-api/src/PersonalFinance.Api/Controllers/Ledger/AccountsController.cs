@@ -180,6 +180,15 @@ public sealed class AccountsController : ApiControllerBase
         Guid workspaceId, Guid accountId, [FromServices] ICommandHandler<ArchiveAccountCommand, AccountResponse> handler, CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new ArchiveAccountCommand(accountId), cancellationToken), Ok);
 
+    /// <summary>Only while nothing ever moved it and nothing points at it. One with history is archived.</summary>
+    [HttpDelete("{accountId:guid}", Name = "DeleteAccount")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [Problem(StatusCodes.Status409Conflict)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Delete(
+        Guid workspaceId, Guid accountId, [FromServices] ICommandHandler<DeleteAccountCommand, Unit> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new DeleteAccountCommand(accountId), cancellationToken), _ => NoContent());
+
     [HttpPost("{accountId:guid}/restore", Name = "RestoreAccount")]
     [ProducesResponseType<AccountResponse>(StatusCodes.Status200OK)]
     [Problem(StatusCodes.Status409Conflict)]

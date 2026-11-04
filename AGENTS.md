@@ -19,9 +19,13 @@ El backend tiene dos entradas, la API (`Controllers/<Módulo>`) y el Worker (`Jo
 
 ## Reglas que no se negocian
 
-**Privacidad.** Pertenecer a un workspace no da acceso a lo financiero de otros miembros. Lo privado es de la persona: vive en su workspace personal y es lo mismo tenga abierto el workspace que tenga ([ADR-021](docs/adr/ADR-021-finanzas-privadas-de-la-persona.md)). Lleva `workspace_id` y `owner_user_id` e implementa `IOwned`; el filtro global de EF lo aísla con el workspace personal del dueño, que los módulos piden a `IPersonalSpace`. Lo colaborativo (metas y gastos compartidos) se autoriza por participación en el recurso. Ningún rol ve datos privados ajenos. Un recurso ajeno responde 404.
+**Privacidad.** Pertenecer a un workspace no da acceso a lo financiero de otros miembros. Lo privado es de la persona. Un workspace tiene tipo ([ADR-023](docs/adr/ADR-023-tipos-de-espacio.md)):
+- En uno de tipo **Personal** (el personal de cada persona, o uno creado para compartir), lo privado es el del workspace personal de quien mira, sea cual sea el que tenga abierto ([ADR-021](docs/adr/ADR-021-finanzas-privadas-de-la-persona.md)).
+- Uno de tipo **Negocio** u **Otros** tiene libros propios, que solo usa su dueño, y no admite miembros, metas ni gastos compartidos.
 
-**Dinero.** `decimal` siempre, moneda explícita. El saldo se deriva de los asientos; no existe una columna de saldo. Una transferencia no es ingreso ni gasto. Nada financiero se borra: se anula.
+Lo privado lleva `workspace_id` y `owner_user_id` e implementa `IOwned`. El filtro global de EF lo aísla con el libro resuelto, que los módulos piden a `IBook`. Lo colaborativo (metas y gastos compartidos) se autoriza por participación en el recurso. Ningún rol ve datos privados ajenos. Un recurso ajeno responde 404.
+
+**Dinero.** `decimal` siempre, moneda explícita. El saldo se deriva de los asientos; no existe una columna de saldo. Una transferencia no es ingreso ni gasto. Nada financiero se borra: se anula. Solo se elimina lo que nunca se usó, y cada módulo que apunta a algo de otro lo dice por un puerto de uso ([ADR-024](docs/adr/ADR-024-eliminar-lo-que-nunca-se-uso.md)).
 
 **Módulos.**
 

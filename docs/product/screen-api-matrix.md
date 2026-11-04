@@ -15,6 +15,7 @@ Permisos: **D** dueño, **P** participante, **M** miembro del workspace, **A** A
 | Transacciones | GetTransactions | `GET W/transactions` | Ledger | Operation, Entry | — | D | — |
 | Transacciones | PostTransaction | `POST W/transactions` | Ledger | Operation, Entry | OperationPosted | D | — |
 | Transacciones | PostTransfer | `POST W/transfers` | Ledger | Operation, Entry | OperationPosted | D | — |
+| Transacciones | PostBookTransfer | `POST W/book-transfers` | Ledger | Operation, Entry (una pata por libro) | — | D | Destino: `GET {otro espacio}/accounts` |
 | Transacciones | EditTransaction (incluye las etiquetas) | `PATCH W/transactions/{id}` | Ledger | Operation | OperationChanged | D | — |
 | Transacciones | ConfirmTransaction, VoidTransaction | `POST W/transactions/{id}/confirm`, `POST W/transactions/{id}/void` | Ledger | Operation | OperationVoided | D | — |
 | Transacciones | "Repetir cada mes" | `POST W/recurring-rules` | Scheduling | RecurringRule | — | D | — |
@@ -22,6 +23,7 @@ Permisos: **D** dueño, **P** participante, **M** miembro del workspace, **A** A
 | Cuentas | GetAccounts, GetAccountSummary | `GET W/accounts`, `GET W/accounts/summary` | Ledger | Account | — | D | — |
 | Cuentas | OpenAccount | `POST W/accounts` | Ledger | Account, CreditCardProfile | — | D | — |
 | Cuentas | UpdateAccount, ArchiveAccount | `PATCH W/accounts/{id}`, `POST .../archive`, `POST .../restore` | Ledger | Account | AccountArchived | D | — |
+| Cuentas | DeleteAccount (ADR-024) | `DELETE W/accounts/{id}` | Ledger | Account | — | D | — |
 | Cuentas | AdjustAccountBalance | `POST W/accounts/{id}/adjust-balance` | Ledger | Operation | OperationPosted | D | — |
 | Cuentas | PayCreditCard | `POST W/accounts/{id}/payments` | Ledger | Operation | OperationPosted | D | — |
 | Cuentas | ListExchangeRates, SetExchangeRate | `GET W/exchange-rates`, `PUT W/exchange-rates/{moneda}` | Ledger | ExchangeRate | — | D | — |
@@ -30,6 +32,7 @@ Permisos: **D** dueño, **P** participante, **M** miembro del workspace, **A** A
 | Categorías | CreateCategory, UpdateCategory | `POST W/categories`, `PATCH W/categories/{id}` | Categories | Category | — | D | — |
 | Categorías | ArchiveCategory, RestoreCategory | `POST W/categories/{id}/archive`, `POST W/categories/{id}/restore` | Categories | Category | CategoryArchived (desde la fase 7) | D | — |
 | Categorías | SetCategoryTags, ArchiveTag | `PUT W/categories/{id}/tags`, `POST W/tags/{id}/archive` | Categories | Tag | — | D | — |
+| Categorías | DeleteCategory, DeleteTag (ADR-024) | `DELETE W/categories/{id}`, `DELETE W/tags/{id}` | Categories | Category, Tag | — | D | — |
 | Categorías | SeedDefaultCategories | `POST W/categories/defaults` | Categories | Category | — | D | — |
 | Presupuestos | GetBudgets, GetBudgetDetail | `GET W/budgets`, `GET W/budgets/{id}` | Budgets | Budget | — | D | — |
 | Presupuestos | CreateBudget, AdjustBudgetLimit, EndBudget | `POST`, `PATCH`, `DELETE W/budgets[/{id}]` | Budgets | Budget | — | D | — |
@@ -37,11 +40,14 @@ Permisos: **D** dueño, **P** participante, **M** miembro del workspace, **A** A
 | Metas | CreateGoal, UpdateGoal | `POST W/goals`, `PATCH W/goals/{id}` | Goals | Goal | GoalParticipantAdded | M / Owner de meta | — |
 | Metas | ContributeToGoal | `POST W/goals/{id}/contributions` | Goals, Ledger | Contribution, Operation | GoalContributionAdded, GoalTargetReached | P | Señal |
 | Metas | SetAutoContribution | `PUT W/goals/{id}/auto-contribution` | Goals, Scheduling | RecurringRule | — | P | — |
+| Metas | DeleteGoal (ADR-024) | `DELETE W/goals/{id}` | Goals | Goal | — | Owner de meta | Señal |
 | Calendario | GetCalendar | `GET W/calendar` | Scheduling | RecurringRule, Occurrence | — | D | — |
 | Calendario | CreateRecurringRule | `POST W/recurring-rules` | Scheduling | RecurringRule | — | D | — |
+| Calendario | DeleteRecurringRule (ADR-024) | `DELETE W/recurring-rules/{id}` | Scheduling | RecurringRule | — | D | — |
 | Calendario | ConfirmOccurrence, SkipOccurrence | `POST W/recurring-rules/{id}/occurrences/{date}/confirm`, `.../skip` | Scheduling, Ledger | Occurrence, Operation | OperationPosted | D | — |
 | Compartidos | GetSummary, GetGroups, GetGroupDetail | `GET W/shared-expenses/summary`, `GET W/shared-groups[/{id}]` | SharedExpenses | SharedGroup, Share, Settlement | — | P | Señal |
 | Compartidos | CreateGroup | `POST W/shared-groups` | SharedExpenses | SharedGroup, GroupMember | — | M | — |
+| Compartidos | DeleteSharedGroup (ADR-024) | `DELETE W/shared-groups/{id}` | SharedExpenses | SharedGroup | — | Admin del grupo | Señal |
 | Compartidos | CreateExpense, PublishExpense | `POST W/shared-groups/{id}/expenses`, `.../publish` | SharedExpenses, Ledger | SharedExpense, Share | SharedExpensePublished | P | Señal |
 | Compartidos | RecordSettlement | `POST W/shared-groups/{id}/settlements` | SharedExpenses, Ledger | Settlement, Allocation, Operation | SettlementRecorded | Parte | Señal |
 | Compartidos | LinkSettlementToAccount | `POST .../settlements/{sid}/link-account` | SharedExpenses, Ledger | Settlement, Operation | — | Parte | — |
@@ -58,6 +64,8 @@ Permisos: **D** dueño, **P** participante, **M** miembro del workspace, **A** A
 | Configuración | UpdateProfile, UpdatePreferences | `PATCH /me/profile`, `PUT /me/preferences` | Identity | User, UserPreferences | UserProfileChanged | Propio | — |
 | Configuración | ListMembers, ChangeMemberRole, RemoveMember | `GET W/members`, `PATCH`, `DELETE W/members/{userId}` | Workspaces | Membership | MemberRemoved | M / A | — |
 | Configuración | InviteMember, RevokeInvitation | `POST W/invitations`, `DELETE W/invitations/{id}` | Workspaces | Invitation | MemberInvited | A | — |
+| Configuración | CreateWorkspace (con tipo, ADR-023) | `POST /workspaces` | Workspaces | Workspace | WorkspaceCreated | Autenticado | — |
+| Configuración | GetWorkspaceDeletion, DeleteWorkspace (ADR-024) | `GET W/deletion`, `DELETE W` | Workspaces y todos los que implementan `IWorkspaceContents` | Workspace | — | Owner | — |
 | Invitación | AcceptInvitation | `POST /invitations/{token}/accept` | Workspaces | Membership | MemberJoined | Destinatario | — |
 
 Todas las rutas de la tabla llevan el prefijo `/api/v1`.

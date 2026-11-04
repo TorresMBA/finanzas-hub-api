@@ -15,15 +15,15 @@ public interface IActorContextInitializer
 }
 
 /// <summary>One instance per DI scope. Until someone calls <see cref="ActAs"/> the actor is the system with no user.</summary>
-internal sealed class ActorContext : ICurrentUser, IWorkspaceContext, IPersonalSpace, IActorContextInitializer
+internal sealed class ActorContext : ICurrentUser, IWorkspaceContext, IBook, IActorContextInitializer
 {
-    // Without a personal workspace of its own, the membership stands for it: a background process acting as a
-    // person enters their personal workspace directly.
-    Guid? IPersonalSpace.WorkspaceId => _membership?.Personal?.WorkspaceId ?? _membership?.WorkspaceId;
+    // Without a personal workspace of its own, the membership stands for it: a business keeps its own books, and a
+    // background process acting as a person enters the workspace whose books it runs on directly.
+    Guid? IBook.WorkspaceId => _membership?.Personal?.WorkspaceId ?? _membership?.WorkspaceId;
 
-    string? IPersonalSpace.BaseCurrency => _membership is { Personal: { } personal } ? personal.BaseCurrency : _membership?.BaseCurrency;
+    string? IBook.BaseCurrency => _membership is { Personal: { } personal } ? personal.BaseCurrency : _membership?.BaseCurrency;
 
-    string? IPersonalSpace.TimeZone => _membership?.Personal?.TimeZone ?? _membership?.TimeZone;
+    string? IBook.TimeZone => _membership?.Personal?.TimeZone ?? _membership?.TimeZone;
 
     private WorkspaceMembershipInfo? _membership;
 
@@ -41,6 +41,8 @@ internal sealed class ActorContext : ICurrentUser, IWorkspaceContext, IPersonalS
     public string? BaseCurrency => _membership?.BaseCurrency;
 
     public string? TimeZone => _membership?.TimeZone;
+
+    public WorkspaceKind? Kind => _membership?.Kind;
 
     public void ActAs(Guid userId, ActorType actorType, string source)
     {
@@ -63,4 +65,9 @@ internal sealed class ActorContext : ICurrentUser, IWorkspaceContext, IPersonalS
         _membership is { } membership && membership.Role >= minimum
             ? Result.Success()
             : Error.Forbidden("workspace.insufficient_role", $"This action requires the {minimum} role in the workspace.");
+
+    public Result RequireCollaboration() =>
+        _membership is { Kind: WorkspaceKind.Personal }
+            ? Result.Success()
+            : Error.BusinessRule("workspaces.kind_not_shareable", "Only a Personal workspace can have other members, goals or shared expenses.");
 }
