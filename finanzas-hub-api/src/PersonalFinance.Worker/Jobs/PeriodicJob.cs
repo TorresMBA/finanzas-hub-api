@@ -11,11 +11,29 @@ internal abstract class PeriodicJob(IServiceScopeFactory scopeFactory, ILogger l
     // migrated), so a job that runs once a day must not wait a day to try again.
     private static readonly TimeSpan RetryAfterFailure = TimeSpan.FromMinutes(1);
 
+    /// <summary>
+    /// Touched after every run that succeeds. The image's health check reads its age: the jobs every ten seconds keep
+    /// it fresh, so an old file means the Worker is stuck or cannot reach the database.
+    /// </summary>
+    public static readonly string HeartbeatFile = Path.Combine(Path.GetTempPath(), "personal-hub-worker.alive");
+
     protected ILogger Logger { get; } = logger;
 
     protected abstract TimeSpan Interval { get; }
 
     protected abstract Task RunAsync(IServiceProvider services, CancellationToken cancellationToken);
+
+    private void Beat()
+    {
+        try
+        {
+            File.WriteAllText(HeartbeatFile, DateTimeOffset.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Logger.LogWarning(exception, "Could not touch the heartbeat file {File}", HeartbeatFile);
+        }
+    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -28,6 +46,7 @@ internal abstract class PeriodicJob(IServiceScopeFactory scopeFactory, ILogger l
                 {
                     await using var scope = scopeFactory.CreateAsyncScope();
                     await RunAsync(scope.ServiceProvider, stoppingToken);
+                    Beat();
                 }
                 catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
                 {

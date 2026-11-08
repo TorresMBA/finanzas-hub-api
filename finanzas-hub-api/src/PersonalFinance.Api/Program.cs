@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using PersonalFinance.Api.Http;
 using PersonalFinance.Api.Realtime;
@@ -39,7 +40,13 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
 
 app.UseApiHttp();
 
-app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+// Liveness answers with the version, so a deploy can be checked from outside: curl https://.../health/live
+var version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "unknown";
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = (context, report) => context.Response.WriteAsJsonAsync(new { status = report.Status.ToString(), version })
+}).AllowAnonymous();
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains(ObservabilityExtensions.ReadyTag) }).AllowAnonymous();
 
 if (!app.Environment.IsProduction())
