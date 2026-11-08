@@ -54,7 +54,7 @@ Alcance decidido: solo endurecer lo que ya existe. La fase 14 y las porciones D 
 
 ### 1.0.1 (8-nov-2026, solo la web)
 
-Al volver a iniciar sesión tras caducar la sesión salía «Algo salió mal». El `ResourceValueError` de Angular envuelve el `ApiError` en `cause` y `AppErrorHandler` no lo veía. Reproducido (sesión invalidada con la página abierta, vuelta a entrar) y corregido en `hotfix/1.0.1-aviso-de-error`; el aviso empieza limpio en cada sesión. Lint, 157 tests y build en verde.
+Al volver a iniciar sesión tras caducar la sesión salía «Algo salió mal». El `ResourceValueError` de Angular envuelve el `ApiError` en `cause` y `AppErrorHandler` no lo veía. Reproducido (sesión invalidada con la página abierta, vuelta a entrar) y corregido en `hotfix/1.0.1-aviso-de-error`; el aviso empieza limpio en cada sesión, y no salta por el aviso de `ResizeObserver` ni por errores de extensiones del navegador. Lint, 158 tests y build en verde.
 
 ### Lo que falta para dar la 1.0 por buena en Mercury
 

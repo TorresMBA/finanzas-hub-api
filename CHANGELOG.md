@@ -11,6 +11,7 @@ Solo la web (`finanzas-hub-web` 1.0.1). La API y el Worker siguen en 1.0.0.
 ### Corregido
 
 - Al volver a iniciar sesión tras caducar la sesión (por ejemplo, la primera vez tras desplegar la 1.0, que invalida las cookies anteriores) aparecía «Algo salió mal. Si vuelve a pasar, recarga la página.». Las vistas que leían una petición rechazada con 401 lanzaban el `ResourceValueError` de Angular, que lleva el `ApiError` dentro (`cause`), y el manejador global solo miraba el error de fuera. Ahora recorre la cadena de causas, y el aviso empieza limpio en cada sesión.
+- El mismo aviso salía por cosas que no son fallos de la aplicación y que la ventana también reporta: el aviso inofensivo del navegador «ResizeObserver loop completed with undelivered notifications» y los errores de las extensiones. Ahora solo se registran en la consola.
 
 ## [1.0.0] - 2026-11-08
 
