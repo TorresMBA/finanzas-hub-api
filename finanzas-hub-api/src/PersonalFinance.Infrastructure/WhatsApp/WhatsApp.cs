@@ -22,6 +22,13 @@ public sealed class WhatsAppOptions
 {
     public const string SectionName = "WhatsApp";
 
+    /// <summary>
+    /// Whether this installation offers WhatsApp at all. Off by default: until Meta approves the message templates a
+    /// business may only write to someone who wrote in the last 24 hours. Off, the webhook answers 404, numbers cannot
+    /// be verified and nothing is sent.
+    /// </summary>
+    public bool Enabled { get; set; }
+
     /// <summary>Compared with <c>hub.verify_token</c> when Meta checks the webhook address.</summary>
     public string? VerifyToken { get; set; }
 
@@ -62,6 +69,8 @@ public sealed class WhatsAppOptions
 
 internal sealed class WhatsAppSetup(IOptions<WhatsAppOptions> options) : IWhatsAppSetup
 {
+    public bool IsEnabled => options.Value.Enabled;
+
     public bool ShowsCodesOnScreen => options.Value.ShowCodesWithoutAccount && !options.Value.IsConnected;
 }
 
@@ -122,7 +131,8 @@ internal sealed class WhatsAppSender(HttpClient http, IOptions<WhatsAppOptions> 
         var answer = await response.Content.ReadAsStringAsync(cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException($"WhatsApp answered {(int)response.StatusCode}: {answer}");
+            // Only the start of the answer: Meta may echo the message, and that ends up in the logs.
+            throw new InvalidOperationException($"WhatsApp answered {(int)response.StatusCode}: {answer[..Math.Min(answer.Length, 300)]}");
         }
 
         using var document = JsonDocument.Parse(answer);
@@ -166,7 +176,8 @@ public interface IDeliveryDispatcher
     Task<int> SendPendingAsync(CancellationToken cancellationToken);
 }
 
-internal sealed class DeliveryDispatcher(AppDbContext db, IWhatsAppSender sender, IClock clock, ILogger<DeliveryDispatcher> logger) : IDeliveryDispatcher
+internal sealed class DeliveryDispatcher(AppDbContext db, IWhatsAppSender sender, IOptions<WhatsAppOptions> options, IClock clock, ILogger<DeliveryDispatcher> logger)
+    : IDeliveryDispatcher
 {
     private const int BatchSize = 20;
 
@@ -175,6 +186,11 @@ internal sealed class DeliveryDispatcher(AppDbContext db, IWhatsAppSender sender
 
     public async Task<int> SendPendingAsync(CancellationToken cancellationToken)
     {
+        if (!options.Value.Enabled)
+        {
+            return 0;
+        }
+
         var now = clock.UtcNow;
 
         // The rows stay locked until the commit, so a second Worker skips them instead of sending them twice.

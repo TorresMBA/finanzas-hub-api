@@ -8,6 +8,11 @@ using PersonalFinance.Worker.Jobs.Scheduling;
 // Jobs live in Jobs/<Module> and are listed here.
 var builder = Host.CreateApplicationBuilder(args);
 
+if (builder.Environment.IsProduction())
+{
+    ProductionSettings.EnsureValid(builder.Configuration);
+}
+
 builder.AddObservability("personal-finance-worker");
 builder.Services.AddInfrastructure(builder.Configuration);
 

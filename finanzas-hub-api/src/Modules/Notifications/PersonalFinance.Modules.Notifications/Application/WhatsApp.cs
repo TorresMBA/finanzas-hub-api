@@ -14,7 +14,8 @@ namespace PersonalFinance.Modules.Notifications.Application;
 
 /// <param name="Phone">The verified number, with its country code ("+51987654321"). Null until one is verified.</param>
 /// <param name="PendingPhone">The number a code was sent to and not yet confirmed.</param>
-public sealed record WhatsAppChannelResponse(string? Phone, string? PendingPhone, DateTimeOffset? CodeExpiresAt)
+/// <param name="Available">Whether this installation offers WhatsApp; when false the screen hides it.</param>
+public sealed record WhatsAppChannelResponse(string? Phone, string? PendingPhone, DateTimeOffset? CodeExpiresAt, bool Available = true)
 {
     public bool IsVerified => Phone is not null;
 
@@ -45,6 +46,8 @@ internal static class WhatsAppErrors
         Error.Validation("notifications.whatsapp_not_verified", "Verify your WhatsApp number before turning on notices there.");
 
     public static readonly Error NoPendingCode = Error.Validation("notifications.code_invalid", "The code is not correct.");
+
+    public static readonly Error Unavailable = Error.NotFound("notifications.whatsapp_unavailable", "WhatsApp is not available in this installation.");
 }
 
 /// <summary>The WhatsApp numbers of people, and the messages queued for them.</summary>
@@ -86,11 +89,11 @@ internal sealed class DirectMessenger(WhatsAppBook book) : IDirectMessenger
 
 public sealed record GetWhatsAppChannelQuery : IQuery<WhatsAppChannelResponse>;
 
-internal sealed class GetWhatsAppChannelHandler(WhatsAppBook book, ICurrentUser currentUser) : IQueryHandler<GetWhatsAppChannelQuery, WhatsAppChannelResponse>
+internal sealed class GetWhatsAppChannelHandler(WhatsAppBook book, IWhatsAppSetup setup, ICurrentUser currentUser) : IQueryHandler<GetWhatsAppChannelQuery, WhatsAppChannelResponse>
 {
     public async Task<Result<WhatsAppChannelResponse>> HandleAsync(GetWhatsAppChannelQuery query, CancellationToken cancellationToken) =>
         currentUser.UserId is { } userId
-            ? WhatsAppChannelResponse.Of(await book.EndpointAsync(userId, cancellationToken))
+            ? WhatsAppChannelResponse.Of(await book.EndpointAsync(userId, cancellationToken)) with { Available = setup.IsEnabled }
             : NotificationErrors.Unauthenticated;
 }
 
@@ -144,6 +147,11 @@ internal sealed class StartWhatsAppVerificationHandler(INotificationsDb db, What
         if (currentUser.UserId is not { } userId)
         {
             return NotificationErrors.Unauthenticated;
+        }
+
+        if (!setup.IsEnabled)
+        {
+            return WhatsAppErrors.Unavailable;
         }
 
         if (PhoneNumber.Normalize(command.Phone) is not { } phone)

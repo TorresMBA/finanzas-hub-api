@@ -114,6 +114,10 @@ public sealed class ApiFixture : IAsyncLifetime
             builder.UseEnvironment("Testing");
             builder.UseSetting("WhatsApp:AppSecret", WhatsAppSecret);
             builder.UseSetting("WhatsApp:VerifyToken", WhatsAppVerifyToken);
+            builder.UseSetting("WhatsApp:Enabled", "true");
+
+            // Most tests create accounts freely; the invitation rule has its own unit test.
+            builder.UseSetting("Auth:OpenRegistration", "true");
             builder.ConfigureTestServices(services =>
             {
                 services.AddAuthentication(TestAuthHandler.SchemeName)

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Caching.Memory;
 using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.BuildingBlocks.Application.Security;
@@ -38,20 +39,27 @@ internal sealed class ConfirmEmailHandler(UserManager<User> users, IAuditLog aud
 
 public sealed record RequestPasswordResetCommand(string Email) : ICommand<Unit>;
 
-internal sealed class RequestPasswordResetHandler(UserManager<User> users, IEmailSender emails, IAppLinks links) : ICommandHandler<RequestPasswordResetCommand, Unit>
+internal sealed class RequestPasswordResetHandler(UserManager<User> users, IEmailSender emails, IAppLinks links, IMemoryCache recentRequests)
+    : ICommandHandler<RequestPasswordResetCommand, Unit>
 {
+    /// <summary>One recovery email per account in this time, however often it is asked for: nobody floods a mailbox.</summary>
+    public static readonly TimeSpan Cooldown = TimeSpan.FromMinutes(2);
+
     public async Task<Result<Unit>> HandleAsync(RequestPasswordResetCommand command, CancellationToken cancellationToken)
     {
-        // Always succeeds: the answer must not reveal whether the email has an account.
+        // Always succeeds: the answer must not reveal whether the email has an account, or that one was just sent.
         var user = await users.FindByEmailAsync(command.Email.Trim());
-        if (user is not null)
+        if (user is not null && !recentRequests.TryGetValue(CooldownKey(user.Id), out _))
         {
+            recentRequests.Set(CooldownKey(user.Id), true, Cooldown);
             var token = await users.GeneratePasswordResetTokenAsync(user);
             emails.Queue(IdentityEmails.ResetPassword(user, links.To($"/reset-password?email={Uri.EscapeDataString(user.Email!)}&token={UrlToken.Encode(token)}")));
         }
 
         return Unit.Value;
     }
+
+    private static string CooldownKey(Guid userId) => $"identity.password-reset.{userId:N}";
 }
 
 public sealed record ResetPasswordCommand(string Email, string Token, string NewPassword) : ICommand<Unit>;

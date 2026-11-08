@@ -8,9 +8,10 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-if (builder.Environment.IsProduction() && string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString(DependencyInjection.ConnectionStringName)))
+// Production stops here when a value is missing that would otherwise fail silently later.
+if (builder.Environment.IsProduction())
 {
-    throw new InvalidOperationException($"ConnectionStrings:{DependencyInjection.ConnectionStringName} must be configured in Production.");
+    ProductionSettings.EnsureValid(builder.Configuration);
 }
 
 builder.AddObservability("personal-finance-api");

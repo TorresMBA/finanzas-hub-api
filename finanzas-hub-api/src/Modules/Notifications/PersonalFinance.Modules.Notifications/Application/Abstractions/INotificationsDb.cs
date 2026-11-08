@@ -23,6 +23,9 @@ public interface INotificationsDb
 /// <summary>How WhatsApp is set up in this installation.</summary>
 public interface IWhatsAppSetup
 {
+    /// <summary>Whether this installation offers WhatsApp. Off, numbers cannot be verified and nothing is sent.</summary>
+    bool IsEnabled { get; }
+
     /// <summary>
     /// Whether a verification code is also shown on screen. Only on a development machine without a WhatsApp
     /// account, where messages are written to a folder instead of sent and nobody could receive the code.

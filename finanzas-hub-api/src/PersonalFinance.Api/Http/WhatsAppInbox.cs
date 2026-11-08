@@ -15,6 +15,9 @@ namespace PersonalFinance.Api.Http;
 /// </summary>
 public sealed class WhatsAppInbox(IOptions<WhatsAppOptions> options, IServiceScopeFactory scopeFactory, ILogger<WhatsAppInbox> logger)
 {
+    /// <summary>Off, the webhook does not exist as far as anyone can tell.</summary>
+    public bool IsEnabled => options.Value.Enabled;
+
     public bool IsSubscription(string? mode, string? verifyToken) =>
         mode == "subscribe" && !string.IsNullOrWhiteSpace(options.Value.VerifyToken) && verifyToken is not null
         && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(System.Text.Encoding.UTF8.GetBytes(verifyToken), System.Text.Encoding.UTF8.GetBytes(options.Value.VerifyToken));

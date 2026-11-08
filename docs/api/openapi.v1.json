@@ -17480,6 +17480,10 @@
             ],
             "format": "date-time"
           },
+          "available": {
+            "type": "boolean",
+            "default": true
+          },
           "isVerified": {
             "type": "boolean"
           }

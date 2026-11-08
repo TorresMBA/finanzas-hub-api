@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.BuildingBlocks.Domain;
@@ -14,11 +15,18 @@ public sealed record AuthenticatedUser(Guid UserId);
 public sealed record RegisterUserCommand(string Email, string Password, string DisplayName, string? InvitationToken) : ICommand<AuthenticatedUser>;
 
 internal sealed class RegisterUserHandler(
-    UserManager<User> users, IIdentityDb db, IPostRegistrationStep afterRegistration, IEmailSender emails, IAppLinks links, IAuditLog audit, IClock clock)
+    UserManager<User> users, IIdentityDb db, IPostRegistrationStep afterRegistration, IEmailSender emails, IAppLinks links, IAuditLog audit, IClock clock,
+    RegistrationPolicy policy)
     : ICommandHandler<RegisterUserCommand, AuthenticatedUser>
 {
     public async Task<Result<AuthenticatedUser>> HandleAsync(RegisterUserCommand command, CancellationToken cancellationToken)
     {
+        var hasInvitation = !string.IsNullOrWhiteSpace(command.InvitationToken);
+        if (!policy.Allows(hasInvitation, await db.Users.AnyAsync(cancellationToken)))
+        {
+            return IdentityErrors.InvitationRequired;
+        }
+
         var created = User.Create(command.Email, command.DisplayName, clock.UtcNow);
         if (created.IsFailure)
         {

@@ -18,6 +18,7 @@ using PersonalFinance.Modules.Budgets.Application.Abstractions;
 using PersonalFinance.Modules.Categories.Application.Abstractions;
 using PersonalFinance.Modules.Goals.Application.Abstractions;
 using PersonalFinance.Modules.Identity.Application.Abstractions;
+using PersonalFinance.Modules.Identity.Application.Register;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
 using PersonalFinance.Modules.Notifications.Application.Abstractions;
 using PersonalFinance.Modules.Scheduling.Application.Abstractions;
@@ -95,6 +96,10 @@ public static class DependencyInjection
         services.AddScoped<IEmailSender, EmailQueue>();
         services.AddScoped<IEmailDispatcher, EmailDispatcher>();
         services.AddSingleton<ISpreadsheets, ClosedXmlSpreadsheets>();
+
+        // Accounts are created from invitations unless the installation is opened on purpose.
+        services.AddSingleton(new RegistrationPolicy(configuration.GetValue("Auth:OpenRegistration", false)));
+        services.AddMemoryCache();
 
         services.Configure<WhatsAppOptions>(configuration.GetSection(WhatsAppOptions.SectionName));
         services.AddSingleton<IWhatsAppSetup, WhatsAppSetup>();
