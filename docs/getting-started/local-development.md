@@ -61,7 +61,7 @@ Los secretos no van en `appsettings`: `dotnet user-secrets` en local, variables 
 | `Cors:AllowedOrigins` | `http://localhost:4200` en Development | Orígenes del navegador permitidos. En Production es obligatoria |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` en el perfil de arranque | Destino de la telemetría. Sin ella no se exporta nada |
 | `Frontend:BaseUrl` | `http://localhost:4200` | Con qué empiezan los enlaces de los correos |
-| `Email:SmtpHost`, `Email:SmtpPort`, `Email:SmtpUser`, `Email:SmtpPassword`, `Email:From` | Sin servidor | Servidor de correo. Sin `SmtpHost` los correos se escriben como archivos `.eml` |
+| `Email:SmtpHost`, `Email:SmtpPort`, `Email:SmtpEnableSsl`, `Email:SmtpUser`, `Email:SmtpPassword`, `Email:From` | Sin servidor | Servidor de correo. Sin `SmtpHost` los correos se escriben como archivos `.eml`. Ver [Correo real](#correo-real-smtp) |
 | `Email:PickupDirectory` | `personal-hub-mail` en la carpeta temporal del sistema | Dónde se escriben esos archivos |
 | `RateLimiting:AuthPermitsPerMinute` | 20; 300 en Development | Peticiones a `/auth` por minuto y dirección |
 
@@ -70,6 +70,37 @@ Los secretos no van en `appsettings`: `dotnet user-secrets` en local, variables 
 Tras la fase 1 se puede crear una cuenta, iniciar sesión, configurar el espacio personal, invitar a otras personas y gestionar miembros y roles, además de editar el perfil y las preferencias. El resto de secciones muestra todavía una página provisional.
 
 Los correos (confirmación, recuperación de contraseña, invitaciones) los envía el Worker. En local, sin servidor SMTP, aparecen como archivos `.eml` en `%TEMP%\personal-hub-mail`: ábrelos para copiar el enlace.
+
+## Correo real (SMTP)
+
+Para que la recuperación de contraseña, la confirmación de correo y las invitaciones lleguen a la bandeja de cada persona, el Worker necesita un servidor SMTP. Sin él no falla nada: los correos se quedan en archivos `.eml`.
+
+| Clave | Quién la usa | Valor | Notas |
+|---|---|---|---|
+| `Email:SmtpHost` | Worker | `smtp.gmail.com`, `smtp-relay.brevo.com`, `smtp.resend.com`… | Basta con ponerla para dejar de escribir `.eml` |
+| `Email:SmtpPort` | Worker | `587` (por defecto) | Solo STARTTLS. El puerto 465 (TLS implícito) no funciona: `System.Net.Mail` no lo admite |
+| `Email:SmtpEnableSsl` | Worker | `true` (por defecto) | Déjalo en `true` con cualquier proveedor real |
+| `Email:SmtpUser` | Worker | La cuenta o el usuario SMTP del proveedor | En Gmail, la dirección completa |
+| `Email:SmtpPassword` | Worker | Contraseña de aplicación o clave SMTP | Secreto: solo en `user-secrets` o en variables de entorno. En Gmail no sirve la contraseña normal: hace falta la verificación en dos pasos y una [contraseña de aplicación](https://myaccount.google.com/apppasswords) |
+| `Email:From` | Worker | `FinanzasHub <cuenta@dominio>` | El remitente: con nombre, la dirección va entre `< >`; sin nombre, basta la dirección. Sin el `>` final, o con el nombre y la dirección sin `< >`, el Worker no envía nada. En PowerShell escríbelo entre comillas: sin ellas, o en `cmd`, `<` y `>` se toman como redirecciones y se pierden. Gmail lo reemplaza por la cuenta si no es ella o un alias suyo; Brevo y Resend exigen un remitente o un dominio verificado |
+| `Frontend:BaseUrl` | API | `http://localhost:4200` en local; la URL pública en despliegue | La API arma con ella los enlaces de los correos. Si está mal, el enlace del correo no abre la aplicación |
+
+La API y el Worker comparten los secretos (`UserSecretsId` `personal-finance-api`), así que se configuran una sola vez. Desde `finanzas-hub-api`, con Gmail:
+
+```powershell
+dotnet user-secrets set "Email:SmtpHost" "smtp.gmail.com" --project src/PersonalFinance.Worker
+dotnet user-secrets set "Email:SmtpPort" "587" --project src/PersonalFinance.Worker
+dotnet user-secrets set "Email:SmtpUser" "tu-cuenta@gmail.com" --project src/PersonalFinance.Worker
+dotnet user-secrets set "Email:SmtpPassword" "xxxx xxxx xxxx xxxx" --project src/PersonalFinance.Worker
+dotnet user-secrets set "Email:From" "FinanzasHub <tu-cuenta@gmail.com>" --project src/PersonalFinance.Worker
+dotnet user-secrets list --project src/PersonalFinance.Worker   # comprobar; muestra la contraseña, no lo compartas
+```
+
+Para volver a los archivos `.eml`: `dotnet user-secrets remove "Email:SmtpHost" --project src/PersonalFinance.Worker`.
+
+En despliegue van como variables de entorno, con `__` en lugar de `:` (`Email__SmtpHost`, `Email__SmtpPassword`, `Frontend__BaseUrl`…).
+
+Para comprobarlo, con la API y el Worker en marcha, pide en `/forgot-password` la recuperación de una cuenta tuya. El correo sale en el siguiente ciclo del Worker. Si no llega, el Worker registra `Email … could not be sent` con el motivo y reintenta hasta 8 veces. Una contraseña de aplicación mal copiada responde `5.7.8 Username and Password not accepted`.
 
 ## Tareas habituales
 
