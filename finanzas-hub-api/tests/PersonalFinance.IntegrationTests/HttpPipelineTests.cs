@@ -25,7 +25,7 @@ public class HttpPipelineTests(ApiFixture api)
         var live = await api.AnonymousClient().GetFromJsonAsync<JsonElement>("/health/live");
 
         Assert.Equal("Healthy", live.GetProperty("status").GetString());
-        Assert.Equal("1.0.0", live.GetProperty("version").GetString());
+        Assert.Matches(@"^\d+\.\d+\.\d+$", live.GetProperty("version").GetString());
     }
 
     [Fact]

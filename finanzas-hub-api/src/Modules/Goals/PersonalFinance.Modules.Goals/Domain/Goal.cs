@@ -436,10 +436,15 @@ public sealed class Goal : AggregateRoot
     public bool IsUnused => _contributions.Count == 0 && _participants.All(participant => participant.FundAccountId is null);
 
     /// <summary>Only its owner, and only while unused; otherwise it is archived or cancelled.</summary>
-    public Result CanDelete(Guid actorUserId) =>
-        !IsOwner(actorUserId) ? OwnerRequired
-        : !IsUnused ? Error.BusinessRule("goals.in_use", "Money already went into the goal. Archive or cancel it instead.")
-        : Result.Success();
+    public Result CanDelete(Guid actorUserId)
+    {
+        if (!IsOwner(actorUserId))
+        {
+            return OwnerRequired;
+        }
+
+        return IsUnused ? Result.Success() : Error.BusinessRule("goals.in_use", "Money already went into the goal. Archive or cancel it instead.");
+    }
 
     private static Error AmountInvalid => Error.Validation("goals.amount_invalid", "The amount must be greater than zero, with two decimals at most.");
 

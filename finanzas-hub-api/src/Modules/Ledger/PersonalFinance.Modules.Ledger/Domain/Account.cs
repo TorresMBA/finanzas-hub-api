@@ -199,9 +199,12 @@ public sealed class Account : AggregateRoot, IOwned
     public Result CanDelete(bool inUse)
     {
         var managed = EnsureNotManaged();
-        return managed.IsFailure ? managed
-            : inUse ? Error.BusinessRule("ledger.account.in_use", "The account has movements or something uses it. Archive it instead.")
-            : Result.Success();
+        if (managed.IsFailure)
+        {
+            return managed;
+        }
+
+        return inUse ? Error.BusinessRule("ledger.account.in_use", "The account has movements or something uses it. Archive it instead.") : Result.Success();
     }
 
     /// <summary>Why an account cannot be moved by hand, or success when it can.</summary>

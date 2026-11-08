@@ -296,40 +296,10 @@ public sealed class Operation : AggregateRoot, IOwned
     public static Result<(Operation Leaving, Operation Arriving)> PostBookTransfer(
         Account from, Account to, decimal amountOut, decimal? amountIn, DateOnly occurredOn, string? description, string? note, DateTimeOffset now)
     {
-        if (from.IsManaged || to.IsManaged)
+        var allowed = CheckBookTransfer(from, to, amountOut, amountIn);
+        if (allowed.IsFailure)
         {
-            return from.IsManaged ? from.EnsureNotManaged().Error : to.EnsureNotManaged().Error;
-        }
-
-        if (from.OwnerUserId != to.OwnerUserId)
-        {
-            return Error.BusinessRule("ledger.transfer.different_owners", "Both accounts of a transfer belong to the same person.");
-        }
-
-        if (from.WorkspaceId == to.WorkspaceId)
-        {
-            return Error.BusinessRule("ledger.transfer.same_book", "Both accounts are in the same book: register a transfer between them.");
-        }
-
-        foreach (var account in new[] { from, to })
-        {
-            var open = account.EnsureOpen();
-            if (open.IsFailure)
-            {
-                return open.Error;
-            }
-        }
-
-        if (from.Currency == to.Currency)
-        {
-            if (amountIn is { } stated && stated != amountOut)
-            {
-                return Error.Validation("ledger.transfer.amount_mismatch", "Between two accounts of the same currency, what arrives is what left.");
-            }
-        }
-        else if (amountIn is null)
-        {
-            return Error.Validation("ledger.transfer.destination_amount_required", "Between two currencies, state how much arrives in the destination account.");
+            return allowed.Error;
         }
 
         var text = Texts.Validate(string.IsNullOrWhiteSpace(description) ? "Transferencia entre libros" : description, null, note);
@@ -353,6 +323,48 @@ public sealed class Operation : AggregateRoot, IOwned
         leaving.Value.CounterpartOperationId = arriving.Value.Id;
         arriving.Value.CounterpartOperationId = leaving.Value.Id;
         return (leaving.Value, arriving.Value);
+    }
+
+    /// <summary>The two accounts can take a transfer between books of these amounts: both by hand, of one person, in two open books.</summary>
+    private static Result CheckBookTransfer(Account from, Account to, decimal amountOut, decimal? amountIn)
+    {
+        if (from.IsManaged || to.IsManaged)
+        {
+            return from.IsManaged ? from.EnsureNotManaged() : to.EnsureNotManaged();
+        }
+
+        if (from.OwnerUserId != to.OwnerUserId)
+        {
+            return Error.BusinessRule("ledger.transfer.different_owners", "Both accounts of a transfer belong to the same person.");
+        }
+
+        if (from.WorkspaceId == to.WorkspaceId)
+        {
+            return Error.BusinessRule("ledger.transfer.same_book", "Both accounts are in the same book: register a transfer between them.");
+        }
+
+        var open = from.EnsureOpen();
+        if (open.IsFailure)
+        {
+            return open;
+        }
+
+        open = to.EnsureOpen();
+        if (open.IsFailure)
+        {
+            return open;
+        }
+
+        if (from.Currency != to.Currency)
+        {
+            return amountIn is null
+                ? Error.Validation("ledger.transfer.destination_amount_required", "Between two currencies, state how much arrives in the destination account.")
+                : Result.Success();
+        }
+
+        return amountIn is { } stated && stated != amountOut
+            ? Error.Validation("ledger.transfer.amount_mismatch", "Between two accounts of the same currency, what arrives is what left.")
+            : Result.Success();
     }
 
     private static Result<Operation> Leg(Account account, EntryDirection direction, decimal amount, DateOnly occurredOn, string description, string? note, DateTimeOffset now)
