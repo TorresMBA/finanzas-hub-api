@@ -74,6 +74,15 @@ public class PersonalFinancesTests(ApiFixture api)
         Assert.Equal((HttpStatusCode.UnprocessableEntity, "workspaces.kind_not_shareable"), (goal.StatusCode, await Accounts.CodeOfAsync(goal)));
         Assert.Equal((HttpStatusCode.UnprocessableEntity, "workspaces.kind_not_shareable"), (invitation.StatusCode, await Accounts.CodeOfAsync(invitation)));
 
+        // It has no goals or shared expenses at all: not even an empty list.
+        var group = await brian.Client.PostAsJsonAsync($"/api/v1/workspaces/{business}/shared-groups", new { name = "Socios" });
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "workspaces.kind_not_shareable"), (group.StatusCode, await Accounts.CodeOfAsync(group)));
+        foreach (var section in new[] { "goals", "shared-groups" })
+        {
+            var listed = await brian.Client.GetAsync($"/api/v1/workspaces/{business}/{section}");
+            Assert.Equal((HttpStatusCode.UnprocessableEntity, "workspaces.kind_not_shareable"), (listed.StatusCode, await Accounts.CodeOfAsync(listed)));
+        }
+
         // The scheduled cycle runs on each set of books of Brian, and only once on Juan's.
         var owners = await api.ExecuteAsync(async services => (await services.GetRequiredService<IQueryHandler<ListScheduleOwnersQuery, IReadOnlyList<ScheduleOwner>>>()
             .HandleAsync(new ListScheduleOwnersQuery(), CancellationToken.None)).Value);

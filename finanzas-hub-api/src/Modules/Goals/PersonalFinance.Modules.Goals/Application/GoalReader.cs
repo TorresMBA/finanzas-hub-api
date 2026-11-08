@@ -102,10 +102,17 @@ internal sealed class GoalReader(IGoalsDb db, IWorkspaceDirectory directory, ICu
 
 public sealed record ListGoalsQuery : IQuery<GoalsResponse>;
 
-internal sealed class ListGoalsHandler(IGoalsDb db, GoalReader reader) : IQueryHandler<ListGoalsQuery, GoalsResponse>
+internal sealed class ListGoalsHandler(IGoalsDb db, GoalReader reader, IWorkspaceContext workspace) : IQueryHandler<ListGoalsQuery, GoalsResponse>
 {
     public async Task<Result<GoalsResponse>> HandleAsync(ListGoalsQuery query, CancellationToken cancellationToken)
     {
+        // A business or another of its kind has no goals (ADR-023): it is refused, not shown empty.
+        var collaborative = workspace.RequireCollaboration();
+        if (collaborative.IsFailure)
+        {
+            return collaborative.Error;
+        }
+
         var names = await reader.MemberNamesAsync(cancellationToken);
         var goals = await db.Goals.AsNoTracking().OrderBy(goal => goal.CreatedAt).ToListAsync(cancellationToken);
         return new GoalsResponse(

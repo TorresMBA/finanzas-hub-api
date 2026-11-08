@@ -26,7 +26,7 @@ El espacio sigue siendo la unidad y las rutas no cambian. Cada espacio tiene un 
 
 **Entre libros.** Mover dinero entre dos libros de la misma persona es una transferencia con una pata en cada libro, enlazadas entre sí. No es ingreso ni gasto, y anular una pata anula la otra.
 
-**Metas y Gastos compartidos** muestran lo de todos los círculos de la persona, agrupado por círculo, sin depender del espacio elegido en la barra superior. Al aceptar una invitación se entra como persona: no hay que elegir espacio, porque todos los espacios Personal de alguien comparten sus libros.
+**Metas y Gastos compartidos** son del espacio abierto, y solo existen en uno de tipo Personal: cada círculo tiene los suyos, y un espacio nuevo empieza sin ninguno. En un Negocio u Otros no aparecen en el menú y la API rechaza crearlos y listarlos (`workspaces.kind_not_shareable`). Se probó (8-nov-2026) mostrar los de todos los círculos en una sola vista, sin depender del espacio elegido, y se descartó: un espacio Personal recién creado enseñaba las metas y los grupos de los otros. Al aceptar una invitación se entra como persona: no hay que elegir espacio, porque todos los espacios Personal de alguien comparten sus libros.
 
 **Salir de un círculo**, o que su dueño o un Admin saque a alguien, no se permite mientras la persona deba o le deban algo en un grupo, tenga un gasto compartido sin liquidar o tenga dinero en una meta activa del círculo.
 

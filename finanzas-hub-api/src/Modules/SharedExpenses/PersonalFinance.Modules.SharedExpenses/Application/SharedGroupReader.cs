@@ -183,10 +183,18 @@ internal sealed class SharedGroupReader(ISharedExpensesDb db, IWorkspaceDirector
 
 public sealed record ListSharedGroupsQuery : IQuery<SharedGroupsResponse>;
 
-internal sealed class ListSharedGroupsHandler(ISharedExpensesDb db, SharedGroupReader reader) : IQueryHandler<ListSharedGroupsQuery, SharedGroupsResponse>
+internal sealed class ListSharedGroupsHandler(ISharedExpensesDb db, SharedGroupReader reader, IWorkspaceContext workspace)
+    : IQueryHandler<ListSharedGroupsQuery, SharedGroupsResponse>
 {
     public async Task<Result<SharedGroupsResponse>> HandleAsync(ListSharedGroupsQuery query, CancellationToken cancellationToken)
     {
+        // A business or another of its kind has no shared expenses (ADR-023): it is refused, not shown empty.
+        var collaborative = workspace.RequireCollaboration();
+        if (collaborative.IsFailure)
+        {
+            return collaborative.Error;
+        }
+
         var me = reader.UserId ?? Guid.Empty;
         var groups = await db.SharedGroups.AsNoTracking().OrderBy(group => group.CreatedAt).ToListAsync(cancellationToken);
         var names = await reader.MemberNamesAsync(cancellationToken);

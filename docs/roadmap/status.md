@@ -2,7 +2,7 @@
 
 Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance de cada una está en [phases.md](phases.md), junto con lo que se verificó al cerrarla; aquí solo va en qué punto está y qué quedó pendiente.
 
-Última actualización: 19-oct-2026.
+Última actualización: 8-nov-2026.
 
 | Fase | Contenido | Estado | Cerrada |
 |---|---|---|---|
@@ -22,18 +22,18 @@ Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance d
 | 13 | Investments | ✅ Completada | 15-oct-2026 |
 | 14 | Tarjetas avanzadas y FX | ⏳ Pendiente (siguiente) | — |
 
-Estados: ⏳ pendiente, 🚧 en curso, ✅ completada.
+Estados: ⏳ pendiente, 🚧 en curso, ✅ completada, ❌ descartada.
 
 ## Última verificación
 
-18-oct-2026, tras Transacciones v2 con divisas (ver `docs/modules/ledger.md`, «Divisas en Transacciones»). Migración `TransactionForeignTerms`.
+8-nov-2026, tras retirar la porción C de los tipos de espacio (ADR-023) y cerrar Metas y Gastos compartidos a un Negocio también al listar. Build, tests y E2E.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 294 en verde (168 unitarios, 19 de arquitectura, 107 de integración), contrato OpenAPI incluido |
-| Frontend: build, tests y lint | 19-oct-2026: build correcto, 143 tests, lint limpio. Tres avisos de tamaño de estilos (`shared.scss`, `group-view.scss`, `budgets.scss`) que vienen del rediseño v2 |
-| E2E en Chrome | 19-oct-2026: 32 en verde, dos corridas seguidas, contra una base desechable. Se pusieron al día con la interfaz v2: el selector de cuentas (`pickAccount` en `e2e/support.ts`), las etiquetas de la categoría como sugerencias, «Anuladas» dentro de «Más filtros», el registro de inversiones en dos pasos y el saludo de Inicio. `layout.spec.ts` recorre las 13 secciones en tablet (768 px) y móvil (390 px) con tema claro, comprueba que nada desborda y guarda una captura de cada una; se revisaron a ojo |
+| Backend: tests | 304 en verde (173 unitarios, 19 de arquitectura, 112 de integración), contrato OpenAPI incluido |
+| Frontend: build, tests y lint | 8-nov-2026: build correcto, 151 tests, lint limpio. Cinco avisos de tamaño de estilos (`auth-page`, `dashboard.scss`, `budgets.scss`, `group-view.scss`, `shared.scss`) |
+| E2E en Chrome | 8-nov-2026: 32 en verde, dos corridas seguidas, contra una base desechable. Se pusieron al día: el botón de la página «Nueva transacción» se busca dentro de `main` (el botón flotante de registro rápido tiene el mismo nombre), el selector de cuentas en Inversiones, Gastos compartidos y el pago de tarjeta, y eliminar en vez de archivar una categoría y una etiqueta que nadie usó (ADR-024) |
 
 ## Mejoras fuera de fase
 
@@ -48,11 +48,11 @@ Empezado el 21-oct-2026, antes de la fase 14. Plan en cinco porciones, y una sex
 
 | Porción | Contenido | Estado |
 |---|---|---|
-| A | Tipo de espacio (Personal, Negocio, Otros), libros propios en Negocio y Otros, colaboración solo en Personal | ✅ backend (21-oct-2026, migración `AddWorkspaceKinds`, `IPersonalSpace` → `IBook`). Adelantado de E: elegir el tipo al crear el espacio, el tipo junto al nombre y sin miembros ni invitaciones en Negocio u Otros, y Metas y Gastos compartidos ocultos en el menú y protegidos por ruta (`collaborationGuard`) hasta que la porción C los haga independientes del selector |
+| A | Tipo de espacio (Personal, Negocio, Otros), libros propios en Negocio y Otros, colaboración solo en Personal | ✅ backend (21-oct-2026, migración `AddWorkspaceKinds`, `IPersonalSpace` → `IBook`). Adelantado de E: elegir el tipo al crear el espacio, el tipo junto al nombre y sin miembros ni invitaciones en Negocio u Otros, y Metas y Gastos compartidos ocultos en el menú y protegidos por ruta (`collaborationGuard`) |
 | B | Transferencia entre libros | ✅ (24-oct-2026, migración `AddBookTransfers`). Una pata `Transfer` de un asiento en cada libro, enlazadas por `counterpart_operation_id`; anular una anula la otra. `POST W/book-transfers` y «Libro que recibe» en el formulario de transferencia. Pendiente: sin comisión entre libros, y sin patrimonio consolidado de todos los libros |
-| C | Metas y Gastos compartidos de todos los círculos en una vista (`/me/goals`, `/me/shared-groups`) | ⏳ |
+| C | Metas y Gastos compartidos de todos los círculos en una vista (`/me/goals`, `/me/shared-groups`) | ❌ descartada (8-nov-2026). Se probó y no se quiere: un espacio Personal nuevo mostraba las metas y los grupos de los demás. Metas y Gastos compartidos son del espacio abierto, solo en uno de tipo Personal: ocultos en el menú y protegidos por ruta (`collaborationGuard`) en Negocio u Otros, donde la API rechaza también listarlos (`workspaces.kind_not_shareable`) |
 | D | Invitación sin elegir espacio, gestión del círculo y salida bloqueada con deudas o fondos | ⏳ |
-| E | Frontend de tipos y transferencias | 🚧 Hecho: tipo al crear, tipo junto al nombre, menú según el tipo, eliminar (F) y la transferencia entre libros (B). Falta lo de C y D |
+| E | Frontend de tipos y transferencias | 🚧 Hecho: tipo al crear, tipo junto al nombre, menú según el tipo, eliminar (F) y la transferencia entre libros (B). Falta lo de D |
 | F | Eliminar lo que nunca se usó (ADR-024): espacios, grupos, metas, cuentas, categorías, tags y programados, con `canDelete` en las respuestas y «Eliminar» en pantalla solo cuando se puede | ✅ (24-oct-2026, sin migración). Pendiente: la carrera entre módulos sin clave foránea (crear un programado sobre una cuenta en el mismo instante en que se borra) se acepta; las importaciones y las inversiones no tienen «Eliminar» propio, siguen con descartar y cerrar |
 
 ## Pendientes que dejaron las fases cerradas

@@ -90,6 +90,7 @@ public sealed class GoalSpendRequest
 public sealed class GoalsController : ApiControllerBase
 {
     [HttpGet(Name = "ListGoals")]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType<GoalsResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List(Guid workspaceId, [FromServices] IQueryHandler<ListGoalsQuery, GoalsResponse> handler, CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new ListGoalsQuery(), cancellationToken), Ok);

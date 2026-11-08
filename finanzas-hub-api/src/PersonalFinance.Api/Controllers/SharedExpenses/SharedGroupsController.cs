@@ -127,6 +127,7 @@ public sealed class SharedGroupsController : ApiControllerBase
 {
     /// <summary>The groups of the person, each with what they are owed or owe in it, and the totals per currency.</summary>
     [HttpGet(Name = "ListSharedGroups")]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType<SharedGroupsResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List(
         Guid workspaceId, [FromServices] IQueryHandler<ListSharedGroupsQuery, SharedGroupsResponse> handler, CancellationToken cancellationToken) =>
