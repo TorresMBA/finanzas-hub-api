@@ -13,7 +13,7 @@ El dominio y la aplicación no referencian ningún SDK de Azure; todo llega por 
 | Azure Monitor y Application Insights | MVP | Destino de OpenTelemetry | Aspire Dashboard |
 | Azure Communication Services Email | MVP | Confirmación, recuperación, invitaciones, avisos | Mailpit |
 | Azure Container Registry | MVP | Imágenes | Docker local |
-| Azure Storage (Blob) | OPTIONAL | Archivos de importación, avatares y exportaciones tras `IFileStorage`; se activa en la Fase 10 si el disco no basta | Disco local |
+| Azure Storage (Blob) | OPTIONAL | Archivos de importación, avatares y exportaciones, tras un `IFileStorage` que todavía no existe (hoy no se guarda ningún archivo) | — |
 | Azure Service Bus | SCALING | Transporte de eventos al separar un módulo en un servicio propio | Eventos en proceso |
 | Azure SignalR Service | SCALING | Al pasar de una réplica | SignalR en proceso |
 | `PersonalFinance.Worker` en su propia Container App | SCALING | Al pasar de una réplica de API, para que los jobs sigan corriendo en un solo sitio | El Worker como segundo contenedor |

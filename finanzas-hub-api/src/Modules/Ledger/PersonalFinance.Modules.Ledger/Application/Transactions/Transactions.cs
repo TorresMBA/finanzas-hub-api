@@ -4,6 +4,7 @@ using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Application.ExchangeRates;
+using PersonalFinance.Modules.Ledger.Application.Transfers;
 using PersonalFinance.Modules.Ledger.Contracts.Events;
 using PersonalFinance.Modules.Ledger.Domain;
 
@@ -159,7 +160,8 @@ internal sealed class ConfirmTransactionHandler(ILedgerDb db, TransactionReader 
 /// <summary>Takes the transaction out of every sum. It stays in the list of voided ones, with who and why.</summary>
 public sealed record VoidTransactionCommand(Guid TransactionId, string? Reason) : ICommand<TransactionResponse>;
 
-internal sealed class VoidTransactionHandler(ILedgerDb db, TransactionReader reader, IAuditLog audit, IClock clock) : ICommandHandler<VoidTransactionCommand, TransactionResponse>
+internal sealed class VoidTransactionHandler(ILedgerDb db, TransactionReader reader, OtherBooks books, IAuditLog audit, IClock clock)
+    : ICommandHandler<VoidTransactionCommand, TransactionResponse>
 {
     public async Task<Result<TransactionResponse>> HandleAsync(VoidTransactionCommand command, CancellationToken cancellationToken)
     {
@@ -180,6 +182,7 @@ internal sealed class VoidTransactionHandler(ILedgerDb db, TransactionReader rea
         {
             operation.Announce(LedgerOperationChange.Voided);
             await VoidFeesAsync(operation, command.Reason, cancellationToken);
+            await VoidCounterpartAsync(operation, command.Reason, cancellationToken);
         }
 
         if (wasEffective)
@@ -193,6 +196,26 @@ internal sealed class VoidTransactionHandler(ILedgerDb db, TransactionReader rea
         }
 
         return await reader.DescribeAsync(operation, cancellationToken);
+    }
+
+    /// <summary>A transfer between books is one in both: voiding the leg of one book voids the leg of the other (ADR-023).</summary>
+    private async Task VoidCounterpartAsync(Operation leg, string? reason, CancellationToken cancellationToken)
+    {
+        if (await books.FindCounterpartAsync(leg, cancellationToken) is not { IsEffective: true } counterpart)
+        {
+            return;
+        }
+
+        var before = Snapshot.Of(counterpart);
+        if (counterpart.VoidAsCounterpartOf(leg, reason, clock.UtcNow).IsSuccess)
+        {
+            audit.Record(new AuditEntry("ledger", "ledger.transaction.voided", "operation", counterpart.Id)
+            {
+                OwnerUserId = counterpart.OwnerUserId,
+                Before = before,
+                After = new { Status = counterpart.Status.ToString(), counterpart.VoidReason, VoidedWith = leg.Id }
+            });
+        }
     }
 
     /// <summary>The fee the bank charged for a transfer goes with it: voiding the transfer voids the fee.</summary>
@@ -238,6 +261,24 @@ internal static class Snapshot
     /// <summary>What the audit trail keeps of an operation: every field a person can change.</summary>
     public static object Of(Operation operation)
     {
+        if (operation.IsBookTransferLeg)
+        {
+            var leg = operation.Entries.First();
+            return new
+            {
+                Kind = operation.Kind.ToString(),
+                Status = operation.Status.ToString(),
+                leg.AccountId,
+                Direction = leg.Direction.ToString(),
+                leg.Amount,
+                leg.Currency,
+                operation.CounterpartOperationId,
+                operation.OccurredOn,
+                operation.Description,
+                operation.Note
+            };
+        }
+
         if (operation.Kind == OperationKind.Transfer)
         {
             var leaving = operation.Entries.First(candidate => candidate.Direction == EntryDirection.Out);

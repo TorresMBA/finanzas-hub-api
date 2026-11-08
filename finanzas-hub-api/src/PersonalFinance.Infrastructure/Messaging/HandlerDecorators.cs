@@ -124,6 +124,12 @@ internal sealed class TransactionCommandHandlerDecorator<TCommand, TResponse>(
             await RollbackAsync(transaction);
             return Error.Conflict("idempotency.in_progress", "A request with the same Idempotency-Key is being processed. Retry to get its result.");
         }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
+        {
+            // Something was deleted while this command pointed at it, or the other way round (ADR-024).
+            await RollbackAsync(transaction);
+            return Error.Conflict("reference_conflict", "Something this depends on was just removed or started being used. Reload and try again.");
+        }
         catch
         {
             await RollbackAsync(transaction);

@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using PersonalFinance.BuildingBlocks.Application.Messaging;
 using PersonalFinance.IntegrationTests.Support;
+using PersonalFinance.Modules.Scheduling.Application;
 
 namespace PersonalFinance.IntegrationTests;
 
@@ -44,6 +47,49 @@ public class PersonalFinancesTests(ApiFixture api)
         // From his own workspace the goal does not exist: what is shared stays in the workspace it was created in.
         Assert.Empty((await juan.Client.GetFromJsonAsync<JsonElement>($"/api/v1/workspaces/{juan.PersonalWorkspaceId}/goals")).GetProperty("goals").EnumerateArray());
         Assert.Contains("Meta: Viaje Japón", await AccountNamesAsync(juan, juan.PersonalWorkspaceId));
+    }
+
+    [Fact]
+    public async Task A_business_keeps_its_own_books_that_only_its_owner_sees_and_admits_no_one_else()
+    {
+        var brian = await api.RegisterWithActiveWorkspaceAsync("Brian");
+        var juan = await api.RegisterWithActiveWorkspaceAsync("Juan");
+        await brian.OpenAccountAsync("BCP", 2000m);
+        Assert.Equal(HttpStatusCode.OK, (await juan.Client.PostAsync($"/api/v1/invitations/{await api.InviteAsync(brian, brian.PersonalWorkspaceId, juan.Email)}/accept", null)).StatusCode);
+
+        var created = await brian.Client.PostAsJsonAsync("/api/v1/workspaces", new { name = "Bodega", kind = "business" });
+        var business = (await created.Content.ReadFromJsonAsync<JsonElement>()).Id();
+        Assert.Equal(HttpStatusCode.OK, (await brian.Client.PostAsJsonAsync($"/api/v1/workspaces/{business}/onboarding/complete", new { baseCurrency = "USD", timeZone = "America/Lima" })).StatusCode);
+        await brian.OpenAccountAsync("Caja", 500m, currency: "USD", workspaceId: business);
+
+        // Two sets of books: what is registered in the business is not in the personal ones, nor the other way round.
+        Assert.Equal(["Caja"], await AccountNamesAsync(brian, business));
+        Assert.Equal(["BCP"], await AccountNamesAsync(brian, brian.PersonalWorkspaceId));
+        Assert.NotEqual(default, await brian.CategoryIdAsync("Ventas", business));
+
+        // Nobody else gets in, not even someone who shares Brian's personal workspace.
+        Assert.Equal(HttpStatusCode.NotFound, (await juan.Client.GetAsync(Books.AccountsUrl(business))).StatusCode);
+        var goal = await brian.Client.PostAsJsonAsync($"/api/v1/workspaces/{business}/goals", new { name = "Local nuevo", targetAmount = 1000m });
+        var invitation = await brian.Client.PostAsJsonAsync($"/api/v1/workspaces/{business}/invitations", new { email = juan.Email, role = "member" });
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "workspaces.kind_not_shareable"), (goal.StatusCode, await Accounts.CodeOfAsync(goal)));
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "workspaces.kind_not_shareable"), (invitation.StatusCode, await Accounts.CodeOfAsync(invitation)));
+
+        // It has no goals or shared expenses at all: not even an empty list.
+        var group = await brian.Client.PostAsJsonAsync($"/api/v1/workspaces/{business}/shared-groups", new { name = "Socios" });
+        Assert.Equal((HttpStatusCode.UnprocessableEntity, "workspaces.kind_not_shareable"), (group.StatusCode, await Accounts.CodeOfAsync(group)));
+        foreach (var section in new[] { "goals", "shared-groups" })
+        {
+            var listed = await brian.Client.GetAsync($"/api/v1/workspaces/{business}/{section}");
+            Assert.Equal((HttpStatusCode.UnprocessableEntity, "workspaces.kind_not_shareable"), (listed.StatusCode, await Accounts.CodeOfAsync(listed)));
+        }
+
+        // The scheduled cycle runs on each set of books of Brian, and only once on Juan's.
+        var owners = await api.ExecuteAsync(async services => (await services.GetRequiredService<IQueryHandler<ListScheduleOwnersQuery, IReadOnlyList<ScheduleOwner>>>()
+            .HandleAsync(new ListScheduleOwnersQuery(), CancellationToken.None)).Value);
+        Assert.Equal(
+            new HashSet<Guid> { brian.PersonalWorkspaceId, business },
+            owners.Where(owner => owner.UserId == brian.UserId).Select(owner => owner.WorkspaceId).ToHashSet());
+        Assert.Equal([juan.PersonalWorkspaceId], owners.Where(owner => owner.UserId == juan.UserId).Select(owner => owner.WorkspaceId));
     }
 
     [Fact]

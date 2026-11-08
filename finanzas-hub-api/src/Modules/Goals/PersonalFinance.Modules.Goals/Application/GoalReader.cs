@@ -25,10 +25,11 @@ public sealed record GoalParticipantResponse(Guid UserId, string DisplayName, Pa
 /// <param name="MySaved">By the person asking: the most they can withdraw.</param>
 /// <param name="RequiredMonthly">What has to go in each month to reach the target on its date. Null without a date or once reached.</param>
 /// <param name="MyFundAccountId">The account where the person asking keeps their part. Null until their first contribution.</param>
+/// <param name="CanDelete">Whether the person asking may delete it: its owner, while nobody has put money in it.</param>
 public sealed record GoalResponse(
     Guid Id, string Name, decimal TargetAmount, string Currency, DateOnly? TargetDate, GoalStatus Status, bool IsShared, bool IsOwner, decimal Saved, decimal MySaved,
     decimal Remaining, decimal Percent, decimal? RequiredMonthly, decimal AverageMonthly, GoalHealth Health, IReadOnlyList<GoalParticipantResponse> Participants,
-    Guid? MyFundAccountId);
+    Guid? MyFundAccountId, bool CanDelete);
 
 public sealed record GoalMemberResponse(Guid UserId, string DisplayName);
 
@@ -91,7 +92,7 @@ internal sealed class GoalReader(IGoalsDb db, IWorkspaceDirectory directory, ICu
                 .Select(participant => new GoalParticipantResponse(
                     participant.UserId, NameOf(names, participant.UserId), participant.Role, goal.SavedBy(participant.UserId), participant.UserId == me))
                 .ToList(),
-            goal.ActiveParticipant(me)?.FundAccountId);
+            goal.ActiveParticipant(me)?.FundAccountId, goal.CanDelete(me).IsSuccess);
     }
 
     /// <summary>Someone who left the workspace keeps their contributions in the history, without a name.</summary>
@@ -101,10 +102,17 @@ internal sealed class GoalReader(IGoalsDb db, IWorkspaceDirectory directory, ICu
 
 public sealed record ListGoalsQuery : IQuery<GoalsResponse>;
 
-internal sealed class ListGoalsHandler(IGoalsDb db, GoalReader reader) : IQueryHandler<ListGoalsQuery, GoalsResponse>
+internal sealed class ListGoalsHandler(IGoalsDb db, GoalReader reader, IWorkspaceContext workspace) : IQueryHandler<ListGoalsQuery, GoalsResponse>
 {
     public async Task<Result<GoalsResponse>> HandleAsync(ListGoalsQuery query, CancellationToken cancellationToken)
     {
+        // A business or another of its kind has no goals (ADR-023): it is refused, not shown empty.
+        var collaborative = workspace.RequireCollaboration();
+        if (collaborative.IsFailure)
+        {
+            return collaborative.Error;
+        }
+
         var names = await reader.MemberNamesAsync(cancellationToken);
         var goals = await db.Goals.AsNoTracking().OrderBy(goal => goal.CreatedAt).ToListAsync(cancellationToken);
         return new GoalsResponse(

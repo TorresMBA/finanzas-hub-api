@@ -26,9 +26,28 @@ def deployAll(String targetEnv) {
       # No toca el contenedor del API en marcha.
       api_image="$(mercury-ci image-ref "$APP" "$TAG")"
       docker pull "$api_image"
+
+      # En prod, una copia de la base antes de migrar: si la migración o la versión nueva salen mal, se vuelve a
+      # ella (docs/devops/operations.md). Sin el .env de backups no se despliega prod.
+      if [ "$TARGET_ENV" = prod ]; then
+        sh finanzas-hub-api/tools/backup.sh "$APPS_DIR/$TARGET_ENV/finanzas-hub-backup.env" "pre-deploy-$TAG"
+      fi
+
       echo "Migraciones en $TARGET_ENV con $api_image"
+      # Con un rol propio para la app (tools/db-roles.sql), las migraciones usan la conexión del dueño de las tablas,
+      # que está en finanzas-hub-migrate.env (ConnectionStrings__PersonalFinance=...). Sin ese archivo, la del API.
+      # La cadena lleva la contraseña: se lee sin traza (Jenkins corre sh con -x) y se pasa por nombre, no por valor.
+      migrate_env=""
+      if [ -r "$APPS_DIR/$TARGET_ENV/finanzas-hub-migrate.env" ]; then
+        { set +x; } 2>/dev/null
+        ConnectionStrings__PersonalFinance="$(sed -n 's/^ConnectionStrings__PersonalFinance=//p' "$APPS_DIR/$TARGET_ENV/finanzas-hub-migrate.env" | tr -d '"')"
+        export ConnectionStrings__PersonalFinance
+        set -x
+        migrate_env="-e ConnectionStrings__PersonalFinance"
+      fi
       APP="$APP" APP_ENV="$TARGET_ENV" IMAGE="$api_image" \
-        docker compose -f "${MERCURY_TEMPLATES:-/opt/mercury/templates}/compose.deploy.yaml" run --rm -T app migrate
+        docker compose -f "${MERCURY_TEMPLATES:-/opt/mercury/templates}/compose.deploy.yaml" run --rm -T $migrate_env app migrate
+      unset ConnectionStrings__PersonalFinance
 
       mercury-ci deploy "$APP" "$TARGET_ENV" "$TAG"
       APP_MEM_LIMIT=256m mercury-ci deploy "$WORKER_APP" "$TARGET_ENV" "$TAG"
@@ -52,9 +71,10 @@ pipeline {
     SOLUTION = 'PersonalFinance.slnx'
     API_PROJECT = 'src/PersonalFinance.Api/PersonalFinance.Api.csproj'
     WORKER_PROJECT = 'src/PersonalFinance.Worker/PersonalFinance.Worker.csproj'
-    // Sin Docker propio en el agente no corren los tests de integración (Testcontainers);
-    // los unitarios y los de arquitectura sí.
+    // Testcontainers no sirve en el agente (usa el Docker del host y no llegaría a los puertos que publica), así que
+    // los de integración van contra un PostgreSQL de un solo uso que comparte la red del agente (ver la etapa).
     TEST_PROJECTS = 'tests/PersonalFinance.UnitTests/PersonalFinance.UnitTests.csproj tests/PersonalFinance.ArchitectureTests/PersonalFinance.ArchitectureTests.csproj'
+    INTEGRATION_TESTS = 'tests/PersonalFinance.IntegrationTests/PersonalFinance.IntegrationTests.csproj'
     TAG = "${BUILD_NUMBER}"
   }
 
@@ -87,6 +107,16 @@ pipeline {
                   for project in $TEST_PROJECTS; do
                     dotnet test "$project" -c Release --no-build
                   done
+
+                  # PostgreSQL de un solo uso en el espacio de red del agente: para los tests es localhost:5432.
+                  pg="pf-test-pg-$BUILD_NUMBER"
+                  trap 'docker rm -f "$pg" >/dev/null 2>&1 || true' EXIT
+                  docker run -d --rm --name "$pg" --network "container:$(hostname)" \
+                    -e POSTGRES_HOST_AUTH_METHOD=trust postgres:18-alpine >/dev/null
+                  for _ in $(seq 1 30); do docker exec "$pg" pg_isready -U postgres -q && break; sleep 1; done
+                  PERSONALFINANCE_TEST_POSTGRES="Host=localhost;Port=5432;Username=postgres;Database=postgres" \
+                    dotnet test "$INTEGRATION_TESTS" -c Release --no-build
+
                   dotnet sonarscanner end /d:sonar.token="$SONAR_AUTH_TOKEN"
                 '''
               }
@@ -144,6 +174,8 @@ pipeline {
                 mercury-ci trivy-image "$(mercury-ci image-ref "$APP" "$TAG")"
               '''
             }
+            // El deploy de prod corre sin checkout: se lleva el script de backup de este build.
+            stash name: 'backup', includes: 'finanzas-hub-api/tools/backup.sh'
           }
         }
 
@@ -179,6 +211,7 @@ pipeline {
         timeout(time: 10, unit: 'MINUTES')
       }
       steps {
+        unstash 'backup'
         sh 'mercury-ci login'
         deployAll('prod')
       }

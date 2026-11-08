@@ -1,3 +1,5 @@
+using PersonalFinance.BuildingBlocks.Domain;
+
 namespace PersonalFinance.Modules.Categories.Domain;
 
 public sealed record SubcategoryTemplate(string Key, string Name);
@@ -27,6 +29,23 @@ public static class DefaultCatalog
         Income("freelance", "Freelance", "work", CategoryColor.Blue, ["recibo-honorarios"], ("design", "Diseño"), ("consulting", "Consultoría")),
         Income("refunds", "Reembolsos", "group", CategoryColor.Violet, ["compartido"])
     ];
+
+    /// <summary>What the books of a business start with. Their keys never coincide with the personal ones.</summary>
+    public static IReadOnlyList<CategoryTemplate> BusinessCategories { get; } =
+    [
+        Expense("business.suppliers", "Proveedores", "inventory_2", CategoryColor.Blue, ["costo"], ("goods", "Mercadería"), ("materials", "Insumos")),
+        Expense("business.payroll", "Planilla", "badge", CategoryColor.Violet, ["fijo"], ("salaries", "Sueldos"), ("fees", "Honorarios")),
+        Expense("business.rent", "Local y servicios", "storefront", CategoryColor.Amber, ["fijo"], ("rent", "Alquiler"), ("utilities", "Luz, agua e internet")),
+        Expense("business.taxes", "Impuestos", "account_balance", CategoryColor.Red, ["sunat"], ("igv", "IGV"), ("income_tax", "Renta")),
+        Expense("business.marketing", "Publicidad", "campaign", CategoryColor.Green, []),
+        Expense("business.bank", "Comisiones bancarias", "credit_card", CategoryColor.Amber, []),
+        Income("business.sales", "Ventas", "point_of_sale", CategoryColor.Green, [], ("products", "Productos")),
+        Income("business.services", "Servicios", "handshake", CategoryColor.Blue, [])
+    ];
+
+    /// <summary>The catalog a new set of books starts with, by what the workspace is for.</summary>
+    public static IReadOnlyList<CategoryTemplate> For(WorkspaceKind kind) =>
+        kind == WorkspaceKind.Business ? BusinessCategories : Categories;
 
     private static CategoryTemplate Expense(string key, string name, string icon, CategoryColor color, string[] tags, params (string Key, string Name)[] subcategories) =>
         Template(CategoryKind.Expense, $"expense.{key}", name, icon, color, tags, subcategories);

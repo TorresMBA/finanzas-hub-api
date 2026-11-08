@@ -3,6 +3,7 @@ using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Categories.Contracts;
 using PersonalFinance.Modules.Ledger.Application.Abstractions;
 using PersonalFinance.Modules.Ledger.Application.ExchangeRates;
+using PersonalFinance.Modules.Ledger.Application.Transfers;
 using PersonalFinance.Modules.Ledger.Domain;
 
 namespace PersonalFinance.Modules.Ledger.Application.Transactions;
@@ -23,9 +24,14 @@ public sealed record TransactionCategoryResponse(Guid Id, string Name, string? P
 /// person's rates: what the transfer is compared with to see what the exchange cost. Null when a rate is missing.
 /// </param>
 /// <param name="Fee">What the bank charged apart for the transfer, registered as an expense of the origin account.</param>
+/// <param name="OtherBookId">
+/// For a transfer between books (ADR-023), the workspace whose book holds the other account. Each book lists only
+/// its own leg; this tells where the money went or came from.
+/// </param>
 public sealed record TransferResponse(
     Guid FromAccountId, string FromAccountName, decimal AmountOut, string CurrencyOut,
-    Guid ToAccountId, string ToAccountName, decimal AmountIn, string CurrencyIn, bool IsCardPayment, decimal? MarketRate = null, decimal? Fee = null);
+    Guid ToAccountId, string ToAccountName, decimal AmountIn, string CurrencyIn, bool IsCardPayment, decimal? MarketRate = null, decimal? Fee = null,
+    Guid? OtherBookId = null);
 
 /// <summary>What the amount was worth in the base currency when it was registered. Absent in the base currency or without a rate.</summary>
 /// <param name="Rate">Units of the base currency per unit of the amount's.</param>
@@ -57,7 +63,7 @@ public sealed record TransactionResponse(
     TransferResponse? Transfer, bool FundedByGoal = false, ConversionResponse? Conversion = null, OriginalPriceResponse? OriginalPrice = null);
 
 /// <summary>Describes operations for the API: joins the names a person reads, each from the module that owns it.</summary>
-internal sealed class TransactionReader(ILedgerDb db, ICategoryLookup categories, ITagLookup tags, ExchangeRateBook rates)
+internal sealed class TransactionReader(ILedgerDb db, ICategoryLookup categories, ITagLookup tags, ExchangeRateBook rates, OtherBooks books)
 {
     public async Task<TransactionResponse> DescribeAsync(Operation operation, CancellationToken cancellationToken) =>
         (await DescribeAsync([operation], null, cancellationToken))[0];
@@ -84,7 +90,11 @@ internal sealed class TransactionReader(ILedgerDb db, ICategoryLookup categories
         var table = await rates.LoadAsync(cancellationToken);
         var fees = await FeesAsync(operations.Where(operation => operation.Kind == OperationKind.Transfer).Select(operation => operation.Id).ToList(), cancellationToken);
 
-        var known = new Lookups(accounts, categoryInfo, tagNames, table, fees);
+        var counterparts = await books.CounterpartsAsync(
+            operations.Where(operation => operation.CounterpartOperationId != null).Select(operation => operation.CounterpartOperationId!.Value).Distinct().ToList(),
+            cancellationToken);
+
+        var known = new Lookups(accounts, categoryInfo, tagNames, table, fees, counterparts);
         return operations.Select(operation => Describe(operation, perspectiveAccountId, known)).ToList();
     }
 
@@ -96,7 +106,9 @@ internal sealed class TransactionReader(ILedgerDb db, ICategoryLookup categories
         var category = operation.CategoryId is { } categoryId && known.Categories.TryGetValue(categoryId, out var info)
             ? new TransactionCategoryResponse(info.Id, info.Name, info.ParentName, info.Icon, info.Color)
             : null;
-        var transfer = operation.Kind == OperationKind.Transfer && leaving is not null ? Transfer(operation, leaving, known) : null;
+        var transfer = operation.IsBookTransferLeg ? BookTransfer(operation, known)
+            : operation.Kind == OperationKind.Transfer && leaving is not null ? Transfer(operation, leaving, known)
+            : null;
 
         var table = known.Rates;
         var conversion = table.BaseCurrency is { } baseCurrency && entry is { BaseAmount: { } baseAmount, FxRate: { } rate, FxRateDate: { } rateDate }
@@ -127,13 +139,32 @@ internal sealed class TransactionReader(ILedgerDb db, ICategoryLookup categories
             known.Fees.TryGetValue(operation.Id, out var fee) ? fee : null);
     }
 
+    /// <summary>One leg of a transfer between books: this book's entry is one side, the counterpart's in the other book the other.</summary>
+    private static TransferResponse? BookTransfer(Operation operation, Lookups known)
+    {
+        var mine = operation.Entries.First();
+        if (!known.Counterparts.TryGetValue(operation.CounterpartOperationId!.Value, out var other))
+        {
+            return null;
+        }
+
+        var (leaving, leavingName, arriving, arrivingName) = mine.Direction == EntryDirection.Out
+            ? (mine, known.NameOf(mine.AccountId), other.Entry, other.AccountName)
+            : (other.Entry, other.AccountName, mine, known.NameOf(mine.AccountId));
+        return new TransferResponse(
+            leaving.AccountId, leavingName, leaving.Amount, leaving.Currency, arriving.AccountId, arrivingName, arriving.Amount, arriving.Currency,
+            false, leaving.Currency == arriving.Currency ? null : known.Rates.CrossAt(arriving.Currency, leaving.Currency, operation.OccurredOn),
+            OtherBookId: other.BookId);
+    }
+
     /// <summary>What describing a page of operations needs from other tables and modules, loaded once for all of them.</summary>
     private sealed record Lookups(
         Dictionary<Guid, (string Name, AccountType Type)> Accounts,
         IReadOnlyDictionary<Guid, CategoryInfo> Categories,
         IReadOnlyDictionary<Guid, string> Tags,
         RateTable Rates,
-        Dictionary<Guid, decimal> Fees)
+        Dictionary<Guid, decimal> Fees,
+        IReadOnlyDictionary<Guid, (Entry Entry, string AccountName, Guid BookId)> Counterparts)
     {
         public string NameOf(Guid accountId) => Accounts.TryGetValue(accountId, out var account) ? account.Name : string.Empty;
     }

@@ -52,6 +52,7 @@ Cada carpeta de área tiene un `README.md` con el orden de lectura, y además: *
 | Configuración y variables de entorno | [devops/configuration.md](devops/configuration.md) |
 | Secretos (cadena de conexión, SMTP, WhatsApp, CI) | [devops/secrets.md](devops/secrets.md) |
 | Desplegar en Mercury o en otro servidor | [devops/deployment.md](devops/deployment.md) |
+| Salir a producción: lista previa y comprobaciones | [devops/go-live.md](devops/go-live.md) |
 | Pipelines | [devops/ci-cd.md](devops/ci-cd.md) |
 | Dar algo por terminado | [getting-started/definition-of-done.md](getting-started/definition-of-done.md) |
 
@@ -96,4 +97,4 @@ Los documentos nacieron de un único análisis y conservan sus letras de secció
 
 ## Estado
 
-Fases 0 a 3 terminadas; el tablero con el estado de cada fase y lo que quedó pendiente está en [roadmap/status.md](roadmap/status.md). La fase 0 se rediseñó tras su revisión ([ADR-019](adr/ADR-019-simplificacion-de-la-plataforma.md)). El detalle de lo verificado y de lo que no está en [roadmap/phases.md](roadmap/phases.md).
+Versión 1.0: fases 0 a 13 terminadas y endurecidas para producción; lo siguiente es la 1.1 (fase 14). El tablero con el estado de cada fase y lo que quedó pendiente está en [roadmap/status.md](roadmap/status.md), y la lista para salir a producción en [devops/go-live.md](devops/go-live.md). La fase 0 se rediseñó tras su revisión ([ADR-019](adr/ADR-019-simplificacion-de-la-plataforma.md)). El detalle de lo verificado y de lo que no está en [roadmap/phases.md](roadmap/phases.md).

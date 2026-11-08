@@ -260,6 +260,9 @@ public sealed class RecurringRule : AggregateRoot, IOwned
         return Result.Success();
     }
 
+    /// <summary>A rule that never registered a movement leaves no history behind and can be deleted (ADR-024); skipped dates moved nothing.</summary>
+    public bool IsUnused => _occurrences.All(occurrence => occurrence.OperationId is null);
+
     /// <summary>Stops it for good: the dates after today are gone, what was registered stays.</summary>
     public Result End(DateOnly today)
     {

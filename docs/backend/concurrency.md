@@ -11,6 +11,7 @@ Qué protege hoy el sistema cuando dos cosas pasan a la vez, qué no protege, y 
 | Doble clic o reintento de red duplica un gasto | `Idempotency-Key` + `IIdempotentCommand` | `IdempotencyCommandHandlerDecorator` |
 | Dos peticiones con la misma clave a la vez | PK `(user_id, key)` → 409 `idempotency.in_progress` | `IdempotencyRace` |
 | Duplicados de negocio (dos presupuestos para una categoría…) | Índices únicos, a veces parciales | Migraciones ([database.md](database.md)) |
+| Se borra algo mientras otro le añade un hijo (un gasto a un grupo vacío) | `IRowLock` (`SELECT … FOR UPDATE` de la fila padre) antes de comprobar; la clave foránea del otro falla → 409 `reference_conflict` (ADR-024) | `RowLock.cs`, `HandlerDecorators` |
 | Dos Workers envían el mismo correo | `FOR UPDATE SKIP LOCKED` | `Email.cs`, `WhatsApp.cs` |
 | Un aviso repetido | Índice único `(user_id, dedupe_key)` en `notifications` | Notifications |
 | Un webhook recibido dos veces | Índice único `(provider, external_id)` | `received_webhook_events` |

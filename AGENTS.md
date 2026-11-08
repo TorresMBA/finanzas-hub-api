@@ -19,9 +19,13 @@ El backend tiene dos entradas, la API (`Controllers/<Módulo>`) y el Worker (`Jo
 
 ## Reglas que no se negocian
 
-**Privacidad.** Pertenecer a un workspace no da acceso a lo financiero de otros miembros. Lo privado es de la persona: vive en su workspace personal y es lo mismo tenga abierto el workspace que tenga ([ADR-021](docs/adr/ADR-021-finanzas-privadas-de-la-persona.md)). Lleva `workspace_id` y `owner_user_id` e implementa `IOwned`; el filtro global de EF lo aísla con el workspace personal del dueño, que los módulos piden a `IPersonalSpace`. Lo colaborativo (metas y gastos compartidos) se autoriza por participación en el recurso. Ningún rol ve datos privados ajenos. Un recurso ajeno responde 404.
+**Privacidad.** Pertenecer a un workspace no da acceso a lo financiero de otros miembros. Lo privado es de la persona. Un workspace tiene tipo ([ADR-023](docs/adr/ADR-023-tipos-de-espacio.md)):
+- En uno de tipo **Personal** (el personal de cada persona, o uno creado para compartir), lo privado es el del workspace personal de quien mira, sea cual sea el que tenga abierto ([ADR-021](docs/adr/ADR-021-finanzas-privadas-de-la-persona.md)).
+- Uno de tipo **Negocio** u **Otros** tiene libros propios, que solo usa su dueño, y no admite miembros, metas ni gastos compartidos.
 
-**Dinero.** `decimal` siempre, moneda explícita. El saldo se deriva de los asientos; no existe una columna de saldo. Una transferencia no es ingreso ni gasto. Nada financiero se borra: se anula.
+Lo privado lleva `workspace_id` y `owner_user_id` e implementa `IOwned`. El filtro global de EF lo aísla con el libro resuelto, que los módulos piden a `IBook`. Lo colaborativo (metas y gastos compartidos) se autoriza por participación en el recurso. Ningún rol ve datos privados ajenos. Un recurso ajeno responde 404.
+
+**Dinero.** `decimal` siempre, moneda explícita. El saldo se deriva de los asientos; no existe una columna de saldo. Una transferencia no es ingreso ni gasto. Nada financiero se borra: se anula. Solo se elimina lo que nunca se usó, y cada módulo que apunta a algo de otro lo dice por un puerto de uso ([ADR-024](docs/adr/ADR-024-eliminar-lo-que-nunca-se-uso.md)).
 
 **Módulos.**
 
@@ -78,8 +82,10 @@ npm run e2e                                      # requiere la API en marcha
 - `core` (singletons sin UI), `shared` (UI reutilizable sin negocio), `layout` (marco), `features/<sección>`. Una feature no importa a otra; ESLint lo comprueba.
 - Los tipos de la API se generan; no se escriben a mano.
 - Cada vista implementa carga, vacío, error y datos.
-- Los colores y medidas salen de los tokens de `src/styles/_tokens.scss`, que son los del mock.
+- Los colores y medidas salen de los tokens de `src/styles/_tokens.scss`, que son los del mock salvo cuatro del tema claro (`--ac`, `--bl`, `--rd`, `--am`), oscurecidos para llegar a contraste AA. Un color nuevo de texto también cumple 4.5:1.
 
 ## Estado
 
-Fases 0 a 13 terminadas: plataforma, cuentas y sesión (Identity), workspaces con miembros, roles e invitaciones, categorías y tags privados por usuario (Categories), cuentas con ingresos y gastos (Ledger I), y transferencias, tarjetas de crédito, patrimonio, tipo de cambio e Inicio (Ledger II y Reporting), presupuestos mensuales por categoría (Budgets), bandeja de avisos con correo y tiempo real (Notifications), movimientos programados con su calendario (Scheduling), metas personales y compartidas (Goals), gastos compartidos entre miembros (SharedExpenses), importación de archivos de banco y de Bluecoins con reglas de clasificación (Integrations), avisos y consultas por WhatsApp con teléfono verificado, reportes por mes, trimestre y año con exportación a Excel y CSV y búsqueda global (Reporting), e inversiones con su valor, depósitos a plazo y patrimonio sin doble conteo (Investments). Lo siguiente es la fase 14 (tarjetas avanzadas y FX). El tablero está en [docs/roadmap/status.md](docs/roadmap/status.md).
+Fases 0 a 13 terminadas: plataforma, cuentas y sesión (Identity), workspaces con miembros, roles e invitaciones, categorías y tags privados por usuario (Categories), cuentas con ingresos y gastos (Ledger I), y transferencias, tarjetas de crédito, patrimonio, tipo de cambio e Inicio (Ledger II y Reporting), presupuestos mensuales por categoría (Budgets), bandeja de avisos con correo y tiempo real (Notifications), movimientos programados con su calendario (Scheduling), metas personales y compartidas (Goals), gastos compartidos entre miembros (SharedExpenses), importación de archivos de banco y de Bluecoins con reglas de clasificación (Integrations), avisos y consultas por WhatsApp con teléfono verificado, reportes por mes, trimestre y año con exportación a Excel y CSV y búsqueda global (Reporting), e inversiones con su valor, depósitos a plazo y patrimonio sin doble conteo (Investments). Sobre eso, la versión 1.0 endureció la aplicación para producción ([CHANGELOG.md](CHANGELOG.md)). Trajo sesiones revocables, registro solo con invitación, WhatsApp tras `WhatsApp:Enabled`, validación de la configuración de Production, CSP, contraste AA, backups y una lista previa a producción ([docs/devops/go-live.md](docs/devops/go-live.md)). Lo siguiente es la 1.1: la fase 14 (tarjetas avanzadas y FX) y las porciones D y E del ADR-023. El tablero está en [docs/roadmap/status.md](docs/roadmap/status.md).
+
+Un cambio que afecta a quien despliega (una clave de configuración nueva, un paso de despliegue) va también en [CHANGELOG.md](CHANGELOG.md) y en [docs/devops/configuration.md](docs/devops/configuration.md).

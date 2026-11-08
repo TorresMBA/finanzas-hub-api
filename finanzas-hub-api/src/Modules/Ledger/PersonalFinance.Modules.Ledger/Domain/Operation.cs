@@ -97,6 +97,15 @@ public sealed class Operation : AggregateRoot, IOwned
     /// </summary>
     public decimal? ManualFxRate { get; private set; }
 
+    /// <summary>
+    /// The other leg of a transfer between two books of the same person (ADR-023): each book keeps its own leg, with
+    /// one entry, and voiding one voids the other. Null for any other operation.
+    /// </summary>
+    public Guid? CounterpartOperationId { get; private set; }
+
+    /// <summary>One leg of a transfer between two books: its only entry is in this book, the other in the counterpart.</summary>
+    public bool IsBookTransferLeg => CounterpartOperationId is not null;
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset? VoidedAt { get; private set; }
@@ -278,6 +287,102 @@ public sealed class Operation : AggregateRoot, IOwned
         operation._entries.Add(arriving.Value);
         return operation;
     }
+
+    /// <summary>
+    /// Money moving between two books of the same person, like from their personal account to that of their business
+    /// (ADR-023). Each book keeps one leg with one entry, linked to the other: in each it is neither an income nor an
+    /// expense. Between two currencies the person states both amounts; nothing is converted.
+    /// </summary>
+    public static Result<(Operation Leaving, Operation Arriving)> PostBookTransfer(
+        Account from, Account to, decimal amountOut, decimal? amountIn, DateOnly occurredOn, string? description, string? note, DateTimeOffset now)
+    {
+        if (from.IsManaged || to.IsManaged)
+        {
+            return from.IsManaged ? from.EnsureNotManaged().Error : to.EnsureNotManaged().Error;
+        }
+
+        if (from.OwnerUserId != to.OwnerUserId)
+        {
+            return Error.BusinessRule("ledger.transfer.different_owners", "Both accounts of a transfer belong to the same person.");
+        }
+
+        if (from.WorkspaceId == to.WorkspaceId)
+        {
+            return Error.BusinessRule("ledger.transfer.same_book", "Both accounts are in the same book: register a transfer between them.");
+        }
+
+        foreach (var account in new[] { from, to })
+        {
+            var open = account.EnsureOpen();
+            if (open.IsFailure)
+            {
+                return open.Error;
+            }
+        }
+
+        if (from.Currency == to.Currency)
+        {
+            if (amountIn is { } stated && stated != amountOut)
+            {
+                return Error.Validation("ledger.transfer.amount_mismatch", "Between two accounts of the same currency, what arrives is what left.");
+            }
+        }
+        else if (amountIn is null)
+        {
+            return Error.Validation("ledger.transfer.destination_amount_required", "Between two currencies, state how much arrives in the destination account.");
+        }
+
+        var text = Texts.Validate(string.IsNullOrWhiteSpace(description) ? "Transferencia entre libros" : description, null, note);
+        if (text.IsFailure)
+        {
+            return text.Error;
+        }
+
+        var leaving = Leg(from, EntryDirection.Out, amountOut, occurredOn, text.Value.Description, text.Value.Note, now);
+        if (leaving.IsFailure)
+        {
+            return leaving.Error;
+        }
+
+        var arriving = Leg(to, EntryDirection.In, amountIn ?? amountOut, occurredOn, text.Value.Description, text.Value.Note, now);
+        if (arriving.IsFailure)
+        {
+            return arriving.Error;
+        }
+
+        leaving.Value.CounterpartOperationId = arriving.Value.Id;
+        arriving.Value.CounterpartOperationId = leaving.Value.Id;
+        return (leaving.Value, arriving.Value);
+    }
+
+    private static Result<Operation> Leg(Account account, EntryDirection direction, decimal amount, DateOnly occurredOn, string description, string? note, DateTimeOffset now)
+    {
+        var operation = new Operation(NewId())
+        {
+            WorkspaceId = account.WorkspaceId,
+            OwnerUserId = account.OwnerUserId,
+            Kind = OperationKind.Transfer,
+            Status = OperationStatus.Confirmed,
+            OccurredOn = occurredOn,
+            Description = description,
+            Note = note,
+            CreatedAt = now
+        };
+        var entry = Entry.Create(operation, account, direction, amount);
+        if (entry.IsFailure)
+        {
+            return entry.Error;
+        }
+
+        operation._entries.Add(entry.Value);
+        return operation;
+    }
+
+    /// <summary>Voids the other leg of a transfer between books, because its counterpart was voided.</summary>
+    public Result VoidAsCounterpartOf(Operation leg, string? reason, DateTimeOffset now) =>
+        CounterpartOperationId == leg.Id && leg.CounterpartOperationId == Id
+            ? VoidCore(reason, now)
+            : Error.NotFound("ledger.transaction.not_found", "The transaction was not found.");
 
     /// <summary>The balance an account starts with. It is an entry like any other, so the balance is still only a sum.</summary>
     public static Result<Operation> OpenBalance(Account account, decimal balance, DateOnly occurredOn, DateTimeOffset now) =>

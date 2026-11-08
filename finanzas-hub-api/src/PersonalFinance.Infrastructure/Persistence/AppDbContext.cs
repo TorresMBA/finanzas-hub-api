@@ -54,7 +54,7 @@ internal static class Schemas
 /// and their personal workspace. It derives from ASP.NET Core Identity's context so the framework's own user store works on it.
 /// </summary>
 internal sealed class AppDbContext(
-    DbContextOptions<AppDbContext> options, ICurrentUser currentUser, IWorkspaceContext workspaceContext, IPersonalSpace personalSpace)
+    DbContextOptions<AppDbContext> options, ICurrentUser currentUser, IWorkspaceContext workspaceContext, IBook personalSpace)
     : IdentityUserContext<User, Guid>(options), IDataProtectionKeyContext, IIdentityDb, IWorkspacesDb, ICategoriesDb, ILedgerDb, IBudgetsDb, INotificationsDb, ISchedulingDb, IGoalsDb, ISharedExpensesDb, IIntegrationsDb, IInvestmentsDb
 {
     private static readonly MethodInfo ApplyOwnerFilterMethod =

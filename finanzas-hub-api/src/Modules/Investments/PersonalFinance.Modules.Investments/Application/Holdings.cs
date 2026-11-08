@@ -71,7 +71,7 @@ internal static class InvestmentMetrics
 }
 
 /// <summary>Reads the portfolio of the current person and turns it into responses.</summary>
-internal sealed class PortfolioReader(IInvestmentsDb db, ILedgerQueries ledger, ICurrentUser currentUser, IPersonalSpace workspace, IClock clock)
+internal sealed class PortfolioReader(IInvestmentsDb db, ILedgerQueries ledger, ICurrentUser currentUser, IBook workspace, IClock clock)
 {
     public const int TrendMonths = 12;
 

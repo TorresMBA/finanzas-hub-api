@@ -29,6 +29,18 @@ public static class ObservabilityExtensions
             logging.IncludeFormattedMessage = true;
         });
 
+        // Outside a development machine the console is read by tools (docker logs, a collector): one JSON object per
+        // line, with the scopes (correlation, user and workspace ids), instead of text spread over several lines.
+        if (!builder.Environment.IsDevelopment())
+        {
+            builder.Logging.AddJsonConsole(options =>
+            {
+                options.IncludeScopes = true;
+                options.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffZ";
+                options.UseUtcTimestamp = true;
+            });
+        }
+
         var telemetry = builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource => resource.AddService(serviceName))
             .WithTracing(tracing => tracing

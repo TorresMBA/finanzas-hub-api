@@ -40,7 +40,7 @@ Columnas de acceso: **P** privado `(workspace_id, owner_user_id)`, **C** colabor
 
 | Tabla | Clave y relaciones | Únicos, índices y checks | Acceso |
 |---|---|---|---|
-| `workspaces` | PK `id`; ref `owner_user_id` | `status IN (PendingSetup, Active, Archived)`; `base_currency` no nulo si `status = Active` | W |
+| `workspaces` | PK `id`; ref `owner_user_id` | `status IN (PendingSetup, Active, Archived)`; `base_currency` no nulo si `status = Active`; `kind IN (Personal, Business, Other)` (ADR-023) y `NOT is_personal OR kind = Personal`. Borrar uno borra en cascada sus `memberships` e `invitations` (ADR-024) | W |
 | `memberships` | PK `id`; FK `workspace_id`; ref `user_id` | UNIQUE `(workspace_id, user_id)`; índice `(user_id) WHERE status = Active`. Que haya un solo Owner lo garantiza el agregado | W |
 | `invitations` | PK `id`; FK `workspace_id` | UNIQUE `token_hash`; índice `(workspace_id, status)`; `role IN (Member, Admin)`. Que un correo no tenga dos invitaciones abiertas lo comprueba el caso de uso | W |
 

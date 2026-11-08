@@ -4,7 +4,7 @@
 |---|---|
 | Responsabilidad | Dashboard, reportes por periodo, búsqueda global y exportación. No posee verdad financiera |
 | Posee | Nada en MVP |
-| Consulta de otros | Contratos de Ledger, Budgets, Goals, Scheduling, Investments, Categories |
+| Consulta de otros | Contratos de Ledger, Budgets, Goals, Scheduling, Investments, SharedExpenses, Categories |
 | Eventos | Ninguno |
 
 | Caso de uso | Autorización | Entrada | Efectos |
@@ -20,7 +20,7 @@ Implementado: `GetDashboard`, en `GET W/dashboard?month=2026-10` (sin `month`, e
 
 El módulo no tiene tablas ni dominio. Lee `ILedgerQueries`, `IBudgetQueries`, `IScheduleQueries`, `IGoalQueries` e `ICategoryLookup`, que ya limitan todo a la persona de la petición, así que el Inicio de un miembro nunca muestra dinero de otro. Registra la métrica `reporting.dashboard.duration`.
 
-Diferido hasta la fase 12: los reportes, la búsqueda y la exportación.
+Los reportes, la búsqueda y la exportación llegaron en la fase 12 (sección siguiente).
 
 ## Estado tras la fase 12
 

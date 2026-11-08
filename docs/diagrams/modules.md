@@ -29,7 +29,6 @@ flowchart BT
     BD --> NT
     GL --> LG
     GL --> WS
-    GL --> SC
     GL --> NT
     SE --> LG
     SE --> WS
@@ -50,6 +49,6 @@ flowchart BT
     RP --> SE
 ```
 
-Una flecha significa "usa el `Contracts` de": para llamarlo o para reaccionar a uno de sus eventos. Tres flechas existen solo por eventos: `Categories → Workspaces` (sembrar categorías al completar el onboarding o al unirse un miembro), `Scheduling → Workspaces` (pausar reglas de un miembro expulsado) y `Scheduling → Categories` (avisar de reglas con una categoría archivada).
+Una flecha significa "usa el `Contracts` de": para llamarlo o para reaccionar a uno de sus eventos. Una flecha existe solo por un evento: `Categories → Workspaces` (sembrar categorías al completar el onboarding o al unirse un miembro). `Scheduling → Workspaces` sirve para recorrer los espacios en el ciclo del Worker, y `Scheduling → Categories` para leer y validar la categoría de una regla. Que Scheduling pause las reglas de un miembro expulsado, o avise de reglas con una categoría archivada, sigue pendiente ([status.md](../roadmap/status.md), fase 7).
 
 Este grafo es el que declara `ModuleBoundaryTests.AllowedDependencies`.

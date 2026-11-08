@@ -147,6 +147,9 @@ internal static class HttpSetup
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SameSite = SameSiteMode.Lax;
                 options.Cookie.SecurePolicy = environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+                options.ExpireTimeSpan = Session.Lifetime;
+                options.SlidingExpiration = true;
+                options.Events.OnValidatePrincipal = Session.ValidateAsync;
                 options.Events.OnRedirectToLogin = context =>
                 {
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -287,6 +290,11 @@ internal static class HttpSetup
                 || !string.IsNullOrEmpty(uri.Fragment)))
         {
             throw new InvalidOperationException("Each Cors:AllowedOrigins value must be an absolute origin without a path.");
+        }
+
+        if (environment.IsProduction() && origins.Any(origin => !origin.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException("Every Cors:AllowedOrigins value must be an HTTPS origin in Production.");
         }
 
         return origins;

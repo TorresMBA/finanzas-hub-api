@@ -1,6 +1,6 @@
 # ADR-021: Las finanzas privadas son de la persona, no del espacio
 
-- Estado: aceptado
+- Estado: sustituido en parte por [ADR-023](ADR-023-tipos-de-espacio.md) (los espacios de tipo Negocio u Otros tienen libros propios)
 - Fecha: 2026-10-13
 - Cambia: el alcance de "privado" en [security.md](../backend/security.md) y la regla de Privacidad de `AGENTS.md`
 

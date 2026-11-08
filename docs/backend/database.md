@@ -67,9 +67,9 @@ La base contiene datos financieros, los hashes de las contraseñas y las claves 
 
 <!-- generated:start -->
 
-> Generado por `finanzas-hub-api/tools/update-db-docs.mjs` desde `AppDbContextModelSnapshot.cs`. No editar a mano entre las marcas. Última migración: `20261019015013_TransactionForeignTerms`.
+> Generado por `finanzas-hub-api/tools/update-db-docs.mjs` desde `AppDbContextModelSnapshot.cs`. No editar a mano entre las marcas. Última migración: `20261025005934_AddBookTransfers`.
 
-**47 tablas** en 12 esquemas, **56 índices** secundarios, **27 claves foráneas** y **52 restricciones CHECK**.
+**47 tablas** en 12 esquemas, **56 índices** secundarios, **27 claves foráneas** y **54 restricciones CHECK**.
 
 ### Tablas por esquema
 
@@ -108,6 +108,7 @@ erDiagram
     ledger__accounts ||--o{ ledger__entries : "account_id"
     ledger__operations ||--o{ ledger__entries : "operation_id"
     categories__categories |o..o{ ledger__operations : "category_id"
+    ledger__operations |o..o{ ledger__operations : "counterpart_operation_id"
     notifications__notifications |o..o{ notifications__deliveries : "notification_id"
     ledger__accounts ||..o{ scheduling__recurring_rules : "account_id"
     categories__categories ||..o{ scheduling__recurring_rules : "category_id"
@@ -355,6 +356,7 @@ erDiagram
         char base_currency
         timestamptz created_at
         boolean is_personal
+        varchar kind
         varchar name
         uuid owner_user_id "ref"
         varchar status
@@ -441,6 +443,7 @@ A directory of people and the container of what they share. Belonging to it give
 | `base_currency` | char(3) | sí |  |
 | `created_at` | timestamp with time zone | no |  |
 | `is_personal` | boolean | no |  |
+| `kind` | character varying(16) | no |  |
 | `name` | character varying(80) | no |  |
 | `owner_user_id` | uuid | no | ref. → `identity.users` (sin FK) |
 | `status` | character varying(16) | no |  |
@@ -456,6 +459,8 @@ A directory of people and the container of what they share. Belonging to it give
 | Restricción CHECK | Condición |
 |---|---|
 | `ck_workspaces_base_currency` | `status <> 'Active' OR base_currency IS NOT NULL` |
+| `ck_workspaces_kind` | `kind IN ('Personal', 'Business', 'Other')` |
+| `ck_workspaces_personal_kind` | `NOT is_personal OR kind = 'Personal'` |
 | `ck_workspaces_status` | `status IN ('PendingSetup', 'Active', 'Archived')` |
 
 ### Esquema `categories`
@@ -617,6 +622,7 @@ erDiagram
     ledger__operations {
         uuid id PK
         uuid category_id "ref"
+        uuid counterpart_operation_id "ref"
         timestamptz created_at
         varchar description
         uuid funded_by_goal_id
@@ -650,6 +656,7 @@ erDiagram
     ledger__accounts ||--o{ ledger__entries : "account_id"
     ledger__operations ||--o{ ledger__entries : "operation_id"
     categories__categories |o..o{ ledger__operations : "category_id"
+    ledger__operations |o..o{ ledger__operations : "counterpart_operation_id"
     ledger__accounts ||--o| ledger__credit_card_profiles : "account_id"
     ledger__operations ||--o{ ledger__operation_tags : "operation_id"
     categories__tags ||..o{ ledger__operation_tags : "tag_id"
@@ -756,6 +763,7 @@ The business fact a person sees as "a transaction". Its entries are what moves t
 |---|---|---|---|
 | `id` | uuid | no | PK |
 | `category_id` | uuid | sí | ref. → `categories.categories` (sin FK) |
+| `counterpart_operation_id` | uuid | sí | ref. → `ledger.operations` (sin FK) |
 | `created_at` | timestamp with time zone | no |  |
 | `description` | character varying(120) | no |  |
 | `funded_by_goal_id` | uuid | sí |  |

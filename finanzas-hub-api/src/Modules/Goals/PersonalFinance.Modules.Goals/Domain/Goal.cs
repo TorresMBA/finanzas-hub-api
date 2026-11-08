@@ -432,6 +432,15 @@ public sealed class Goal : AggregateRoot
         return Result.Success();
     }
 
+    /// <summary>A goal nobody ever put money in, nor opened a fund for, leaves no history behind (ADR-024).</summary>
+    public bool IsUnused => _contributions.Count == 0 && _participants.All(participant => participant.FundAccountId is null);
+
+    /// <summary>Only its owner, and only while unused; otherwise it is archived or cancelled.</summary>
+    public Result CanDelete(Guid actorUserId) =>
+        !IsOwner(actorUserId) ? OwnerRequired
+        : !IsUnused ? Error.BusinessRule("goals.in_use", "Money already went into the goal. Archive or cancel it instead.")
+        : Result.Success();
+
     private static Error AmountInvalid => Error.Validation("goals.amount_invalid", "The amount must be greater than zero, with two decimals at most.");
 
     private static bool ValidAmount(decimal amount) => amount > 0 && amount <= MaxAmount && decimal.Round(amount, 2) == amount;

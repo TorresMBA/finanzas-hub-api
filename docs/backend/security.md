@@ -16,7 +16,7 @@
 
 | Clase de dato | Columnas | Predicado de acceso | Módulos |
 |---|---|---|---|
-| Privado | `workspace_id`, `owner_user_id` | `workspace_id = @mi_espacio_personal AND owner_user_id = @yo` (ADR-021: no el espacio de la ruta) | Ledger, Categories, Budgets, Scheduling, Integrations, Investments |
+| Privado | `workspace_id`, `owner_user_id` | `workspace_id = @libro AND owner_user_id = @yo`. El libro (`IBook`) es el espacio personal de quien mira si el de la ruta es de tipo Personal, y el propio espacio de la ruta si es Negocio u Otros (ADR-021, ADR-023) | Ledger, Categories, Budgets, Scheduling, Integrations, Investments |
 | Colaborativo | `workspace_id`, `created_by_user_id` y tabla de participantes | `workspace_id = @ws AND EXISTS (participante activo con user_id = @yo)` | Goals, SharedExpenses |
 | Del workspace | `workspace_id` | Membresía activa y rol | Workspaces |
 | Personal sin workspace | `user_id` | `user_id = @yo` | Identity (perfil, preferencias), Notifications |
@@ -27,7 +27,7 @@ Reglas:
 1. Toda entidad privada implementa `IOwned` y `AppDbContext` le aplica un filtro global ligado al `ICurrentUser` e `IWorkspaceContext` de la petición. Olvidar un `WHERE` no filtra datos ajenos, porque el filtro ya está.
 2. Las filas hijas de un agregado heredan el acceso de su raíz. `ledger.entries` repite `workspace_id` y `owner_user_id` porque las sumas de saldo consultan esa tabla directamente.
 3. Un test recorre el modelo EF y falla si una entidad `IOwned` o colaborativa no tiene filtro.
-4. `IgnoreQueryFilters()` solo se permite en código de sistema enumerado en una lista blanca que el test de arquitectura comprueba. Hoy tiene una entrada: la siembra de categorías, que escribe para quien acaba de unirse y filtra por su workspace y su usuario de forma explícita.
+4. `IgnoreQueryFilters()` solo se permite en código de sistema enumerado en una lista blanca que el test de arquitectura comprueba (`LayeringTests.MayIgnoreQueryFilters`): la siembra de categorías, las patas enlazadas de Ledger, la devolución a una meta, `OtherBooks` (el otro libro de una transferencia entre libros de la misma persona, ADR-023) y las implementaciones de `IWorkspaceContents` que responden si un espacio que su dueño pide eliminar guarda algo (ADR-024). Cada una filtra de forma explícita por el espacio, el usuario o el id que ya tiene.
 5. Los contratos entre módulos no aceptan un `ownerUserId` arbitrario: operan sobre el actor del contexto. Un módulo no puede pedir a Ledger los movimientos de otro usuario.
 6. **Ningún rol concede acceso a datos privados ajenos.** Tampoco Owner. No hay puerta de soporte dentro de la aplicación.
 

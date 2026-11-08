@@ -8,7 +8,8 @@ using PersonalFinance.Modules.Categories.Domain;
 namespace PersonalFinance.Modules.Categories.Application.Tags;
 
 /// <param name="CategoryCount">How many active categories suggest it.</param>
-public sealed record TagResponse(Guid Id, string Name, int CategoryCount);
+/// <param name="CanDelete">No movement carries it (ADR-024): it can be deleted, and the categories stop suggesting it.</param>
+public sealed record TagResponse(Guid Id, string Name, int CategoryCount, bool CanDelete);
 
 /// <summary>Turns the names a person typed into their tags, creating the ones that do not exist yet.</summary>
 internal sealed class TagResolver(ICategoriesDb db, IClock clock)
@@ -52,7 +53,7 @@ internal sealed class TagResolver(ICategoriesDb db, IClock clock)
 
 public sealed record ListTagsQuery : IQuery<IReadOnlyList<TagResponse>>;
 
-internal sealed class ListTagsHandler(ICategoriesDb db) : IQueryHandler<ListTagsQuery, IReadOnlyList<TagResponse>>
+internal sealed class ListTagsHandler(ICategoriesDb db, CategoriesInUse inUse) : IQueryHandler<ListTagsQuery, IReadOnlyList<TagResponse>>
 {
     public async Task<Result<IReadOnlyList<TagResponse>>> HandleAsync(ListTagsQuery query, CancellationToken cancellationToken)
     {
@@ -61,13 +62,14 @@ internal sealed class ListTagsHandler(ICategoriesDb db) : IQueryHandler<ListTags
             .SelectMany(category => category.Tags)
             .CountBy(tag => tag.TagId)
             .ToDictionary();
-        return tags.Select(tag => new TagResponse(tag.Id, tag.Name, uses.GetValueOrDefault(tag.Id))).ToList();
+        var used = await inUse.TagsAmongAsync(tags.Select(tag => tag.Id).ToList(), cancellationToken);
+        return tags.Select(tag => new TagResponse(tag.Id, tag.Name, uses.GetValueOrDefault(tag.Id), !used.Contains(tag.Id))).ToList();
     }
 }
 
 public sealed record RenameTagCommand(Guid TagId, string Name) : ICommand<TagResponse>;
 
-internal sealed class RenameTagHandler(ICategoriesDb db, IAuditLog audit) : ICommandHandler<RenameTagCommand, TagResponse>
+internal sealed class RenameTagHandler(ICategoriesDb db, CategoriesInUse inUse, IAuditLog audit) : ICommandHandler<RenameTagCommand, TagResponse>
 {
     public async Task<Result<TagResponse>> HandleAsync(RenameTagCommand command, CancellationToken cancellationToken)
     {
@@ -100,7 +102,8 @@ internal sealed class RenameTagHandler(ICategoriesDb db, IAuditLog audit) : ICom
         }
 
         var uses = await db.Categories.CountAsync(category => category.ArchivedAt == null && category.Tags.Any(suggested => suggested.TagId == tag.Id), cancellationToken);
-        return new TagResponse(tag.Id, tag.Name, uses);
+        var used = await inUse.TagsAmongAsync([tag.Id], cancellationToken);
+        return new TagResponse(tag.Id, tag.Name, uses, used.Count == 0);
     }
 }
 
@@ -123,6 +126,34 @@ internal sealed class ArchiveTagHandler(ICategoriesDb db, IAuditLog audit, ICloc
 
         tag.Archive(clock.UtcNow);
         audit.Record(new AuditEntry("categories", "categories.tag.archived", "tag", tag.Id) { OwnerUserId = tag.OwnerUserId, Before = new { tag.Name } });
+        return Unit.Value;
+    }
+}
+
+/// <summary>Deletes a tag no movement carries (ADR-024). The categories that suggested it stop doing so; one in use is archived instead.</summary>
+public sealed record DeleteTagCommand(Guid TagId) : ICommand<Unit>;
+
+internal sealed class DeleteTagHandler(ICategoriesDb db, CategoriesInUse inUse, IAuditLog audit) : ICommandHandler<DeleteTagCommand, Unit>
+{
+    public async Task<Result<Unit>> HandleAsync(DeleteTagCommand command, CancellationToken cancellationToken)
+    {
+        if (await db.Tags.SingleOrDefaultAsync(tag => tag.Id == command.TagId, cancellationToken) is not { } tag)
+        {
+            return CategoryErrors.TagNotFound;
+        }
+
+        if ((await inUse.TagsAmongAsync([tag.Id], cancellationToken)).Count > 0)
+        {
+            return Error.BusinessRule("categories.tag.in_use", "Movements carry this tag. Archive it instead.");
+        }
+
+        foreach (var category in await db.Categories.Where(category => category.Tags.Any(suggested => suggested.TagId == tag.Id)).ToListAsync(cancellationToken))
+        {
+            category.RemoveTag(tag.Id);
+        }
+
+        db.Tags.Remove(tag);
+        audit.Record(new AuditEntry("categories", "categories.tag.deleted", "tag", tag.Id) { OwnerUserId = tag.OwnerUserId, Before = new { tag.Name } });
         return Unit.Value;
     }
 }

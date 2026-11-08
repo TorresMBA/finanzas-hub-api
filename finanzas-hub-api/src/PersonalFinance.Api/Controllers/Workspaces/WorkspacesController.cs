@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using PersonalFinance.Api.Http;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
+using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Workspaces.Application.Members;
 using PersonalFinance.Modules.Workspaces.Application.Workspaces;
 using PersonalFinance.Modules.Workspaces.Domain;
@@ -12,6 +13,9 @@ public sealed class CreateWorkspaceRequest
 {
     [Required, StringLength(Workspace.MaxNameLength, MinimumLength = 1)]
     public string Name { get; init; } = string.Empty;
+
+    /// <summary>Personal (to share with others) by default. Business and Other keep their own books, for their owner alone.</summary>
+    public WorkspaceKind Kind { get; init; } = WorkspaceKind.Personal;
 }
 
 public sealed class UpdateWorkspaceRequest
@@ -61,7 +65,7 @@ public sealed class WorkspacesController : ApiControllerBase
     public async Task<IActionResult> Create(
         CreateWorkspaceRequest request, [FromServices] ICommandHandler<CreateWorkspaceCommand, WorkspaceResponse> handler, CancellationToken cancellationToken) =>
         ToActionResult(
-            await handler.HandleAsync(new CreateWorkspaceCommand(request.Name), cancellationToken),
+            await handler.HandleAsync(new CreateWorkspaceCommand(request.Name, request.Kind), cancellationToken),
             workspace => Created($"/api/v1/workspaces/{workspace.Id}", workspace));
 
     [HttpGet("{workspaceId:guid}", Name = "GetWorkspace")]
@@ -100,4 +104,25 @@ public sealed class WorkspacesController : ApiControllerBase
     public async Task<IActionResult> TransferOwnership(
         Guid workspaceId, TransferOwnershipRequest request, [FromServices] ICommandHandler<TransferOwnershipCommand, Unit> handler, CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new TransferOwnershipCommand(request.UserId!.Value), cancellationToken), _ => NoContent());
+
+    /// <summary>Whether the person asking can delete the workspace now, and the code of the rule that stops it when not.</summary>
+    [HttpGet("{workspaceId:guid}/deletion", Name = "GetWorkspaceDeletion")]
+    [ProducesResponseType<WorkspaceDeletionResponse>(StatusCodes.Status200OK)]
+    [Problem(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetDeletion(
+        Guid workspaceId, [FromServices] IQueryHandler<GetWorkspaceDeletionQuery, WorkspaceDeletionResponse> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new GetWorkspaceDeletionQuery(), cancellationToken), Ok);
+
+    /// <summary>
+    /// Only its owner, never the personal one, once nobody else is in it and nothing was registered in it. Its suggested
+    /// categories, notices and invitations go with it. One with data is archived.
+    /// </summary>
+    [HttpDelete("{workspaceId:guid}", Name = "DeleteWorkspace")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [Problem(StatusCodes.Status403Forbidden)]
+    [Problem(StatusCodes.Status404NotFound)]
+    [Problem(StatusCodes.Status409Conflict)]
+    [Problem(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Delete(Guid workspaceId, [FromServices] ICommandHandler<DeleteWorkspaceCommand, Unit> handler, CancellationToken cancellationToken) =>
+        ToActionResult(await handler.HandleAsync(new DeleteWorkspaceCommand(), cancellationToken), _ => NoContent());
 }

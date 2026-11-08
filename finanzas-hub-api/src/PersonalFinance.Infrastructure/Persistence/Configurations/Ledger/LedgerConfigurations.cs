@@ -90,6 +90,8 @@ internal sealed class OperationConfiguration : IEntityTypeConfiguration<Operatio
         builder.Property(operation => operation.ManualFxRate).HasColumnType("numeric(18,8)");
         builder.Ignore(operation => operation.IsEffective);
         builder.Ignore(operation => operation.IsTransaction);
+        // No foreign key: the two legs of a transfer between books point at each other and are inserted together.
+        builder.Ignore(operation => operation.IsBookTransferLeg);
         builder.Property<uint>("Version").IsRowVersion();
 
         // The order of the transaction list, newest first.

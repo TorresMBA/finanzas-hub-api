@@ -7,7 +7,7 @@
 | Value objects | `GoalStatus`, `ParticipantRole`, `ContributionType`, `GoalProgress`, `GoalHealth` |
 | Servicios de dominio | `GoalProjection` (función pura) |
 | Posee | Esquema `goals` |
-| Consulta de otros | `Ledger.Contracts`, `Workspaces.Contracts`, `Scheduling.Contracts`, `Notifications.Contracts` |
+| Consulta de otros | `Ledger.Contracts`, `Workspaces.Contracts`, `Notifications.Contracts` |
 | Eventos | `GoalContributionAdded` (I), `GoalTargetReached` (I), `GoalParticipantAdded` (I), `GoalCancelled` (I) |
 
 Una meta personal es una meta con un solo participante. No hay dos modelos.
@@ -40,3 +40,5 @@ Diferido: aporte automático, cuenta vinculada, anular un aporte, traspasar la p
 - **El objetivo se respeta.** Un aporte es como máximo lo que falta (`goals.contribution.exceeds_target`, y `goals.contribution.target_reached` una vez alcanzada), y el objetivo no baja de lo ya ahorrado (`goals.target_below_saved`). Cada aporte toca la fila de la meta, así que dos aportes a la vez no pasan el objetivo juntos: el segundo responde 409.
 - **Cancelar devuelve el dinero.** Lo que cada participante tiene en la meta vuelve a las cuentas de donde salió, empezando por el aporte más reciente (lo retirado o gastado salió de lo más antiguo). Es una transferencia del fondo a esa cuenta en el ledger de cada participante (`ILedgerPosting.ReturnGoalMoneyAsync`) y un retiro en la meta. Si esa cuenta está archivada, ese importe se queda en su fondo y se le avisa para que lo retire.
 - **Anular el gasto pagado con la meta lo devuelve a la meta.** Al anular en Transacciones un gasto registrado con "Usar el dinero", `ReturnSpentMoneyToGoal` (reacción a `LedgerOperationChanged`) anula también el retiro del fondo: el dinero vuelve a la meta y lo que falta crece con él. En una meta cancelada no: ahí el dinero se queda en la cuenta. El retiro guarda el gasto que pagó (`expense_operation_id`); los anteriores a este cambio se enlazaron desde la auditoría en la migración.
+
+**Eliminar (ADR-024).** `DELETE W/goals/{id}` borra, solo para su dueño, una meta en la que nadie puso dinero ni abrió un fondo; si alguien aportó, se archiva o se cancela. `GoalResponse.canDelete` lo dice. Solo hay metas en espacios de tipo Personal (ADR-023).

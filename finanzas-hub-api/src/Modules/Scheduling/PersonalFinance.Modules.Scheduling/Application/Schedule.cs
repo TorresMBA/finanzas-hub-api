@@ -61,17 +61,18 @@ public sealed record CalendarResponse(
     decimal? ProjectedBalance, IReadOnlyList<CalendarItemResponse> Items, IReadOnlyList<string> MissingRates);
 
 /// <param name="NextDate">The first date from today that is neither registered nor skipped.</param>
+/// <param name="CanDelete">It never registered a movement (ADR-024): it can be deleted instead of ended.</param>
 public sealed record RecurringRuleResponse(
     Guid Id, RuleType Type, string Description, decimal Amount, string Currency, Guid AccountId, string AccountName, Guid CategoryId, string CategoryName,
     RuleFrequency Frequency, DateOnly StartsOn, DateOnly? EndsOn, PostingMode PostingMode, int? ReminderDaysBefore, RuleStatus Status, string? PauseReason,
-    DateOnly? NextDate);
+    DateOnly? NextDate, bool CanDelete);
 
 /// <summary>
 /// Reads the rules of the current person and works out their dates. The global filter of the context limits
 /// every query to that person, so a calendar can only ever show their own plans.
 /// </summary>
 internal sealed class ScheduleReader(
-    ISchedulingDb db, ILedgerQueries ledger, ICategoryLookup categories, ICurrentUser currentUser, IPersonalSpace workspace, IClock clock)
+    ISchedulingDb db, ILedgerQueries ledger, ICategoryLookup categories, ICurrentUser currentUser, IBook workspace, IClock clock)
 {
     public (Guid WorkspaceId, Guid UserId)? Owner =>
         currentUser.UserId is { } userId && workspace.WorkspaceId is { } workspaceId ? (workspaceId, userId) : null;
@@ -107,7 +108,7 @@ internal sealed class ScheduleReader(
             .Select(rule => new RecurringRuleResponse(
                 rule.Id, rule.Type, rule.Description, rule.Amount, rule.Currency, rule.AccountId, accounts.GetValueOrDefault(rule.AccountId, string.Empty),
                 rule.CategoryId, names.GetValueOrDefault(rule.CategoryId)?.Name ?? string.Empty, rule.Frequency, rule.StartsOn, rule.EndsOn, rule.PostingMode,
-                rule.ReminderDaysBefore, rule.Status, rule.PauseReason, rule.Status == RuleStatus.Active ? rule.NextPendingFrom(today) : null))
+                rule.ReminderDaysBefore, rule.Status, rule.PauseReason, rule.Status == RuleStatus.Active ? rule.NextPendingFrom(today) : null, rule.IsUnused))
             .ToList();
     }
 }

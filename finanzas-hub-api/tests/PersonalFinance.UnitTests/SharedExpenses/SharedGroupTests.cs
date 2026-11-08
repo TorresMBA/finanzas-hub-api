@@ -31,6 +31,20 @@ public class SharedGroupTests
         Assert.Equal("shared.split.amounts_invalid", SplitCalculator.Split(300m, SplitType.FixedAmount, people).Error.Code);
     }
 
+    [Fact]
+    public void Only_a_group_where_nothing_was_ever_registered_is_deleted_and_only_by_who_created_it()
+    {
+        var empty = SharedGroup.Create(Guid.NewGuid(), Brian, "Viaje", "PEN", Now).Value;
+        empty.AddMember(Brian, Juan, Now);
+        Assert.True(empty.CanDelete(Brian).IsSuccess);
+        Assert.Equal("shared.admin_required", empty.CanDelete(Juan).Error.Code);
+
+        // A cancelled expense moved nothing, but it is history: the group is archived instead.
+        var (group, dinner) = Dinner();
+        group.CancelExpense(Brian, dinner.Id, Now);
+        Assert.Equal("shared.group.in_use", group.CanDelete(Brian).Error.Code);
+    }
+
     private static (SharedGroup Group, SharedExpense Dinner) Dinner()
     {
         var group = SharedGroup.Create(Guid.NewGuid(), Brian, "Depa", "PEN", Now).Value;

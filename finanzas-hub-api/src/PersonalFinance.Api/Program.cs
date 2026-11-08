@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using PersonalFinance.Api.Http;
 using PersonalFinance.Api.Realtime;
@@ -8,9 +9,10 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-if (builder.Environment.IsProduction() && string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString(DependencyInjection.ConnectionStringName)))
+// Production stops here when a value is missing that would otherwise fail silently later.
+if (builder.Environment.IsProduction())
 {
-    throw new InvalidOperationException($"ConnectionStrings:{DependencyInjection.ConnectionStringName} must be configured in Production.");
+    ProductionSettings.EnsureValid(builder.Configuration);
 }
 
 builder.AddObservability("personal-finance-api");
@@ -38,7 +40,13 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
 
 app.UseApiHttp();
 
-app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+// Liveness answers with the version, so a deploy can be checked from outside: curl https://.../health/live
+var version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "unknown";
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = (context, report) => context.Response.WriteAsJsonAsync(new { status = report.Status.ToString(), version })
+}).AllowAnonymous();
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains(ObservabilityExtensions.ReadyTag) }).AllowAnonymous();
 
 if (!app.Environment.IsProduction())

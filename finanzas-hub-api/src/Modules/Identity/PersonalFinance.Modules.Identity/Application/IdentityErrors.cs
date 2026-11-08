@@ -14,6 +14,9 @@ internal static class IdentityErrors
 
     public static readonly Error LockedOut = Error.Unauthorized("auth.locked_out", "Too many failed attempts. Try again in a few minutes.");
 
+    public static readonly Error InvitationRequired =
+        Error.Forbidden("identity.invitation_required", "An account can only be created from an invitation. Ask a member to invite you.");
+
     public static readonly Error InvalidToken = Error.BusinessRule("identity.token_invalid", "The link is not valid or has expired. Request a new one.");
 
     /// <summary>Turns what ASP.NET Core Identity rejected into one error with a message per field.</summary>

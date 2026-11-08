@@ -10,17 +10,18 @@ namespace PersonalFinance.Modules.Categories.Application.Categories;
 
 public sealed record ListCategoriesQuery(CategoryKind? Kind, bool IncludeArchived) : IQuery<IReadOnlyList<CategoryResponse>>;
 
-internal sealed class ListCategoriesHandler(ICategoriesDb db) : IQueryHandler<ListCategoriesQuery, IReadOnlyList<CategoryResponse>>
+internal sealed class ListCategoriesHandler(ICategoriesDb db, CategoriesInUse inUse) : IQueryHandler<ListCategoriesQuery, IReadOnlyList<CategoryResponse>>
 {
     public async Task<Result<IReadOnlyList<CategoryResponse>>> HandleAsync(ListCategoriesQuery query, CancellationToken cancellationToken)
     {
         // No owner condition here on purpose: the context's global filter already limits both tables to the current person.
+        // Archived ones too, left out when describing: an archived subcategory in use keeps its category from being deleted.
         var categories = await db.Categories.AsNoTracking()
             .Where(category => query.Kind == null || category.Kind == query.Kind)
-            .Where(category => query.IncludeArchived || category.ArchivedAt == null)
             .ToListAsync(cancellationToken);
         var tagNames = await db.Tags.AsNoTracking().Where(tag => tag.ArchivedAt == null).ToDictionaryAsync(tag => tag.Id, tag => tag.Name, cancellationToken);
-        return Result.Success(CategoryFamilies.Describe(categories, tagNames, query.IncludeArchived));
+        var used = await inUse.AmongAsync(categories.Select(category => category.Id).ToList(), cancellationToken);
+        return Result.Success(CategoryFamilies.Describe(categories, tagNames, query.IncludeArchived, used));
     }
 }
 
@@ -226,6 +227,37 @@ internal sealed class ArchiveCategoryHandler(CategoryFamilies families, IAuditLo
         }
 
         return await families.DescribeAsync(family, cancellationToken);
+    }
+}
+
+/// <summary>
+/// Deletes a category nothing ever used (ADR-024). A category goes with its subcategories, so none of them may be
+/// in use either; one that was used is archived instead.
+/// </summary>
+public sealed record DeleteCategoryCommand(Guid CategoryId) : ICommand<Unit>;
+
+internal sealed class DeleteCategoryHandler(ICategoriesDb db, CategoryFamilies families, CategoriesInUse inUse, IAuditLog audit) : ICommandHandler<DeleteCategoryCommand, Unit>
+{
+    public async Task<Result<Unit>> HandleAsync(DeleteCategoryCommand command, CancellationToken cancellationToken)
+    {
+        if (await families.FindAsync(command.CategoryId, cancellationToken) is not { } family)
+        {
+            return CategoryErrors.NotFound;
+        }
+
+        var category = family.Target;
+        List<Category> going = category.IsRoot ? [.. family.Subcategories, category] : [category];
+        if ((await inUse.AmongAsync(going.Select(candidate => candidate.Id).ToList(), cancellationToken)).Count > 0)
+        {
+            return CategoryErrors.InUse;
+        }
+
+        db.Categories.RemoveRange(going);
+        audit.Record(new AuditEntry("categories", "categories.category.deleted", "category", category.Id)
+        {
+            OwnerUserId = category.OwnerUserId, Before = new { category.Name, Subcategories = going.Count - 1 }
+        });
+        return Unit.Value;
     }
 }
 

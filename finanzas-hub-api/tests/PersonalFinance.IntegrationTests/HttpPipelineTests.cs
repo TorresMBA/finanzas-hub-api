@@ -20,6 +20,15 @@ public class HttpPipelineTests(ApiFixture api)
     }
 
     [Fact]
+    public async Task Liveness_tells_which_version_is_running()
+    {
+        var live = await api.AnonymousClient().GetFromJsonAsync<JsonElement>("/health/live");
+
+        Assert.Equal("Healthy", live.GetProperty("status").GetString());
+        Assert.Equal("1.0.0", live.GetProperty("version").GetString());
+    }
+
+    [Fact]
     public async Task A_request_without_a_session_gets_401_as_a_problem_with_code_and_trace_id()
     {
         var response = await api.AnonymousClient().GetAsync(Books.AccountsUrl(Guid.NewGuid()));

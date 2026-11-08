@@ -23,6 +23,34 @@ public class LedgerTests
             .Sum(entry => entry.Direction == EntryDirection.In ? entry.Amount : -entry.Amount);
 
     [Fact]
+    public void Only_an_account_nothing_ever_moved_nor_points_at_is_deleted_and_never_the_fund_of_a_goal()
+    {
+        Assert.True(Bank().CanDelete(inUse: false).IsSuccess);
+        Assert.Equal("ledger.account.in_use", Bank().CanDelete(inUse: true).Error.Code);
+        var fund = Account.Open(Workspace, Brian, "Viaje", AccountType.GoalFund, "PEN", null, Now).Value;
+        Assert.Equal("ledger.account.managed_by_goal", fund.CanDelete(inUse: false).Error.Code);
+    }
+
+    [Fact]
+    public void A_transfer_between_books_is_one_linked_leg_in_each_book_and_voiding_one_voids_the_other()
+    {
+        var personal = Bank();
+        var business = Account.Open(Guid.NewGuid(), Brian, "Caja negocio", AccountType.Cash, "PEN", null, Now).Value;
+
+        var (leaving, arriving) = Operation.PostBookTransfer(personal, business, 100m, null, Today, null, null, Now).Value;
+
+        Assert.Equal((-100m, 100m), (Balance(personal, leaving), Balance(business, arriving)));
+        Assert.Equal((arriving.Id, leaving.Id), (leaving.CounterpartOperationId, arriving.CounterpartOperationId));
+        Assert.Equal((personal.WorkspaceId, business.WorkspaceId), (leaving.WorkspaceId, arriving.WorkspaceId));
+        Assert.True(arriving.VoidAsCounterpartOf(leaving, null, Now).IsSuccess);
+        Assert.Equal(0m, Balance(business, arriving));
+        Assert.Equal("ledger.transfer.same_book", Operation.PostBookTransfer(personal, Bank("Ahorros"), 100m, null, Today, null, null, Now).Error.Code);
+        var dollars = Account.Open(business.WorkspaceId, Brian, "Banco USD", AccountType.Bank, "USD", null, Now).Value;
+        Assert.Equal(
+            "ledger.transfer.destination_amount_required", Operation.PostBookTransfer(personal, dollars, 100m, null, Today, null, null, Now).Error.Code);
+    }
+
+    [Fact]
     public void An_account_belongs_to_its_owner_and_has_one_currency()
     {
         var account = Account.Open(Workspace, Brian, "  BCP   Sueldo ", AccountType.Bank, "pen", "  BCP ", Now).Value;

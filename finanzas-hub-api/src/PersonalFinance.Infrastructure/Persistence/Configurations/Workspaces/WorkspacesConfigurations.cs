@@ -12,6 +12,8 @@ internal sealed class WorkspaceConfiguration : IEntityTypeConfiguration<Workspac
         {
             table.HasCheckConstraint("ck_workspaces_status", "status IN ('PendingSetup', 'Active', 'Archived')");
             table.HasCheckConstraint("ck_workspaces_base_currency", "status <> 'Active' OR base_currency IS NOT NULL");
+            table.HasCheckConstraint("ck_workspaces_kind", "kind IN ('Personal', 'Business', 'Other')");
+            table.HasCheckConstraint("ck_workspaces_personal_kind", "NOT is_personal OR kind = 'Personal'");
         });
         builder.HasKey(workspace => workspace.Id);
         builder.Property(workspace => workspace.Id).ValueGeneratedNever();
@@ -19,6 +21,7 @@ internal sealed class WorkspaceConfiguration : IEntityTypeConfiguration<Workspac
         builder.Property(workspace => workspace.BaseCurrency).HasColumnType("char(3)");
         builder.Property(workspace => workspace.TimeZone).HasMaxLength(64).IsRequired();
         builder.Property(workspace => workspace.Status).HasConversion<string>().HasMaxLength(16);
+        builder.Property(workspace => workspace.Kind).HasConversion<string>().HasMaxLength(16);
 
         // Two people editing the workspace itself (name, time zone, owner) at the same moment: the second one gets a
         // conflict, not a silent overwrite. Membership rows are separate and are not covered by it.

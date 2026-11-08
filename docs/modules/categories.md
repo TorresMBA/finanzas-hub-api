@@ -39,4 +39,6 @@ Desde la fase 3 el módulo expone `ICategoryLookup` (una categoría, varias, y u
 
 ## Tras el ADR-021
 
-Las categorías y los tags son de la persona y viven en su espacio personal. El catálogo sugerido se siembra solo al configurar ese espacio; unirse a otro espacio ya no siembra nada.
+Las categorías y los tags son de la persona y viven en su libro (`IBook`): su espacio personal, o el propio Negocio u Otros (ADR-023). El catálogo sugerido se siembra al configurar un espacio con libros propios; un Negocio recibe el suyo (`DefaultCatalog.For(kind)`: Proveedores, Planilla, Impuestos, Ventas…). Unirse a otro espacio no siembra nada.
+
+**Eliminar (ADR-024).** `DELETE W/categories/{id}` borra una categoría que nada usa, con sus subcategorías, y `DELETE W/tags/{id}` un tag que ningún movimiento lleva, que deja de sugerirse en las categorías. Quién usa qué lo responden los módulos por `ICategoryUsage`, en `Categories.Contracts`: Ledger, Budgets, Scheduling e Integrations. `CategoryResponse`, `SubcategoryResponse` y `TagResponse` llevan `canDelete`. Al eliminar un espacio, Categories borra sus categorías y tags (`IWorkspaceContents.RemoveLeftoversAsync`).

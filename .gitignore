@@ -1,2 +1,8 @@
 # Per-user tool settings
 .claude/settings.local.json
+
+# The frontend is its own git repository (github.com/TorresMBA/finanzas-hub-web), checked out here.
+finanzas-hub-web/
+
+# Visual Studio
+.vs/

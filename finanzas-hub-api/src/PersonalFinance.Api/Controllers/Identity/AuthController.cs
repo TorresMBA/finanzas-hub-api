@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using PersonalFinance.Api.Http;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
+using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.Modules.Identity.Application.Login;
 using PersonalFinance.Modules.Identity.Application.Passwords;
 using PersonalFinance.Modules.Identity.Application.Register;
@@ -156,10 +157,20 @@ public sealed class AuthController : ApiControllerBase
         ResetPasswordRequest request, [FromServices] ICommandHandler<ResetPasswordCommand, Unit> handler, CancellationToken cancellationToken) =>
         ToActionResult(await handler.HandleAsync(new ResetPasswordCommand(request.Email, request.Token, request.NewPassword), cancellationToken), _ => NoContent());
 
+    /// <summary>Changes the password and ends every other session; this one continues with a new cookie.</summary>
     [HttpPost("change-password", Name = "ChangePassword")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [Problem(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ChangePassword(
-        ChangePasswordRequest request, [FromServices] ICommandHandler<ChangePasswordCommand, Unit> handler, CancellationToken cancellationToken) =>
-        ToActionResult(await handler.HandleAsync(new ChangePasswordCommand(request.CurrentPassword, request.NewPassword), cancellationToken), _ => NoContent());
+        ChangePasswordRequest request, [FromServices] ICommandHandler<ChangePasswordCommand, Unit> handler, [FromServices] ICurrentUser currentUser,
+        CancellationToken cancellationToken)
+    {
+        var result = await handler.HandleAsync(new ChangePasswordCommand(request.CurrentPassword, request.NewPassword), cancellationToken);
+        if (result.IsSuccess && currentUser.UserId is { } userId)
+        {
+            await Session.SignInAsync(HttpContext, userId);
+        }
+
+        return ToActionResult(result, _ => NoContent());
+    }
 }

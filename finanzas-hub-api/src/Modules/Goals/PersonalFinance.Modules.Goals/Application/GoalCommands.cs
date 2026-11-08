@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PersonalFinance.BuildingBlocks.Application.Abstractions;
 using PersonalFinance.BuildingBlocks.Application.Events;
 using PersonalFinance.BuildingBlocks.Application.Messaging;
+using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Goals.Application.Abstractions;
 using PersonalFinance.Modules.Goals.Domain;
@@ -46,7 +47,7 @@ internal sealed class GoalNotifier(INotificationPublisher notifications, IRealti
 public sealed record CreateGoalCommand(string Name, decimal TargetAmount, string? Currency, DateOnly? TargetDate, IReadOnlyList<Guid>? ParticipantUserIds)
     : ICommand<GoalResponse>;
 
-internal sealed class CreateGoalHandler(IGoalsDb db, GoalReader reader, GoalNotifier notifier, IAuditLog audit, IClock clock)
+internal sealed class CreateGoalHandler(IGoalsDb db, GoalReader reader, GoalNotifier notifier, IWorkspaceContext workspace, IAuditLog audit, IClock clock)
     : ICommandHandler<CreateGoalCommand, GoalResponse>
 {
     public async Task<Result<GoalResponse>> HandleAsync(CreateGoalCommand command, CancellationToken cancellationToken)
@@ -54,6 +55,12 @@ internal sealed class CreateGoalHandler(IGoalsDb db, GoalReader reader, GoalNoti
         if (reader.Owner is not (var workspaceId, var userId))
         {
             return GoalErrors.Unauthenticated;
+        }
+
+        var collaborative = workspace.RequireCollaboration();
+        if (collaborative.IsFailure)
+        {
+            return collaborative.Error;
         }
 
         var currency = (command.Currency ?? reader.BaseCurrency)?.Trim().ToUpperInvariant();
@@ -391,6 +398,37 @@ internal sealed class SpendFromGoalHandler(GoalReader reader, ILedgerPosting led
         });
         notifier.Signal(goal, userId);
         return await reader.DescribeAsync(goal, cancellationToken);
+    }
+}
+
+/// <summary>Deletes a goal nobody ever put money in (ADR-024). One with history is archived or cancelled instead.</summary>
+public sealed record DeleteGoalCommand(Guid GoalId) : ICommand<Unit>;
+
+internal sealed class DeleteGoalHandler(IGoalsDb db, GoalReader reader, GoalNotifier notifier, IRowLock rows, IAuditLog audit)
+    : ICommandHandler<DeleteGoalCommand, Unit>
+{
+    public async Task<Result<Unit>> HandleAsync(DeleteGoalCommand command, CancellationToken cancellationToken)
+    {
+        // Locked before reading, so a contribution made meanwhile is either seen here or refused afterwards.
+        await rows.LockAsync<Goal>(command.GoalId, cancellationToken);
+        if (reader.Owner is not var (_, userId) || await reader.FindAsync(command.GoalId, cancellationToken) is not { } goal)
+        {
+            return GoalErrors.NotFound;
+        }
+
+        var allowed = goal.CanDelete(userId);
+        if (allowed.IsFailure)
+        {
+            return allowed.Error;
+        }
+
+        db.Goals.Remove(goal);
+        audit.Record(new AuditEntry("goals", "goals.goal.deleted", "goal", goal.Id)
+        {
+            ScopeType = "goal", ScopeId = goal.Id, Before = new { goal.Name, goal.TargetAmount, goal.Currency }
+        });
+        notifier.Signal(goal, userId);
+        return Unit.Value;
     }
 }
 

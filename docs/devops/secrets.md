@@ -107,5 +107,9 @@ Sin SMTP los correos se escriben como `.eml` en `%TEMP%\personal-hub-mail`, y si
 
 ## Recomendaciones pendientes
 
-- **Usuario de base de datos propio.** La aplicación debería conectarse con un rol que solo tenga permisos sobre sus esquemas, no con `postgres`. Hoy no hay `GRANT` en las migraciones, así que la tabla de auditoría es de solo inserción por convención, no porque la base lo impida.
+- **Usuario de base de datos propio.** Desde la 1.0 hay script: [`tools/db-roles.sql`](../../finanzas-hub-api/tools/db-roles.sql) crea un rol con permiso para leer y escribir datos en los esquemas de la aplicación. Ese rol no puede cambiar el esquema ni modificar o borrar `platform.audit_log`, que pasa a ser de solo inserción porque la base lo impide. Para usarlo:
+  1. Como dueño de las tablas: `psql "<conexión del dueño>" -v app_role=personalhub_app -v app_password='...' -f tools/db-roles.sql`.
+  2. En `finanzas-hub-api.env` y `finanzas-hub-worker.env`, la cadena con `personalhub_app`.
+  3. En `finanzas-hub-migrate.env` (mismo directorio), `ConnectionStrings__PersonalFinance=` con el dueño: Jenkins la usa solo para `migrate`.
+  4. Tras una migración que cree un esquema nuevo, repetir el paso 1 (es idempotente).
 - **Cifrar las claves de Data Protection** (`ProtectKeysWith...`) si la base se aloja donde otras personas tienen acceso de lectura.

@@ -166,9 +166,12 @@ public class IdentityTests(ApiFixture api)
     }
 
     [Fact]
-    public async Task Changing_the_password_requires_the_current_one()
+    public async Task Changing_the_password_requires_the_current_one_and_ends_the_other_sessions()
     {
         var brian = await api.RegisterAsync("Brian");
+        var otherDevice = api.BrowserClient();
+        await otherDevice.PostAsJsonAsync("/api/v1/auth/login", new { email = brian.Email, password = Accounts.Password });
+        Assert.Equal(HttpStatusCode.OK, (await otherDevice.GetAsync("/api/v1/me")).StatusCode);
 
         var wrong = await brian.Client.PostAsJsonAsync("/api/v1/auth/change-password", new { currentPassword = "No-Es-La-Actual-1", newPassword = "Nueva-Clave-Segura-2" });
         var right = await brian.Client.PostAsJsonAsync("/api/v1/auth/change-password", new { currentPassword = Accounts.Password, newPassword = "Nueva-Clave-Segura-2" });
@@ -176,6 +179,8 @@ public class IdentityTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
         Assert.Equal("identity.password_incorrect", await Accounts.CodeOfAsync(wrong));
         Assert.Equal(HttpStatusCode.NoContent, right.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await otherDevice.GetAsync("/api/v1/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await brian.Client.GetAsync("/api/v1/me")).StatusCode);
         var login = await api.BrowserClient().PostAsJsonAsync("/api/v1/auth/login", new { email = brian.Email, password = "Nueva-Clave-Segura-2" });
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
     }

@@ -2,15 +2,19 @@ using Microsoft.EntityFrameworkCore;
 using PersonalFinance.BuildingBlocks.Application.Security;
 using PersonalFinance.BuildingBlocks.Domain;
 using PersonalFinance.Modules.Categories.Application.Abstractions;
+using PersonalFinance.Modules.Categories.Contracts;
 using PersonalFinance.Modules.Categories.Domain;
 
 namespace PersonalFinance.Modules.Categories.Application;
 
-public sealed record SubcategoryResponse(Guid Id, string Name, bool IsArchived);
+/// <param name="CanDelete">Nothing ever used it (ADR-024): it can be deleted instead of archived.</param>
+public sealed record SubcategoryResponse(Guid Id, string Name, bool IsArchived, bool CanDelete);
 
 /// <summary>A category with its subcategories and the names of the tags it suggests.</summary>
+/// <param name="CanDelete">Nothing ever used it nor any of its subcategories (ADR-024): deleting it deletes them too.</param>
 public sealed record CategoryResponse(
-    Guid Id, CategoryKind Kind, string Name, string Icon, CategoryColor Color, bool IsArchived, IReadOnlyList<string> Tags, IReadOnlyList<SubcategoryResponse> Subcategories);
+    Guid Id, CategoryKind Kind, string Name, string Icon, CategoryColor Color, bool IsArchived, IReadOnlyList<string> Tags, IReadOnlyList<SubcategoryResponse> Subcategories,
+    bool CanDelete);
 
 internal static class CategoryErrors
 {
@@ -23,13 +27,41 @@ internal static class CategoryErrors
     public static readonly Error NameTaken = Error.Conflict("categories.name_taken", "There is already a category with that name in the same place.");
 
     public static readonly Error TagNotFound = Error.NotFound("categories.tag.not_found", "The tag was not found.");
+
+    public static readonly Error InUse = Error.BusinessRule("categories.in_use", "Movements, budgets, schedules or rules use it. Archive it instead.");
 }
 
 /// <summary>
 /// Loads and describes categories as families. Every query goes through the owner filter of the context, so
 /// a category of someone else is simply not found.
 /// </summary>
-internal sealed class CategoryFamilies(ICategoriesDb db, ICurrentUser currentUser, IPersonalSpace workspace)
+/// <summary>Which categories and tags something uses, asked of every module that points at them (ADR-024).</summary>
+internal sealed class CategoriesInUse(IEnumerable<ICategoryUsage> modules)
+{
+    public async Task<IReadOnlySet<Guid>> AmongAsync(IReadOnlyCollection<Guid> categoryIds, CancellationToken cancellationToken)
+    {
+        var used = new HashSet<Guid>();
+        foreach (var module in modules)
+        {
+            used.UnionWith(await module.CategoriesUsedAmongAsync(categoryIds, cancellationToken));
+        }
+
+        return used;
+    }
+
+    public async Task<IReadOnlySet<Guid>> TagsAmongAsync(IReadOnlyCollection<Guid> tagIds, CancellationToken cancellationToken)
+    {
+        var used = new HashSet<Guid>();
+        foreach (var module in modules)
+        {
+            used.UnionWith(await module.TagsUsedAmongAsync(tagIds, cancellationToken));
+        }
+
+        return used;
+    }
+}
+
+internal sealed class CategoryFamilies(ICategoriesDb db, CategoriesInUse inUse, ICurrentUser currentUser, IBook workspace)
 {
     /// <summary>A root category with its subcategories, and which of them a command asked for.</summary>
     internal sealed record Family(Category Root, List<Category> Subcategories, Category Target);
@@ -70,24 +102,29 @@ internal sealed class CategoryFamilies(ICategoriesDb db, ICurrentUser currentUse
             names[added.Id] = added.Name;
         }
 
-        return Describe(family.Root, family.Subcategories, names, includeArchived: true);
+        var used = await inUse.AmongAsync([family.Root.Id, .. family.Subcategories.Select(subcategory => subcategory.Id)], cancellationToken);
+        return Describe(family.Root, family.Subcategories, names, includeArchived: true, used);
     }
 
-    public static IReadOnlyList<CategoryResponse> Describe(IReadOnlyCollection<Category> categories, IReadOnlyDictionary<Guid, string> tagNames, bool includeArchived)
+    /// <param name="categories">All of them, archived included, so that whether a category can be deleted counts its archived subcategories.</param>
+    public static IReadOnlyList<CategoryResponse> Describe(
+        IReadOnlyCollection<Category> categories, IReadOnlyDictionary<Guid, string> tagNames, bool includeArchived, IReadOnlySet<Guid> used)
     {
         var subcategories = categories.Where(category => !category.IsRoot).ToLookup(category => category.ParentId!.Value);
-        return categories.Where(category => category.IsRoot)
+        return categories.Where(category => category.IsRoot && (includeArchived || !category.IsArchived))
             .OrderByDescending(category => category.Kind)
             .ThenBy(category => category.Name, ByName)
-            .Select(root => Describe(root, subcategories[root.Id], tagNames, includeArchived))
+            .Select(root => Describe(root, subcategories[root.Id], tagNames, includeArchived, used))
             .ToList();
     }
 
-    private static CategoryResponse Describe(Category root, IEnumerable<Category> subcategories, IReadOnlyDictionary<Guid, string> tagNames, bool includeArchived) => new(
+    private static CategoryResponse Describe(
+        Category root, IEnumerable<Category> subcategories, IReadOnlyDictionary<Guid, string> tagNames, bool includeArchived, IReadOnlySet<Guid> used) => new(
         root.Id, root.Kind, root.Name, root.Icon!, root.Color!.Value, root.IsArchived,
         root.Tags.Where(tag => tagNames.ContainsKey(tag.TagId)).Select(tag => tagNames[tag.TagId]).Order(StringComparer.Ordinal).ToList(),
         subcategories.Where(subcategory => includeArchived || !subcategory.IsArchived)
             .OrderBy(subcategory => subcategory.Name, ByName)
-            .Select(subcategory => new SubcategoryResponse(subcategory.Id, subcategory.Name, subcategory.IsArchived))
-            .ToList());
+            .Select(subcategory => new SubcategoryResponse(subcategory.Id, subcategory.Name, subcategory.IsArchived, !used.Contains(subcategory.Id)))
+            .ToList(),
+        !used.Contains(root.Id) && subcategories.All(subcategory => !used.Contains(subcategory.Id)));
 }

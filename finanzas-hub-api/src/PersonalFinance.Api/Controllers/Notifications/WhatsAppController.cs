@@ -88,7 +88,8 @@ public sealed class WhatsAppWebhookController(WhatsAppInbox inbox) : ApiControll
     [HttpGet]
     public IActionResult Verify(
         [FromQuery(Name = "hub.mode")] string? mode, [FromQuery(Name = "hub.verify_token")] string? verifyToken, [FromQuery(Name = "hub.challenge")] string? challenge) =>
-        inbox.IsSubscription(mode, verifyToken) ? Content(challenge ?? string.Empty, "text/plain") : StatusCode(StatusCodes.Status403Forbidden);
+        !inbox.IsEnabled ? NotFound()
+        : inbox.IsSubscription(mode, verifyToken) ? Content(challenge ?? string.Empty, "text/plain") : StatusCode(StatusCodes.Status403Forbidden);
 
     [HttpPost]
     [RequestSizeLimit(MaxBodyBytes)]
@@ -96,6 +97,11 @@ public sealed class WhatsAppWebhookController(WhatsAppInbox inbox) : ApiControll
         [FromServices] ICommandHandler<ReceiveWhatsAppWebhookCommand, IReadOnlyList<WhatsAppInboundMessage>> handler,
         [FromHeader(Name = "X-Hub-Signature-256")] string? signature, CancellationToken cancellationToken)
     {
+        if (!inbox.IsEnabled)
+        {
+            return NotFound();
+        }
+
         using var buffer = new MemoryStream();
         await Request.Body.CopyToAsync(buffer, cancellationToken);
         var body = buffer.ToArray();

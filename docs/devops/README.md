@@ -26,6 +26,7 @@ Configuración: variables de entorno (.env del servidor)  ·  Secretos: fuera de
 | 6 | [operations.md](operations.md) | Copias, migraciones a mano, purgas, incidentes |
 | 7 | [best-practices.md](best-practices.md) | Reglas para construir, desplegar y operar |
 | 8 | [common-issues.md](common-issues.md) | Problemas frecuentes en local, en el CI y en el servidor |
+| 9 | [go-live.md](go-live.md) | Lista previa a producción y comprobaciones tras cada despliegue |
 | — | [study-guide.md](study-guide.md) | Conceptos que conviene estudiar |
 | — | [azure.md](azure.md) | Plan de evolución en Azure si un día hace falta escalar |
 

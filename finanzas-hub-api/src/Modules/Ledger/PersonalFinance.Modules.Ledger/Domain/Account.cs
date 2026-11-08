@@ -192,6 +192,18 @@ public sealed class Account : AggregateRoot, IOwned
         return managed.IsFailure ? managed : EnsureOpen();
     }
 
+    /// <summary>
+    /// Only an account nothing ever moved, and that nothing else points at, is deleted (ADR-024); one with history is
+    /// archived. The fund of a goal and the account of an investment belong to their modules.
+    /// </summary>
+    public Result CanDelete(bool inUse)
+    {
+        var managed = EnsureNotManaged();
+        return managed.IsFailure ? managed
+            : inUse ? Error.BusinessRule("ledger.account.in_use", "The account has movements or something uses it. Archive it instead.")
+            : Result.Success();
+    }
+
     /// <summary>Why an account cannot be moved by hand, or success when it can.</summary>
     public Result EnsureNotManaged()
     {

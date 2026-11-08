@@ -76,9 +76,10 @@ public sealed record SharedGroupsResponse(
 /// <param name="Expenses">The latest hundred the person asking paid, registered or has a part in, newest first.</param>
 /// <param name="Settlements">The latest fifty payments the person asking made or received, newest first.</param>
 /// <param name="VoidsLeftToday">How many more payments the person asking can void in this group today.</param>
+/// <param name="CanDelete">Whether the person asking may delete it: who created it, while nothing was ever registered in it.</param>
 public sealed record SharedGroupDetailResponse(
     SharedGroupSummaryResponse Group, bool IsAdmin, IReadOnlyList<SharedMemberResponse> Members, IReadOnlyList<SharedDebtResponse> Debts,
-    IReadOnlyList<SharedExpenseResponse> Expenses, IReadOnlyList<SharedSettlementResponse> Settlements, int VoidsLeftToday);
+    IReadOnlyList<SharedExpenseResponse> Expenses, IReadOnlyList<SharedSettlementResponse> Settlements, int VoidsLeftToday, bool CanDelete);
 
 /// <summary>
 /// Reads groups for the current person. Every query goes through the context's global filter, so a group the
@@ -176,16 +177,24 @@ internal sealed class SharedGroupReader(ISharedExpensesDb db, IWorkspaceDirector
                     && ((settlement.FromUserId == me && settlement.FromOperationId is null) || (settlement.ToUserId == me && settlement.ToOperationId is null)),
                     settlement.CreatedAt))
                 .ToList(),
-            group.VoidsLeft(me, now));
+            group.VoidsLeft(me, now), group.CanDelete(me).IsSuccess);
     }
 }
 
 public sealed record ListSharedGroupsQuery : IQuery<SharedGroupsResponse>;
 
-internal sealed class ListSharedGroupsHandler(ISharedExpensesDb db, SharedGroupReader reader) : IQueryHandler<ListSharedGroupsQuery, SharedGroupsResponse>
+internal sealed class ListSharedGroupsHandler(ISharedExpensesDb db, SharedGroupReader reader, IWorkspaceContext workspace)
+    : IQueryHandler<ListSharedGroupsQuery, SharedGroupsResponse>
 {
     public async Task<Result<SharedGroupsResponse>> HandleAsync(ListSharedGroupsQuery query, CancellationToken cancellationToken)
     {
+        // A business or another of its kind has no shared expenses (ADR-023): it is refused, not shown empty.
+        var collaborative = workspace.RequireCollaboration();
+        if (collaborative.IsFailure)
+        {
+            return collaborative.Error;
+        }
+
         var me = reader.UserId ?? Guid.Empty;
         var groups = await db.SharedGroups.AsNoTracking().OrderBy(group => group.CreatedAt).ToListAsync(cancellationToken);
         var names = await reader.MemberNamesAsync(cancellationToken);

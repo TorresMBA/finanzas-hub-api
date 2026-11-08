@@ -9,7 +9,7 @@ using PersonalFinance.Modules.Ledger.Domain;
 namespace PersonalFinance.Modules.Ledger.Application.ExchangeRates;
 
 /// <summary>Where every conversion to the base currency gets its rates from.</summary>
-internal sealed class ExchangeRateBook(ILedgerDb db, IPersonalSpace workspace)
+internal sealed class ExchangeRateBook(ILedgerDb db, IBook workspace)
 {
     public async Task<RateTable> LoadAsync(CancellationToken cancellationToken)
     {
@@ -25,9 +25,11 @@ internal sealed class ExchangeRateBook(ILedgerDb db, IPersonalSpace workspace)
     /// Writes on each entry what it is worth in the base currency on its date. Called whenever an operation is
     /// registered or its amounts change, so the reports of that month stay put when the rate moves later.
     /// </summary>
-    public async Task ValueAsync(Operation operation, CancellationToken cancellationToken)
+    public async Task ValueAsync(Operation operation, CancellationToken cancellationToken) => Value(operation, await LoadAsync(cancellationToken));
+
+    /// <summary>The same, with the rates of a given book: the leg of a transfer that arrives in another one.</summary>
+    public static void Value(Operation operation, RateTable table)
     {
-        var table = await LoadAsync(cancellationToken);
         foreach (var entry in operation.Entries)
         {
             if (entry.Currency != table.BaseCurrency && operation.ManualFxRate is { } stated && table.BaseCurrency is { } baseCurrency)
@@ -68,7 +70,7 @@ internal sealed class ListExchangeRatesHandler(ExchangeRateBook book) : IQueryHa
 /// <param name="AsOf">Today when left out. A rate already given for that day is replaced.</param>
 public sealed record SetExchangeRateCommand(string Currency, decimal Rate, DateOnly? AsOf) : ICommand<ExchangeRateResponse>;
 
-internal sealed class SetExchangeRateHandler(ILedgerDb db, LedgerScope scope, IPersonalSpace workspace, IAuditLog audit, IClock clock)
+internal sealed class SetExchangeRateHandler(ILedgerDb db, LedgerScope scope, IBook workspace, IAuditLog audit, IClock clock)
     : ICommandHandler<SetExchangeRateCommand, ExchangeRateResponse>
 {
     public async Task<Result<ExchangeRateResponse>> HandleAsync(SetExchangeRateCommand command, CancellationToken cancellationToken)

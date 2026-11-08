@@ -6,17 +6,40 @@ Tareas del día a día con la aplicación en marcha: copias de seguridad, migrac
 
 **Qué contiene la base:** datos financieros, hashes de contraseñas, claves de Data Protection y la auditoría. Una copia es tan sensible como la base ([secrets.md](secrets.md)).
 
+Las hace [`tools/backup.sh`](../../finanzas-hub-api/tools/backup.sh): `pg_dump` en formato custom desde un contenedor en la red de la base, comprueba la copia con `pg_restore --list`, la copia fuera del servidor si se le dice cómo, y borra las de más de `BACKUP_KEEP_DAYS` días. Lee la conexión de un `.env` propio, legible solo por quien hace copias:
+
 ```bash
-# Copia en formato propio de PostgreSQL (comprimida, restaurable por partes)
-pg_dump --format=custom --no-owner --file=personal_hub_$(date +%F).dump \
-  "host=<host> port=5432 dbname=personal_hub user=<usuario>"
+# /srv/mercury/apps/prod/finanzas-hub-backup.env
+PGHOST=postgres
+PGPORT=5432
+PGUSER=personal_hub            # basta con un rol que pueda leer todo; el dueño de las tablas sirve
+PGPASSWORD=...
+PGDATABASE=personal_hub
+PG_NETWORK=mercury-db          # la red de Docker donde está la base
+BACKUP_DIR=/srv/backups/personalhub
+BACKUP_KEEP_DAYS=14
+PG_IMAGE=postgres:18-alpine    # misma versión mayor que el servidor, o más nueva
+BACKUP_COPY="rclone copy --no-traverse {} remoto:personalhub"   # opcional
+```
+
+```bash
+# A diario, en el crontab de quien despliega (3:15)
+15 3 * * * /srv/mercury/repos/finanzas-hub-api/tools/backup.sh /srv/mercury/apps/prod/finanzas-hub-backup.env daily >> /var/log/personalhub-backup.log 2>&1
 
 # Restaurar en una base vacía
 createdb personal_hub_restaurada
-pg_restore --no-owner --dbname=personal_hub_restaurada personal_hub_2026-10-15.dump
+pg_restore --no-owner --dbname=personal_hub_restaurada /srv/backups/personalhub/personalhub-20261108T031500Z-daily.dump
 ```
 
-- **Antes de cada despliegue a prod** y a diario (cron o el servicio de copias del proveedor).
+Jenkins ejecuta el mismo script antes de migrar prod, con la etiqueta `pre-deploy-<build>`. Si falta `finanzas-hub-backup.env`, prod no se despliega.
+
+**Prueba de restauración.** Una vez al mes, y antes de abrir la 1.0: restaurar la última copia en una base aparte, arrancar la API contra ella (`ConnectionStrings__PersonalFinance` apuntando a la restaurada, `Database__MigrateOnStartup=false`) y comprobar `/health/ready` y un inicio de sesión. Anota aquí la fecha:
+
+| Fecha | Copia | Resultado |
+|---|---|---|
+| — | — | Pendiente de la primera |
+
+- **Antes de cada despliegue a prod** (lo hace Jenkins) y a diario (cron).
 - Guárdalas cifradas, fuera del servidor y con acceso restringido. Conserva al menos 7 diarias y 4 semanales.
 - **Prueba a restaurar** de vez en cuando en una base aparte: una copia que nunca se restauró no es una copia.
 - Restaurar una copia con otras claves de Data Protection cierra todas las sesiones e invalida los enlaces de correo pendientes; es lo esperado.
@@ -38,6 +61,7 @@ En local: `tools/migrate.ps1`. Nunca dos procesos a la vez, y siempre después d
 | Qué | Quién | Cuándo |
 |---|---|---|
 | Claves de idempotencia de más de 7 días | `PurgeExpiredIdempotencyKeysJob` (Worker) | A diario |
+| Avisos de más de 90 días, mensajes de WhatsApp enviados de más de 90 días e ids de eventos del webhook de más de 30 | `PurgeNotificationHistoryJob` (Worker) | A diario |
 | Cuerpo de los correos enviados | `EmailDispatcher` al enviar | En cada envío |
 | Claves de Data Protection | ASP.NET Core | Rotan cada 90 días |
 | Auditoría (`platform.audit_log`) | Nadie | No caduca: es dato de negocio |
@@ -48,9 +72,15 @@ Si el Worker estuvo parado, al volver procesa lo acumulado; no hace falta interv
 
 Cómo rotar cada secreto (base de datos, SMTP, WhatsApp, Data Protection, credenciales de Jenkins): [secrets.md § Rotar un secreto](secrets.md#rotar-un-secreto). Después de cambiar un `.env`, redespliega el contenedor afectado con la misma etiqueta para que lea los valores nuevos.
 
-## Cerrar todas las sesiones
+## La primera cuenta y las siguientes
 
-Por ejemplo, tras una sospecha de robo de la base o de una cookie:
+Las cuentas se crean por invitación (`Auth__OpenRegistration=false`). La única excepción es la primera de una instalación: con la base vacía, `/register` deja crearla sin invitación. Quien la crea invita a los demás desde Configuración › Espacio, y cada persona se registra desde el enlace de su correo (o el que se le pasa a mano: la pantalla lo muestra al invitar). Crea esa primera cuenta en cuanto despliegues prod, antes de publicar la dirección.
+
+## Cerrar sesiones
+
+Cambiar o restablecer la contraseña cierra las demás sesiones de esa persona: la cookie lleva el *security stamp* de la cuenta y deja de valer cuando cambia. Una sesión sin usar caduca a los 7 días.
+
+Para cerrar las de todos, por ejemplo tras una sospecha de robo de la base o de una cookie:
 
 ```sql
 DELETE FROM platform.data_protection_keys;

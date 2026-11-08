@@ -29,7 +29,11 @@ finanzas-hub-web/
         period/                 PeriodStore: mes de la barra superior; TODAY inyectable
         http/                   interceptores: credenciales, X-Correlation-Id, Idempotency-Key, errores
         errors/                 ApiError (ProblemDetails) y error-messages.ts (code → texto en español)
+        status/                 AppStatus y AppErrorHandler: aviso sin conexión y de errores que nadie manejó
         notifications/          NotificationCenter: no leídas, toast y SignalR (/hubs/realtime)
+        currency/               CurrencyCatalog: monedas de la API (símbolo y decimales)
+        movements/              MovementsFeed: el registro rápido y el aviso de «guardado»
+        privacy/                PrivacyStore: ocultar saldos
         theme/                  ThemeStore
         testing/                provideSession: sesión y workspace simulados para tests de componentes
       layout/                   el marco
@@ -107,9 +111,19 @@ Los tokens del mock (`--bg`, `--sf`, `--sf2`, `--sf3`, `--bd`, `--tx`, `--tx2`, 
 
 ### Guards
 
-El router ejecuta a la vez todos los guards de una ruta, no uno tras otro. Por eso cada ruta lleva un solo guard y cada guard es completo: carga la sesión y los workspaces antes de decidir. `appGuard` protege la aplicación (sin sesión lleva a `/login` con la dirección de vuelta; con un workspace sin configurar lleva a su dueño a `/onboarding`), `onboardingGuard` protege esa página y `guestGuard` saca de las páginas de acceso a quien ya tiene sesión.
+El router ejecuta a la vez todos los guards de una ruta, no uno tras otro. Por eso cada ruta lleva un solo guard y cada guard es completo: carga la sesión y los workspaces antes de decidir. `appGuard` protege la aplicación (sin sesión lleva a `/login` con la dirección de vuelta; con un workspace sin configurar lleva a su dueño a `/onboarding`), `onboardingGuard` protege esa página y `guestGuard` saca de las páginas de acceso a quien ya tiene sesión. `collaborationGuard` protege Metas y Gastos compartidos: en un espacio Negocio u Otros lleva a Inicio (ADR-023).
 
 Dentro de un guard, `inject()` solo funciona antes del primer `await`.
+
+### Tipo del espacio
+
+`WorkspaceStore.allowsCollaboration` es verdadero solo en un espacio de tipo Personal. Las secciones que lo necesitan llevan `collaborative: true` en `layout/navigation.ts`, y `sectionsFor` las quita del sidebar y del panel «Más» en un Negocio u Otros; las rutas las protege `collaborationGuard`. `workspaceLabel` añade el tipo al nombre («Bodega · Negocio»). Configuración no muestra miembros ni invitaciones fuera de un espacio Personal.
+
+`WorkspaceStore.otherBooks` son los otros libros de la persona: el personal cuando está abierto un Negocio u Otros, y cada Negocio u Otros suyo. Con alguno, el formulario de transferencia ofrece «Libro que recibe»: pide las cuentas de ese libro a `GET {espacio}/accounts`, no pregunta comisión y envía a `book-transfers`. La lista y el detalle nombran el otro libro con `bookLabel(transfer.otherBookId)`.
+
+### Eliminar lo que nunca se usó
+
+Las respuestas de la API dicen `canDelete` (ADR-024). La pantalla ofrece «Eliminar» con una confirmación en la misma fila solo cuando es verdadero; si no, deja «Archivar» o «Terminar». El espacio abierto lo pregunta a `GET W/deletion`, que además da el código de por qué no, y `messageForCode` lo traduce. Tras eliminar un espacio se vuelve al personal.
 
 ### Errores de la API
 
