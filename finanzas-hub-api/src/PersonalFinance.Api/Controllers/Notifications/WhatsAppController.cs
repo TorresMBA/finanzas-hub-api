@@ -87,9 +87,15 @@ public sealed class WhatsAppWebhookController(WhatsAppInbox inbox) : ApiControll
     /// <summary>The check Meta makes when the address is registered: it expects the challenge back.</summary>
     [HttpGet]
     public IActionResult Verify(
-        [FromQuery(Name = "hub.mode")] string? mode, [FromQuery(Name = "hub.verify_token")] string? verifyToken, [FromQuery(Name = "hub.challenge")] string? challenge) =>
-        !inbox.IsEnabled ? NotFound()
-        : inbox.IsSubscription(mode, verifyToken) ? Content(challenge ?? string.Empty, "text/plain") : StatusCode(StatusCodes.Status403Forbidden);
+        [FromQuery(Name = "hub.mode")] string? mode, [FromQuery(Name = "hub.verify_token")] string? verifyToken, [FromQuery(Name = "hub.challenge")] string? challenge)
+    {
+        if (!inbox.IsEnabled)
+        {
+            return NotFound();
+        }
+
+        return inbox.IsSubscription(mode, verifyToken) ? Content(challenge ?? string.Empty, "text/plain") : StatusCode(StatusCodes.Status403Forbidden);
+    }
 
     [HttpPost]
     [RequestSizeLimit(MaxBodyBytes)]

@@ -106,9 +106,7 @@ internal sealed class TransactionReader(ILedgerDb db, ICategoryLookup categories
         var category = operation.CategoryId is { } categoryId && known.Categories.TryGetValue(categoryId, out var info)
             ? new TransactionCategoryResponse(info.Id, info.Name, info.ParentName, info.Icon, info.Color)
             : null;
-        var transfer = operation.IsBookTransferLeg ? BookTransfer(operation, known)
-            : operation.Kind == OperationKind.Transfer && leaving is not null ? Transfer(operation, leaving, known)
-            : null;
+        var transfer = TransferOf(operation, leaving, known);
 
         var table = known.Rates;
         var conversion = table.BaseCurrency is { } baseCurrency && entry is { BaseAmount: { } baseAmount, FxRate: { } rate, FxRateDate: { } rateDate }
@@ -126,6 +124,17 @@ internal sealed class TransactionReader(ILedgerDb db, ICategoryLookup categories
             operation.Tags.Where(tag => known.Tags.ContainsKey(tag.TagId)).Select(tag => known.Tags[tag.TagId]).Order(StringComparer.Ordinal).ToList(),
             operation is { IsTransaction: true, IsEffective: true, SourceModule: null },
             operation.CreatedAt, operation.VoidReason, transfer, operation.FundedByGoalId != null, conversion, originalPrice);
+    }
+
+    /// <summary>The two sides of a transfer, or of a transfer between books; null for anything else.</summary>
+    private static TransferResponse? TransferOf(Operation operation, Entry? leaving, Lookups known)
+    {
+        if (operation.IsBookTransferLeg)
+        {
+            return BookTransfer(operation, known);
+        }
+
+        return operation.Kind == OperationKind.Transfer && leaving is not null ? Transfer(operation, leaving, known) : null;
     }
 
     private static TransferResponse Transfer(Operation operation, Entry leaving, Lookups known)

@@ -413,10 +413,15 @@ public sealed class SharedGroup : AggregateRoot
     public bool IsUnused => _expenses.Count == 0 && _settlements.Count == 0;
 
     /// <summary>Only who created it, and only while it is unused; otherwise it is archived.</summary>
-    public Result CanDelete(Guid actorUserId) =>
-        !IsAdmin(actorUserId) ? AdminRequired
-        : !IsUnused ? Error.BusinessRule("shared.group.in_use", "The group has expenses or payments. Archive it instead.")
-        : Result.Success();
+    public Result CanDelete(Guid actorUserId)
+    {
+        if (!IsAdmin(actorUserId))
+        {
+            return AdminRequired;
+        }
+
+        return IsUnused ? Result.Success() : Error.BusinessRule("shared.group.in_use", "The group has expenses or payments. Archive it instead.");
+    }
 
     /// <summary>Registers what one member paid for several. Who paid may or may not be among those it is split among.</summary>
     public Result<SharedExpense> AddExpense(

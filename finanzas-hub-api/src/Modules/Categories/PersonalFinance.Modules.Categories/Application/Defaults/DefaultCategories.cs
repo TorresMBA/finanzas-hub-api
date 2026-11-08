@@ -39,24 +39,7 @@ internal sealed class DefaultCategoriesSeeder(ICategoriesDb db, IAuditLog audit,
                 continue;
             }
 
-            var suggested = new List<Guid>();
-            foreach (var name in template.Tags)
-            {
-                if (!tags.TryGetValue(name, out var tag))
-                {
-                    tag = Tag.Create(workspaceId, userId, name, now).Value;
-                    tags.Add(name, tag);
-                    db.Tags.Add(tag);
-                }
-
-                // A tag the person archived is not brought back by the catalog.
-                if (!tag.IsArchived)
-                {
-                    suggested.Add(tag.Id);
-                }
-            }
-
-            root.SetTags(suggested);
+            root.SetTags(SuggestedTags(template.Tags, tags, workspaceId, userId, now));
             db.Categories.Add(root);
             db.Categories.AddRange(template.Subcategories.Select(subcategory => root.AddSubcategory(subcategory.Name, now, subcategory.Key).Value));
             created++;
@@ -73,6 +56,29 @@ internal sealed class DefaultCategoriesSeeder(ICategoriesDb db, IAuditLog audit,
         }
 
         return created;
+    }
+
+    /// <summary>The tags a default category suggests, creating those the person does not have yet.</summary>
+    private List<Guid> SuggestedTags(IEnumerable<string> names, Dictionary<string, Tag> tags, Guid workspaceId, Guid userId, DateTimeOffset now)
+    {
+        var suggested = new List<Guid>();
+        foreach (var name in names)
+        {
+            if (!tags.TryGetValue(name, out var tag))
+            {
+                tag = Tag.Create(workspaceId, userId, name, now).Value;
+                tags.Add(name, tag);
+                db.Tags.Add(tag);
+            }
+
+            // A tag the person archived is not brought back by the catalog.
+            if (!tag.IsArchived)
+            {
+                suggested.Add(tag.Id);
+            }
+        }
+
+        return suggested;
     }
 }
 

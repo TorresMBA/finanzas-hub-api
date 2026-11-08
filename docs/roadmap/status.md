@@ -56,6 +56,12 @@ Alcance decidido: solo endurecer lo que ya existe. La fase 14 y las porciones D 
 
 Al volver a iniciar sesión tras caducar la sesión salía «Algo salió mal». El `ResourceValueError` de Angular envuelve el `ApiError` en `cause` y `AppErrorHandler` no lo veía. Reproducido (sesión invalidada con la página abierta, vuelta a entrar) y corregido en `hotfix/1.0.1-aviso-de-error`; el aviso empieza limpio en cada sesión, y no salta por el aviso de `ResizeObserver` ni por errores de extensiones del navegador. Lint, 158 tests y build en verde.
 
+### 1.0.2 (8-nov-2026, API y web)
+
+El quality gate de SonarQube paraba los builds #25 de los dos jobs: 9 problemas nuevos en la API y 2 en la web. Siete de los de la API venían de los commits del ADR-023, posteriores al último build que pasó (#24, `ca951c9`); los otros, de la 1.0. Corregidos en `hotfix/1.0.2-sonarqube` sin cambiar el comportamiento ([CHANGELOG.md](../../CHANGELOG.md)). En local: 314 tests del backend, 158 del frontend y 35 E2E en verde. El veredicto del gate solo se ve en Jenkins.
+
+En ese build los tests de integración ya corrieron en el CI (118 en verde). Los jobs `finanzas-hub-api` y `finanzas-hub-web` no son multibranch: construyen `*/main`. La condición de prod del Jenkinsfile (`develop`) no filtra nada hasta que lo sean.
+
 ### Lo que falta para dar la 1.0 por buena en Mercury
 
 | Pendiente | Cómo |
