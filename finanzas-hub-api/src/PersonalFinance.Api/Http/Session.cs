@@ -38,9 +38,9 @@ internal static class Session
     /// </summary>
     public static async Task ValidateAsync(CookieValidatePrincipalContext context)
     {
-        var principal = context.Principal;
-        if (Guid.TryParse(principal?.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
-            && principal!.FindFirstValue(StampClaim) is { Length: > 0 } stamp)
+        if (context.Principal is { } principal
+            && Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
+            && principal.FindFirstValue(StampClaim) is { Length: > 0 } stamp)
         {
             var current = await context.HttpContext.RequestServices.GetRequiredService<ISessionStamps>()
                 .CurrentAsync(userId, context.HttpContext.RequestAborted);

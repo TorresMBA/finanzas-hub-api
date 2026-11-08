@@ -4,6 +4,22 @@ Lo que cambia en cada versión de PersonalHub (API, Worker y web). El formato si
 
 ## [Sin publicar]
 
+## [1.0.2] - 2026-11-08
+
+API, Worker y web. Sin cambios de comportamiento: el quality gate de SonarQube no dejaba desplegar (builds #25 de los dos jobs).
+
+### Corregido
+
+- API, 9 problemas nuevos:
+  - Ternarios anidados (S3358), pasados a `if` con retorno temprano: `WhatsAppController`, `Goal.CanDelete`, `SharedGroup.CanDelete`, `Account.CanDelete` y `TransactionReader`.
+  - Complejidad cognitiva (S3776): `Operation.PostBookTransfer` saca sus comprobaciones a `CheckBookTransfer`, y `DefaultCategoriesSeeder.SeedAsync` sus etiquetas a `SuggestedTags`.
+  - Operador `!` sobrante (S8969) en `Session.ValidateAsync`.
+  - `RowLock` (S2077) se justifica con `SuppressMessage`: los nombres de esquema, tabla y columna salen del modelo de EF y el id va como parámetro.
+- Web, 2 problemas nuevos:
+  - `persist()` del formulario de movimientos (S3776) pasa a una función por tipo: movimiento, transferencia y transferencia entre libros.
+  - `sectionsFor(items, bool)` (S2301) pasa a `withoutCollaboration(items)`.
+- El test de `/health/live` ya no fija la versión.
+
 ## [1.0.1] - 2026-11-08
 
 Solo la web (`finanzas-hub-web` 1.0.1). La API y el Worker siguen en 1.0.0.
@@ -54,6 +70,7 @@ Primera versión para producción: las fases 0 a 13 del [plan](docs/roadmap/phas
 - Prod necesita `/srv/mercury/apps/prod/finanzas-hub-backup.env` ([operations.md](docs/devops/operations.md#copias-de-seguridad)).
 - Las cookies de sesión anteriores a esta versión dejan de valer: cada persona vuelve a iniciar sesión una vez.
 
-[Sin publicar]: https://github.com/TorresMBA/finanzas-hub-api/compare/v1.0.1...HEAD
+[Sin publicar]: https://github.com/TorresMBA/finanzas-hub-api/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/TorresMBA/finanzas-hub-api/releases/tag/v1.0.2
 [1.0.1]: https://github.com/TorresMBA/finanzas-hub-web/releases/tag/v1.0.1
 [1.0.0]: https://github.com/TorresMBA/finanzas-hub-api/releases/tag/v1.0.0
