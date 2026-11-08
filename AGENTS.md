@@ -52,6 +52,8 @@ Los tipos de un módulo son públicos, así que el compilador no impide nada de 
 
 Por porciones verticales, en el orden de [docs/roadmap/implementation-order.md](docs/roadmap/implementation-order.md): dominio y sus tests, handler y su test de integración, configuración EF y migración, controller y contrato OpenAPI, casos de seguridad, pantalla con sus cuatro estados. Cómo se añade un módulo está en [docs/backend/structure.md](docs/backend/structure.md).
 
+Ramas con git flow en los dos repositorios: `main` (producción, un tag por versión), `develop` (integración), y `feature/*`, `release/*` y `hotfix/*` de vida corta, fusionadas con `--no-ff`. El trabajo sale de `develop`, nunca directo a `main` ([docs/getting-started/workflow.md](docs/getting-started/workflow.md#4-git)).
+
 Una feature está terminada cuando cumple [docs/getting-started/definition-of-done.md](docs/getting-started/definition-of-done.md).
 
 Al empezar y al cerrar una fase se actualiza [docs/roadmap/status.md](docs/roadmap/status.md): el estado de cada fase y lo que cada una dejó pendiente.

@@ -62,15 +62,69 @@ Después, las listas de comprobación de [backend/common-bugs.md](../backend/com
 
 **Dos repositorios.** El principal (`PersonalHubV2`, remoto `finanzas-hub-api`) contiene el backend, la documentación y `AGENTS.md`; `finanzas-hub-web/` es un repositorio aparte, anidado. Un cambio de punta a punta son dos commits, uno en cada uno.
 
-**Cómo se trabaja hoy**, con una sola persona: directamente sobre `main`, un commit por fase en cada repositorio, titulado `Fase N - Qué hay ahora` y con la lista de lo que la persona usuaria puede hacer tras el cambio.
+### Ramas (git flow, desde la 1.0.1)
 
-**Con más personas en el equipo:**
+Los dos repositorios siguen la misma estructura y los mismos nombres.
 
-- Una rama por cambio desde `main`: `feature/<módulo>-<algo>`, `fix/<algo>`, `docs/<algo>`.
-- Commits pequeños con mensaje en español que diga qué cambia para quien usa la aplicación, no qué archivos se tocaron.
-- Pull request hacia `main` con la plantilla de abajo; el CI de Jenkins compila y prueba la rama.
-- Se fusiona cuando el CI está en verde y alguien lo revisó.
-- Si el cambio toca los dos repositorios, enlaza un pull request con el otro y fusiona primero el backend.
+| Rama | Vida | Sale de | Entra en | Para qué |
+|---|---|---|---|---|
+| `main` | Permanente | — | — | Lo que está en producción. Cada commit de `main` es una versión con su tag (`v1.0.1`). Solo ella llega a prod en Jenkins |
+| `develop` | Permanente | `main` | — | Donde se integra el trabajo del día a día: la próxima versión |
+| `feature/<módulo>-<algo>` | Corta | `develop` | `develop` | Una porción vertical, una fase o parte de ella (`feature/ledger-cuotas`). También `docs/<algo>` y `fix/<algo>` para lo que no es urgente |
+| `release/<x.y>` | Corta | `develop` | `main` **y** `develop` | Preparar una versión: subir la versión, el CHANGELOG y `status.md`, y solo correcciones. Se borra al publicarla |
+| `hotfix/<x.y.z>-<algo>` | Corta | `main` | `main` **y** `develop` | Corregir producción sin esperar a la próxima versión. Se borra al publicarla |
+
+```text
+main      ●──────────────────●───────────●        v1.1.0    v1.1.1
+           \                / \         / \
+release/1.1 \       ●──●───●   \       /   \
+             \     /        \   \     /     \
+develop  ●────●──●──────●────●───\───/───────●
+               \    /             \ /
+feature/x       ●──●          hotfix/1.1.1
+```
+
+**Una funcionalidad**
+
+```bash
+git checkout develop && git pull
+git checkout -b feature/ledger-cuotas
+# ... commits ...
+git push -u origin feature/ledger-cuotas      # pull request hacia develop
+```
+
+**Publicar una versión**
+
+```bash
+git checkout develop && git pull
+git checkout -b release/1.1
+# versión en finanzas-hub-api/Directory.Build.props y finanzas-hub-web/package.json, CHANGELOG.md, status.md
+git checkout main && git merge --no-ff release/1.1 && git tag -a v1.1.0 -m "PersonalHub 1.1.0"
+git checkout develop && git merge --no-ff release/1.1
+git push origin main develop v1.1.0 && git push origin --delete release/1.1 && git branch -d release/1.1
+```
+
+**Corregir producción**
+
+```bash
+git checkout main && git pull
+git checkout -b hotfix/1.1.1-aviso-de-error
+# ... arreglo, versión x.y.z+1 y CHANGELOG ...
+git checkout main && git merge --no-ff hotfix/1.1.1-aviso-de-error && git tag -a v1.1.1 -m "PersonalHub 1.1.1"
+git checkout develop && git merge --no-ff hotfix/1.1.1-aviso-de-error
+git push origin main develop v1.1.1 && git push origin --delete hotfix/1.1.1-aviso-de-error && git branch -d hotfix/1.1.1-aviso-de-error
+```
+
+Si cuando se cierra un hotfix hay una `release/*` abierta, el hotfix entra en ella en vez de en `develop`: la release lo llevará a `develop` al cerrarse.
+
+**Reglas**
+
+- Un merge hacia `main` o `develop` es `--no-ff` (o el merge de un pull request, que es lo mismo): deja en el grafo de qué rama vino cada cambio. Que la rama fusionada se quede «atrás» en `git log` es lo normal; se borra al terminar.
+- Ver todas las ramas juntas: `git log --oneline --graph --decorate --all`.
+- Commits pequeños con mensaje en español que diga qué cambia para quien usa la aplicación, no qué archivos se tocaron. Al cerrar una fase, el título es `Fase N - Qué hay ahora`.
+- Pull request hacia `develop` (o hacia `main`, una release o un hotfix) con la plantilla de abajo; el CI de Jenkins compila y prueba la rama. Se fusiona con el CI en verde.
+- Un cambio de punta a punta usa **el mismo nombre de rama en los dos repositorios**; se fusiona primero el backend.
+- La versión de la API y la del frontend pueden ir distintas: un hotfix de solo la web sube solo `package.json` (la 1.0.1 fue así). Los tags se crean en los dos repositorios, para que `vX.Y.Z` marque el estado completo.
 
 **Nunca** subas `.env`, secretos, `appsettings.*.json` con credenciales, `bin/`, `obj/`, `node_modules/` ni `dist/`. Un secreto que llegó a git se **rota** ([devops/secrets.md](../devops/secrets.md)).
 

@@ -98,4 +98,4 @@ npm run e2e                               # si tocaste un recorrido crítico
 | Otra herramienta de análisis | Una etapa más dentro de `Análisis` (en paralelo) |
 | Otro proveedor de CI (GitHub Actions, GitLab…) | Mismos pasos, sustituyendo cada `mercury-ci` por su equivalente de [deployment.md §3 y §5](deployment.md#3-construir-los-artefactos) |
 
-Prueba los cambios del Jenkinsfile en una rama: el job compila cualquier rama, pero solo despliega lo que llega a las etapas de deploy.
+Prueba los cambios del Jenkinsfile en una rama: el job compila cualquier rama. Con git flow, cualquier rama que llegue a las etapas de deploy va a **dev**, pero «Aprobar prod» y «Deploy prod» solo se ejecutan en `main` (`when { expression { !env.BRANCH_NAME || env.BRANCH_NAME == 'main' } }`). Las ramas: [workflow.md § Git](../getting-started/workflow.md#4-git).
