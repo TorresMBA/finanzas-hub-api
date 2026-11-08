@@ -139,7 +139,7 @@ El proyecto global `PersonalFinance.Contracts` de V1 desaparece. Contenía solo 
 | Frontera | ¿Abstraer? | Motivo |
 |---|---|---|
 | Correo (`IEmailSender`) | Sí | SMTP local, proveedor gestionado en producción |
-| Archivos (`IFileStorage`) | Sí | Disco local, Blob Storage después |
+| Archivos (`IFileStorage`) | No | No existe: un archivo de importación se lee en la misma petición y no se guarda (fase 10). Se añade el día que haya que guardar archivos |
 | Bus de eventos | No | Los eventos se entregan en proceso. Se abstraería al separar un servicio |
 | Canales (`INotificationChannel`) | Sí | Tres implementaciones reales |
 | Tiempo real (`IRealtimeNotifier`) | Sí | Para que los módulos no dependan de SignalR |

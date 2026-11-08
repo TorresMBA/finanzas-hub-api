@@ -97,10 +97,15 @@ En el contenedor `ASPNETCORE_ENVIRONMENT` (o `DOTNET_ENVIRONMENT`) vale `Product
 |---|---|---|
 | `ConnectionStrings__PersonalFinance` | **Sí**: sin ella no arranca | `Host=db;Port=5432;Database=personal_hub;Username=personal_hub_app;Password=...;SSL Mode=Prefer` |
 | `Cors__AllowedOrigins__0` | **Sí**: en Production exige al menos un origen HTTPS o no arranca | `https://finanzas.ejemplo.com` (la URL pública exacta del frontend, sin barra final) |
-| `Frontend__BaseUrl` | Sí, en la práctica | `https://finanzas.ejemplo.com`: los enlaces de los correos empiezan así |
+| `Frontend__BaseUrl` | **Sí**: en Production no arranca sin ella | `https://finanzas.ejemplo.com`: los enlaces de los correos empiezan así |
+| `Email__SmtpHost` | **Sí**: en Production no arranca sin ella (la API también encola correos) | Como en el Worker |
+| `Auth__OpenRegistration` | No | `false` por defecto: solo se crea una cuenta con invitación, salvo la primera de la instalación |
+| `WhatsApp__Enabled` | No | `false` por defecto. Con `true` exige `AccessToken`, `PhoneNumberId`, `AppSecret` y `VerifyToken` o no arranca |
 | `WhatsApp__VerifyToken`, `WhatsApp__AppSecret` | Si usas WhatsApp | Ver [secrets.md](secrets.md) |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | No | `http://otel-collector:4317`. Sin ella los logs solo van a la salida estándar |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | No | `http://otel-collector:4317`. Sin ella los logs solo van a la salida estándar, en JSON |
 | `RateLimiting__AuthPermitsPerMinute` | No | 20 por defecto |
+
+Production comprueba la configuración al arrancar (`ProductionSettings` en Infrastructure) y se para con la lista de lo que falta. Rechaza también `WhatsApp__ShowCodesWithoutAccount=true` y un origen CORS que no sea https.
 
 ### Worker
 
@@ -108,8 +113,9 @@ En el contenedor `ASPNETCORE_ENVIRONMENT` (o `DOTNET_ENVIRONMENT`) vale `Product
 |---|---|---|
 | `ConnectionStrings__PersonalFinance` | **Sí** | La misma que la API |
 | `Frontend__BaseUrl` | Sí, en la práctica | La misma que la API |
-| `Email__SmtpHost`, `Email__SmtpPort`, `Email__SmtpUser`, `Email__SmtpPassword`, `Email__From` | Para enviar correos | Sin `SmtpHost` se escriben como `.eml` dentro del contenedor y nadie los recibe |
-| `WhatsApp__AccessToken`, `WhatsApp__PhoneNumberId`, `WhatsApp__NoticeTemplate`, `WhatsApp__CodeTemplate` | Para enviar WhatsApp | |
+| `Email__SmtpHost`, `Email__SmtpPort`, `Email__SmtpUser`, `Email__SmtpPassword`, `Email__SmtpEnableSsl`, `Email__From` | **Sí** (`SmtpHost`): en Production no arranca sin ella | `SmtpEnableSsl` es `true` por defecto (STARTTLS en el 587) |
+| `WhatsApp__Enabled` | No | Igual que en la API: los dos deben coincidir |
+| `WhatsApp__AccessToken`, `WhatsApp__PhoneNumberId`, `WhatsApp__NoticeTemplate`, `WhatsApp__CodeTemplate` | Con `WhatsApp__Enabled=true` | |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | No | |
 
 ### Web
@@ -372,7 +378,7 @@ Las imágenes que llegan a prod son **las mismas** que pasaron por dev: no se re
 
 ## 10. Limitaciones conocidas
 
-- **La API no procesa las cabeceras `X-Forwarded-*`.** Detrás de un proxy, `RemoteIpAddress` es la IP del proxy, así que el límite de `/auth` (20 por minuto) se reparte entre todos los usuarios, y la API cree que la petición llegó por HTTP. Con unos 10 usuarios no suele notarse. Para arreglarlo, añadir `UseForwardedHeaders` al inicio de `UseApiHttp`, confiando solo en la red del proxy (`KnownNetworks`).
+- **Un CDN delante del proxy TLS.** La API toma la IP del cliente de `X-Forwarded-For`, recorriéndola hasta la primera dirección que no es privada (§2). Si delante del proxy hay un CDN como Cloudflare, esa dirección es la del CDN, y el límite de `/auth` se reparte entre todos los usuarios. En ese caso el proxy TLS debe reemplazar `X-Forwarded-For` por la IP que da el CDN (`CF-Connecting-IP` en Cloudflare), aceptándola solo de los rangos del CDN.
 - **Una sola réplica de API y de Worker.** Los envíos de correo y WhatsApp toleran varios Worker (`FOR UPDATE SKIP LOCKED`), pero el hub de SignalR y el limitador no toleran varias APIs. Ver [azure.md](azure.md) para cuando haga falta escalar.
 - **Las migraciones solo van hacia delante**: no hay scripts de vuelta. El plan de vuelta atrás es la copia de seguridad.
 - **La imagen web depende del DNS de Docker** (`127.0.0.11`).

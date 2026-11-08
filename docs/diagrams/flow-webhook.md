@@ -9,7 +9,7 @@ sequenceDiagram
     participant I as Integrations
     participant L as Ledger.Contracts
     participant DB as PostgreSQL
-    participant J as SendDeliveriesJob (Worker)
+    participant J as SendWhatsAppJob (Worker)
     participant W as WhatsApp Cloud API
 
     M->>C: POST evento + X-Hub-Signature-256

@@ -29,7 +29,11 @@ finanzas-hub-web/
         period/                 PeriodStore: mes de la barra superior; TODAY inyectable
         http/                   interceptores: credenciales, X-Correlation-Id, Idempotency-Key, errores
         errors/                 ApiError (ProblemDetails) y error-messages.ts (code → texto en español)
+        status/                 AppStatus y AppErrorHandler: aviso sin conexión y de errores que nadie manejó
         notifications/          NotificationCenter: no leídas, toast y SignalR (/hubs/realtime)
+        currency/               CurrencyCatalog: monedas de la API (símbolo y decimales)
+        movements/              MovementsFeed: el registro rápido y el aviso de «guardado»
+        privacy/                PrivacyStore: ocultar saldos
         theme/                  ThemeStore
         testing/                provideSession: sesión y workspace simulados para tests de componentes
       layout/                   el marco

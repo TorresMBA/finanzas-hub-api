@@ -27,15 +27,17 @@ flowchart LR
 
 | Etapa | Qué hace | Si falla |
 |---|---|---|
-| Build, test y SonarQube | `dotnet sonarscanner begin`, `restore`, `build -c Release` (avisos = errores), tests **unitarios y de arquitectura**, `sonarscanner end`. Excluye `Migrations/**` y `tools/**` del análisis ([excepciones](#quality-gate-y-excepciones-de-sonarqube)) | No sigue |
+| Build, test y SonarQube | `dotnet sonarscanner begin`, `restore`, `build -c Release` (avisos = errores), tests **unitarios, de arquitectura y de integración** (estos contra un PostgreSQL de un solo uso), `sonarscanner end`. Excluye `Migrations/**` y `tools/**` del análisis ([excepciones](#quality-gate-y-excepciones-de-sonarqube)) | No sigue |
 | Quality gate | Espera el veredicto de SonarQube (10 min) | Aborta el pipeline |
 | Seguridad | `mercury-ci semgrep` (SAST, archiva `semgrep.json`), `mercury-ci trivy-fs` (dependencias vulnerables) y `gitleaks` sobre los archivos con `.gitleaks.toml` (secretos en el código; el binario del agente o la imagen `zricethezav/gitleaks:v8.21.2`) | Aborta |
 | Imágenes | `dotnet publish` de API y Worker sin recompilar, `mercury-ci package dotnet` con la `Dockerfile` del repo, `mercury-ci trivy-image` | Aborta |
 | Deploy dev | Comprueba los `.env` del ambiente, descarga la imagen, aplica migraciones en un contenedor de un solo uso y despliega API y Worker (256 MB) | Si la migración falla, no se despliega nada |
 | Aprobar prod | `input` manual; sin agente, así que no ocupa recursos mientras espera | Caduca al día |
-| Deploy prod | Lo mismo que dev con las **mismas imágenes** | Igual |
+| Deploy prod | Copia de la base (`tools/backup.sh`) y lo mismo que dev con las **mismas imágenes** | Sin copia no se migra ni se despliega |
 
-**Los tests de integración no corren en el CI**: el agente no tiene Docker para Testcontainers. Se ejecutan en local antes de subir ([backend/testing.md](../backend/testing.md)).
+**Los tests de integración corren en el CI desde la 1.0**, dentro de la etapa de build. Testcontainers no sirve en el agente, que usa el Docker del host y no llegaría a los puertos que publica. Por eso la etapa arranca un `postgres:18-alpine` de un solo uso con `--network container:$(hostname)`: comparte la red del agente y los tests lo ven en `localhost:5432` (`PERSONALFINANCE_TEST_POSTGRES`). Al terminar se borra.
+
+En **Deploy prod**, antes de migrar, se ejecuta [`tools/backup.sh`](../../finanzas-hub-api/tools/backup.sh) con `/srv/mercury/apps/prod/finanzas-hub-backup.env`. Prod corre sin checkout, así que el script llega por `stash` desde la etapa de imágenes. Si existe `finanzas-hub-migrate.env`, `migrate` usa su cadena de conexión, la del dueño de las tablas ([secrets.md](secrets.md)), sin trazarla.
 
 ## Pipeline del frontend
 
@@ -51,7 +53,7 @@ Los E2E de Playwright no corren en el CI.
 
 ## Quality gate y excepciones de SonarQube
 
-Los dos proyectos usan el gate **PersonalHub** del servidor, una copia de *Sonar way* **sin la condición de cobertura**: cero problemas nuevos, duplicación ≤ 3 % y hotspots revisados al 100 %. La cobertura no se exige porque el CI solo corre tests unitarios y de arquitectura (los de integración necesitan Docker) y el proyecto mantiene pocos tests clave; un 80 % sobre el código nuevo obligaría a escribir tests por la cifra.
+Los dos proyectos usan el gate **PersonalHub** del servidor, una copia de *Sonar way* **sin la condición de cobertura**: cero problemas nuevos, duplicación ≤ 3 % y hotspots revisados al 100 %. La cobertura no se exige porque no se recoge y el proyecto mantiene pocos tests clave; un 80 % sobre el código nuevo obligaría a escribir tests por la cifra.
 
 Un problema nuevo se corrige. Lo que se ignora está en el Jenkinsfile, con su motivo:
 
@@ -79,7 +81,7 @@ El CI comprueba menos que tu máquina. Antes de un push a `main`:
 ```powershell
 # finanzas-hub-api
 dotnet build PersonalFinance.slnx
-dotnet test PersonalFinance.slnx          # incluye los de integración, que el CI no corre
+dotnet test PersonalFinance.slnx          # incluye los de integración (el CI también los corre)
 
 # finanzas-hub-web
 npm run lint; npm test -- --watch=false; npm run build
@@ -92,7 +94,7 @@ npm run e2e                               # si tocaste un recorrido crítico
 |---|---|
 | Un ambiente nuevo (`staging`) | Crear `/srv/mercury/apps/staging/*.env`, la base y su usuario; añadir una etapa con `deployAll('staging')` (backend) o `mercury-ci deploy "$APP" staging "$TAG"` (frontend) |
 | Más memoria para un contenedor | `APP_MEM_LIMIT` en la llamada a `mercury-ci deploy` |
-| Correr los tests de integración | Un agente con Docker, o un PostgreSQL de servicio y `PERSONALFINANCE_TEST_POSTGRES` en la etapa de test |
+| Cambiar el PostgreSQL de los tests de integración | La imagen y la cadena `PERSONALFINANCE_TEST_POSTGRES` en la etapa de build |
 | Otra herramienta de análisis | Una etapa más dentro de `Análisis` (en paralelo) |
 | Otro proveedor de CI (GitHub Actions, GitLab…) | Mismos pasos, sustituyendo cada `mercury-ci` por su equivalente de [deployment.md §3 y §5](deployment.md#3-construir-los-artefactos) |
 

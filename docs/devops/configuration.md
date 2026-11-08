@@ -28,24 +28,27 @@ dotnet user-secrets list --project src/PersonalFinance.Api     # muestra los val
 
 | Clave | Por defecto | La usa | Efecto |
 |---|---|---|---|
-| `ConnectionStrings:PersonalFinance` | — | API, Worker | **Obligatoria.** En Production la API no arranca sin ella |
+| `ConnectionStrings:PersonalFinance` | — | API, Worker | **Obligatoria.** En Production ni la API ni el Worker arrancan sin ella |
+| `Auth:OpenRegistration` | `false`; `true` en Development | API | Con `false` solo se crea una cuenta desde una invitación, salvo la primera de la instalación |
 | `Database:MigrateOnStartup` | `false`; `true` en Development | API | Aplica las migraciones al arrancar |
-| `Cors:AllowedOrigins` | `[]`; `http://localhost:4200` en Development | API | Orígenes del navegador permitidos (CORS y protección de origen). En Production exige al menos uno HTTPS o no arranca |
+| `Cors:AllowedOrigins` | `[]`; `http://localhost:4200` en Development | API | Orígenes del navegador permitidos (CORS y protección de origen). En Production exige al menos uno y todos HTTPS, o no arranca |
 | `RateLimiting:AuthPermitsPerMinute` | 20; 300 en Development | API | Peticiones a `/auth` por minuto y dirección IP |
 | `RateLimiting:WebhookPermitsPerMinute` | 300 | API | Límite del webhook de WhatsApp |
-| `Frontend:BaseUrl` | `http://localhost:4200` | API, Worker | Con qué empiezan los enlaces de los correos |
+| `Frontend:BaseUrl` | `http://localhost:4200` | API, Worker | Con qué empiezan los enlaces de los correos. **Obligatoria en Production** |
 | `Email:From` | `PersonalHub <no-reply@personalhub.local>` | Worker | Remitente |
-| `Email:SmtpHost`, `SmtpPort` (587), `SmtpUser`, `SmtpPassword`, `SmtpEnableSsl` (true) | Sin servidor | Worker | Sin `SmtpHost` los correos se escriben como `.eml` |
+| `Email:SmtpHost`, `SmtpPort` (587), `SmtpUser`, `SmtpPassword`, `SmtpEnableSsl` (true) | Sin servidor | Worker (y API, que comprueba que exista) | Sin `SmtpHost` los correos se escriben como `.eml`. **`SmtpHost` es obligatoria en Production** |
 | `Email:PickupDirectory` | `personal-hub-mail` en la carpeta temporal | Worker | Dónde se escriben esos `.eml` |
+| `WhatsApp:Enabled` | `false`; `true` en Development | API, Worker | Si la instalación ofrece WhatsApp. Apagado: el webhook responde 404, no se verifican números ni se envía nada, y la pantalla lo oculta. Encendido en Production exige las cuatro claves de abajo |
 | `WhatsApp:VerifyToken`, `WhatsApp:AppSecret` | vacíos | API | Verificación y firma del webhook |
 | `WhatsApp:AccessToken`, `WhatsApp:PhoneNumberId` | vacíos | Worker | Envío por la Cloud API. Sin ellos WhatsApp queda desconectado |
 | `WhatsApp:NoticeTemplate`, `CodeTemplate`, `TemplateLanguage` (`es`) | vacíos | Worker | Plantillas aprobadas en Meta |
 | `WhatsApp:GraphApiBase` | `https://graph.facebook.com/` | Worker | Dirección de la Graph API |
 | `WhatsApp:GraphApiVersion` | `v21.0` | Worker | Versión de la Graph API |
 | `WhatsApp:OutboxDirectory` | `personal-hub-whatsapp` en la carpeta temporal | Worker | Dónde se escriben los mensajes cuando no hay token |
-| `WhatsApp:ShowCodesWithoutAccount` | `true` en Development | API | Muestra el código de verificación en pantalla. **Nunca `true` fuera de Development** |
+| `WhatsApp:ShowCodesWithoutAccount` | `true` en Development | API | Muestra el código de verificación en pantalla. **Nunca `true` fuera de Development**: Production no arranca con ella |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` en `launchSettings` | API, Worker | Destino de la telemetría; sin ella no se exporta nada |
 | `Logging:LogLevel:*` | `Information`; EF Core, Npgsql y ASP.NET Core en `Warning` | API, Worker | Verbosidad de los logs |
+| Formato de los logs | Texto en Development; JSON de una línea fuera | API, Worker | `AddJsonConsole` con los scopes (correlación, usuario, espacio) en `ObservabilityExtensions` |
 | `ASPNETCORE_HTTP_PORTS` | `8080` en la imagen Docker | API | Puerto HTTP del contenedor |
 | `APP_DLL` | Se deduce del `*.runtimeconfig.json` | Imagen Docker | Qué ensamblado arranca |
 

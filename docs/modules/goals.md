@@ -7,7 +7,7 @@
 | Value objects | `GoalStatus`, `ParticipantRole`, `ContributionType`, `GoalProgress`, `GoalHealth` |
 | Servicios de dominio | `GoalProjection` (función pura) |
 | Posee | Esquema `goals` |
-| Consulta de otros | `Ledger.Contracts`, `Workspaces.Contracts`, `Scheduling.Contracts`, `Notifications.Contracts` |
+| Consulta de otros | `Ledger.Contracts`, `Workspaces.Contracts`, `Notifications.Contracts` |
 | Eventos | `GoalContributionAdded` (I), `GoalTargetReached` (I), `GoalParticipantAdded` (I), `GoalCancelled` (I) |
 
 Una meta personal es una meta con un solo participante. No hay dos modelos.

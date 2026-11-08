@@ -3,13 +3,14 @@
 | | |
 |---|---|
 | Responsabilidad | Reglas recurrentes y pagos programados, ocurrencias, recordatorios y la proyección de calendario |
-| Aggregate roots | `RecurringRule`, `Occurrence` |
-| Value objects | `RecurrenceSchedule`, `Frequency`, `WeekendPolicy`, `PostingMode`, `ReminderOffset` |
-| Servicios de dominio | `RecurrenceCalculator`, `CalendarProjection` |
+| Aggregate roots | `RecurringRule`, con sus `Occurrence` (todo en `Domain/RecurringRule.cs`) |
+| Enumeraciones | `RuleType`, `RuleFrequency`, `PostingMode`, `RuleStatus`, `OccurrenceStatus` |
 | Posee | Esquema `scheduling` |
-| Consulta de otros | `Ledger.Contracts` (registrar y leer movimientos, vencimientos de tarjeta), `Notifications.Contracts`, `Workspaces.Contracts` (reacciona a `MemberRemoved`), `Categories.Contracts` (reacciona a `CategoryArchived`) |
-| Expone | `IRecurringRules` (crear regla con acción extensible), `IScheduledActionHandler` e `ICalendarItemProvider` (los implementan módulos aguas abajo) |
-| Eventos | `ReminderDue` (D, publica notificación), `OccurrencePosted` (D), `OccurrenceFailed` (D, publica notificación) |
+| Consulta de otros | `Ledger.Contracts` (registrar y leer movimientos, vencimientos de tarjeta), `Notifications.Contracts` (recordatorios y fallos), `Workspaces.Contracts` (los espacios que recorre el ciclo del Worker), `Categories.Contracts` (validar y nombrar la categoría de una regla) |
+| Expone | `IScheduleQueries` (próximos pagos, para Reporting e Investments) e `IScheduleCycleStep` (un paso que otro módulo añade al ciclo diario) |
+| Eventos | Ninguno: el ciclo (`RunScheduleCommand`, desde `RunDueOccurrencesJob`) registra lo que vence y publica los avisos directamente |
+
+Pendiente (fase 7 en [status.md](../roadmap/status.md)), descrito en el diseño original y no construido: `WeekendPolicy`, frecuencias semanal y quincenal, `RecurrenceCalculator` y `CalendarProjection` como servicios de dominio, `IRecurringRules`, `IScheduledActionHandler` e `ICalendarItemProvider`, las reacciones a `MemberRemoved` y `CategoryArchived`, y los eventos `ReminderDue`, `OccurrencePosted` y `OccurrenceFailed`. Las filas de las tablas siguientes que los nombran describen ese diseño.
 
 Qué es propio y qué se proyecta:
 

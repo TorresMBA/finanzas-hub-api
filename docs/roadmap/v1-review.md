@@ -19,7 +19,7 @@ Veredictos sobre `..\finance-hub-api` y `..\fiances-hub-web`. KEEP = se porta ca
 | `Api/Helpers`, `Api/Utilities` | DELETE | Carpetas vacías |
 | `Api/Integrations/WhatsApp` | MOVE | `WhatsAppWebhookService` usa `ApplicationDbContext` desde el host. La recepción va a Notifications; la interpretación de comandos a Integrations |
 | `Api/WhatsAppWebhook.cs` | MOVE, se divide | Reúne tres cosas: opciones, verificador HMAC e intérprete de comandos. Las dos primeras van a `Infrastructure/WhatsApp`, tras una interfaz de Notifications; `ParseReadOnlyCommand` va a `Integrations/Application/ChatCommands`. El verificador se porta tal cual |
-| `Api/DemoDataSeeder.cs` | MOVE | A `tools/seed`, ejecutando comandos de aplicación en lugar de escribir en el `DbContext` |
+| `Api/DemoDataSeeder.cs` | MOVE | A `tools/seed`, ejecutando comandos de aplicación en lugar de escribir en el `DbContext`. No se llegó a portar: V2 no tiene datos de demostración |
 | `Api/Program.cs` | CHANGE | KEEP la validación de CORS y de cadena de conexión. CHANGE el manejador que convierte toda `DomainException` en 409. CHANGE `MapIdentityApi` por endpoints propios |
 | `Api/Dockerfile`, `appsettings.json` | KEEP | — |
 | `PersonalFinance.Contracts` | DELETE | Solo requests HTTP en un namespace plano, referenciado solo por Api. Los requests van junto a su controller; lo que un módulo expone a otros, a su carpeta `Contracts` |

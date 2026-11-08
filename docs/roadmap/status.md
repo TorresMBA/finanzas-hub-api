@@ -20,20 +20,51 @@ Tablero de avance. Se actualiza al empezar y al terminar cada fase. El alcance d
 | 11 | WhatsApp | ✅ Completada | 14-oct-2026 |
 | 12 | Reporting | ✅ Completada | 15-oct-2026 |
 | 13 | Investments | ✅ Completada | 15-oct-2026 |
-| 14 | Tarjetas avanzadas y FX | ⏳ Pendiente (siguiente) | — |
+| 1.0 | Endurecimiento para producción: seguridad, accesibilidad, usabilidad, operación y documentación | ✅ Completada (falta verificarla en Mercury, ver abajo) | 8-nov-2026 |
+| 14 | Tarjetas avanzadas y FX | ⏳ Pendiente (siguiente, en la 1.1) | — |
 
 Estados: ⏳ pendiente, 🚧 en curso, ✅ completada, ❌ descartada.
 
 ## Última verificación
 
-8-nov-2026, tras retirar la porción C de los tipos de espacio (ADR-023) y cerrar Metas y Gastos compartidos a un Negocio también al listar. Build, tests y E2E.
+8-nov-2026, al cerrar la 1.0. Build, tests y E2E, en local (sin Docker) contra un PostgreSQL desechable.
 
 | Qué | Resultado |
 |---|---|
 | Backend: build | 0 errores, 0 advertencias |
-| Backend: tests | 304 en verde (173 unitarios, 19 de arquitectura, 112 de integración), contrato OpenAPI incluido |
-| Frontend: build, tests y lint | 8-nov-2026: build correcto, 151 tests, lint limpio. Cinco avisos de tamaño de estilos (`auth-page`, `dashboard.scss`, `budgets.scss`, `group-view.scss`, `shared.scss`) |
-| E2E en Chrome | 8-nov-2026: 32 en verde, dos corridas seguidas, contra una base desechable. Se pusieron al día: el botón de la página «Nueva transacción» se busca dentro de `main` (el botón flotante de registro rápido tiene el mismo nombre), el selector de cuentas en Inversiones, Gastos compartidos y el pago de tarjeta, y eliminar en vez de archivar una categoría y una etiqueta que nadie usó (ADR-024) |
+| Backend: tests | 314 en verde (177 unitarios, 19 de arquitectura, 118 de integración), contrato OpenAPI incluido |
+| Frontend: build, tests y lint | build correcto, 155 tests, lint limpio. Cinco avisos de tamaño de estilos (`auth-page`, `dashboard.scss`, `budgets.scss`, `group-view.scss`, `shared.scss`), por debajo del límite de error |
+| E2E en Chrome | 35 en verde, contra la API y el Worker de esta versión. Incluye `accessibility.spec.ts` (axe, WCAG 2.1 AA, temas claro y oscuro) |
+
+## 1.0: endurecimiento para producción (8-nov-2026)
+
+Alcance decidido: solo endurecer lo que ya existe. La fase 14 y las porciones D y E del ADR-023 pasan a la 1.1.
+
+| Área | Qué se hizo |
+|---|---|
+| Sesión | La cookie lleva el *security stamp*: cambiar o restablecer la contraseña cierra las demás sesiones. Caduca a los 7 días sin uso. En el frontend, un 401 con la sesión abierta lleva a `/login?returnUrl=…&expired=1` |
+| Registro | Solo con invitación (`identity.invitation_required`), salvo la primera cuenta de la instalación o `Auth:OpenRegistration=true` (Development lo pone) |
+| Configuración | Production no arranca sin `Email:SmtpHost` ni `Frontend:BaseUrl`, con `WhatsApp:ShowCodesWithoutAccount=true`, con WhatsApp encendido a medias o con un origen CORS sin https (`ProductionSettings`) |
+| WhatsApp | Tras `WhatsApp:Enabled` (apagado por defecto): webhook 404, sin verificación ni envíos, y la pantalla de avisos lo oculta (`available` en el canal) |
+| Otros de seguridad | Un correo de recuperación por cuenta cada 2 minutos; el error de Meta se recorta en los logs; nginx envía CSP, nosniff, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` y HSTS; las fuentes van en el build (sin Google Fonts) |
+| Accesibilidad | Contraste AA en el tema claro (cambian `--ac`, `--bl`, `--rd` y `--am`, que dejan de ser exactamente los del mock); el diálogo devuelve el foco; la hoja «Más» es un diálogo nativo; los campos enlazan su error con `aria-describedby`; el foco va a `<main>` al cambiar de página; los indicadores de carga son `role=status` |
+| Usabilidad | Confirmación al eliminar una regla, anular un pago y revocar una invitación; página 404; aviso sin conexión y de errores no manejados; icono, manifest y `theme-color` |
+| Operación | `tools/backup.sh` (también antes de migrar prod en Jenkins), integración en CI, `tools/db-roles.sql`, latido del Worker con `HEALTHCHECK`, logs JSON fuera de Development, versión en `/health/live` |
+| Documentación | [go-live.md](../devops/go-live.md) nuevo; puestos al día los resúmenes de estado, el diagrama de módulos, Scheduling, Reporting, tiempo real, webhook, `IFileStorage`, despliegue, operación y configuración |
+
+### Lo que falta para dar la 1.0 por buena en Mercury
+
+| Pendiente | Cómo |
+|---|---|
+| Crear `finanzas-hub-backup.env` en prod (y el cron diario) | [operations.md](../devops/operations.md#copias-de-seguridad). Sin él, Jenkins no despliega prod |
+| Primer build con integración en CI | La etapa arranca un PostgreSQL en la red del agente (`--network container:$(hostname)`); no se pudo probar fuera de Mercury |
+| Rol propio de la base (`tools/db-roles.sql`) y `finanzas-hub-migrate.env` | Opcional para la 1.0, recomendado. [secrets.md](../devops/secrets.md) |
+| ¿Hay un CDN (Cloudflare) delante? | Si lo hay, el proxy TLS debe reemplazar `X-Forwarded-For` por `CF-Connecting-IP`, o el límite de `/auth` se reparte entre todos ([deployment.md](../devops/deployment.md)) |
+| Recorrer [go-live.md](../devops/go-live.md) | Antes de abrir a los usuarios |
+
+### Pendiente para la 1.1
+
+Fase 14, porciones D y E del ADR-023, plantillas de WhatsApp aprobadas por Meta (y encender `WhatsApp:Enabled`), aplicar el idioma y el formato de fecha que la persona elige en Preferencias (hoy todo se formatea en es-PE), 2FA, cifrar las claves de Data Protection, y que el login no distinga una cuenta bloqueada de una que no existe.
 
 ## Mejoras fuera de fase
 
@@ -51,8 +82,8 @@ Empezado el 21-oct-2026, antes de la fase 14. Plan en cinco porciones, y una sex
 | A | Tipo de espacio (Personal, Negocio, Otros), libros propios en Negocio y Otros, colaboración solo en Personal | ✅ backend (21-oct-2026, migración `AddWorkspaceKinds`, `IPersonalSpace` → `IBook`). Adelantado de E: elegir el tipo al crear el espacio, el tipo junto al nombre y sin miembros ni invitaciones en Negocio u Otros, y Metas y Gastos compartidos ocultos en el menú y protegidos por ruta (`collaborationGuard`) |
 | B | Transferencia entre libros | ✅ (24-oct-2026, migración `AddBookTransfers`). Una pata `Transfer` de un asiento en cada libro, enlazadas por `counterpart_operation_id`; anular una anula la otra. `POST W/book-transfers` y «Libro que recibe» en el formulario de transferencia. Pendiente: sin comisión entre libros, y sin patrimonio consolidado de todos los libros |
 | C | Metas y Gastos compartidos de todos los círculos en una vista (`/me/goals`, `/me/shared-groups`) | ❌ descartada (8-nov-2026). Se probó y no se quiere: un espacio Personal nuevo mostraba las metas y los grupos de los demás. Metas y Gastos compartidos son del espacio abierto, solo en uno de tipo Personal: ocultos en el menú y protegidos por ruta (`collaborationGuard`) en Negocio u Otros, donde la API rechaza también listarlos (`workspaces.kind_not_shareable`) |
-| D | Invitación sin elegir espacio, gestión del círculo y salida bloqueada con deudas o fondos | ⏳ |
-| E | Frontend de tipos y transferencias | 🚧 Hecho: tipo al crear, tipo junto al nombre, menú según el tipo, eliminar (F) y la transferencia entre libros (B). Falta lo de D |
+| D | Invitación sin elegir espacio, gestión del círculo y salida bloqueada con deudas o fondos | ⏳ En la 1.1 |
+| E | Frontend de tipos y transferencias | 🚧 Hecho: tipo al crear, tipo junto al nombre, menú según el tipo, eliminar (F) y la transferencia entre libros (B). Falta lo de D, en la 1.1 |
 | F | Eliminar lo que nunca se usó (ADR-024): espacios, grupos, metas, cuentas, categorías, tags y programados, con `canDelete` en las respuestas y «Eliminar» en pantalla solo cuando se puede | ✅ (24-oct-2026, sin migración). Pendiente: la carrera entre módulos sin clave foránea (crear un programado sobre una cuenta en el mismo instante en que se borra) se acepta; las importaciones y las inversiones no tienen «Eliminar» propio, siguen con descartar y cerrar |
 
 ## Pendientes que dejaron las fases cerradas
@@ -73,7 +104,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 | Archivar un workspace | Sin fecha |
 | Foto de perfil | Sin fecha |
 | Inicio de sesión con Google o Microsoft (OQ-25) | Backlog diferido |
-| Envío por SMTP real y respuesta 429 del límite de `/auth` | Sin verificar; se prueban al desplegar. Sin SMTP configurado los correos se escriben como `.eml` en `%TEMP%\personal-hub-mail`, y solo con el Worker en marcha. Invitar ya no depende de eso: desde el 13-oct-2026 la pantalla muestra el enlace de la invitación al crearla |
+| Respuesta 429 del límite de `/auth` | Sin verificar; se prueba al desplegar. El envío por SMTP real ya se probó con Gmail (confirmación y recuperación de contraseña, commit `fdb9f50`); en Production es obligatorio (1.0) |
 
 ### Fase 2
 
@@ -224,7 +255,7 @@ Lo que una fase cerrada no hizo y sigue debiéndose. Al retomar un punto, se bor
 
 | Pendiente | Se retoma |
 |---|---|
-| Plantillas aprobadas en Meta (`WhatsApp:NoticeTemplate`, `CodeTemplate`) | Cuando Meta las apruebe. La cuenta (número propio, token permanente de usuario del sistema, App Secret) está en dev desde el 16-oct-2026. Sin plantillas, el código de verificación y los avisos salen como texto y Meta solo los entrega si la persona escribió en las últimas 24 h |
+| Plantillas aprobadas en Meta (`WhatsApp:NoticeTemplate`, `CodeTemplate`) | Cuando Meta las apruebe; hasta entonces WhatsApp sale apagado en la 1.0 (`WhatsApp:Enabled=false`). La cuenta (número propio, token permanente de usuario del sistema, App Secret) está en dev desde el 16-oct-2026. Sin plantillas, el código de verificación y los avisos salen como texto y Meta solo los entrega si la persona escribió en las últimas 24 h |
 | Probar con Meta el envío por plantilla | Con las plantillas. El 16-oct-2026 se probó en dev contra Meta: envío de texto, saludo del webhook (`hub.challenge`), firma, número no verificado ignorado, `saldo`/`ayuda` respondidos y estados de entrega hasta *read* |
 | Registrar gastos por chat | Fuera de alcance (OQ-23): el canal solo consulta (`saldo`, `ayuda`) |
 
