@@ -45,7 +45,7 @@ Detalle con código: [backend/recipes.md](../backend/recipes.md), [frontend/reci
 # finanzas-hub-api
 dotnet build PersonalFinance.slnx          # avisos = errores
 dotnet test PersonalFinance.slnx           # unitarios, integración y arquitectura
-tools/update-openapi.ps1                   # si cambió la API (con la API en marcha)
+tools/update-openapi.ps1                   # si cambió la API (corre el test de contrato; no necesita la API en marcha)
 node tools/update-db-docs.mjs              # si hubo migración
 
 # finanzas-hub-web

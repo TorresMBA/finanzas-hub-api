@@ -44,7 +44,7 @@ Pasos concretos para los cambios más habituales. Las rutas son relativas a `fin
 
 ## 2. Un endpoint nuevo de la API
 
-1. Con la API en marcha y el cambio hecho en el backend: `tools/update-openapi.ps1` (en `finanzas-hub-api`).
+1. Con el cambio hecho en el backend: `tools/update-openapi.ps1` (en `finanzas-hub-api`; corre el test de contrato, no necesita la API en marcha).
 2. `npm run api:generate` (en `finanzas-hub-web`).
 3. Alias en `core/api/api-types.ts`: `export type Thing = Schemas['ThingResponse'];`
 4. En `things-api.ts`:

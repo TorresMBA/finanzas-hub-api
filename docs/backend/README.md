@@ -76,3 +76,17 @@ node tools/update-db-docs.mjs                       # tras una migración
 dotnet run --project src/PersonalFinance.Api        # http://localhost:5166/scalar
 dotnet run --project src/PersonalFinance.Worker
 ```
+
+### Cuándo se ejecuta cada script de `tools/`
+
+**Ninguno se ejecuta solo**: ni Jenkins ni la aplicación los llaman (SonarQube los excluye). Los ejecuta quien desarrolla, en su máquina, en el momento que dice la tabla, y su resultado se sube con el cambio. El pipeline solo comprueba que no se olvidó: el test de contrato y `PendingModelChangesWarning` fallan si falta el paso.
+
+| Script | Cuándo | Qué necesita | Qué cambia |
+|---|---|---|---|
+| `add-migration.ps1 -Name X` | Tras cambiar un mapeo o una entidad persistida | La cadena de conexión configurada (no se conecta) | Crea la migración y actualiza `AppDbContextModelSnapshot.cs` |
+| `migrate.ps1` | Para aplicar las pendientes a tu base sin arrancar la API. Arrancar la API en Development ya lo hace | Tu base local | Tu base |
+| `node update-db-docs.mjs` | Tras crear una migración | Node | La parte generada de [database.md](database.md) |
+| `update-openapi.ps1` | Tras cambiar un endpoint o un contrato; después, `npm run api:generate` en `finanzas-hub-web` | Un PostgreSQL para el test de contrato (Docker o `PERSONALFINANCE_TEST_POSTGRES`); **no** hace falta la API en marcha | `docs/api/openapi.v1.json` |
+| `db-roles.sql` | Una vez por base, antes de pasar la app a su rol propio, y otra vez si una migración crea un esquema nuevo | `psql` con la conexión del dueño de las tablas | Roles y permisos de la base ([secrets.md](../devops/secrets.md)) |
+
+Cuándo se aplican las migraciones en cada entorno, Jenkins incluido: [migrations.md](migrations.md#cuándo-se-aplican).
