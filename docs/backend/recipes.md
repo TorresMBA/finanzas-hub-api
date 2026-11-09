@@ -61,7 +61,7 @@ public async Task<IActionResult> Rename(Guid workspaceId, Guid thingId, RenameTh
 ```
 
 - La clase lleva `[Route("api/v1/workspaces/{workspaceId:guid}/things")]`: el parámetro se llama exactamente `workspaceId`.
-- Después: `tools/update-openapi.ps1` (con la API en marcha) y, en `finanzas-hub-web`, `npm run api:generate`.
+- Después: `tools/update-openapi.ps1` (corre el test de contrato, sin la API en marcha) y, en `finanzas-hub-web`, `npm run api:generate`.
 
 ## 3. Un comando financiero (idempotente)
 
