@@ -45,8 +45,7 @@ Un proveedor SMTP con dominio propio, no una cuenta personal de Gmail: los corre
 
 | Qué | Cómo |
 |---|---|
-| Copias diarias | `finanzas-hub-backup.env` y la línea de cron de [operations.md](operations.md#copias-de-seguridad). Sin ese `.env`, Jenkins no despliega prod |
-| Una copia fuera del servidor | `BACKUP_COPY` en ese `.env` |
+| Copias diarias | El `mercury-backup.timer` del servidor incluye la base de prod y guarda una copia fuera del servidor ([operations.md](operations.md#copias-de-seguridad)) |
 | Restauración probada | Restaurar una copia en una base aparte y arrancar la API contra ella; anotarlo en la tabla de operations.md |
 | Rol propio de la aplicación (recomendado) | [`tools/db-roles.sql`](../../finanzas-hub-api/tools/db-roles.sql) y `finanzas-hub-migrate.env` ([secrets.md](secrets.md)) |
 

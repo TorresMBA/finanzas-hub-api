@@ -49,7 +49,7 @@ Alcance decidido: solo endurecer lo que ya existe. La fase 14 y las porciones D 
 | Otros de seguridad | Un correo de recuperación por cuenta cada 2 minutos; el error de Meta se recorta en los logs; nginx envía CSP, nosniff, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` y HSTS; las fuentes van en el build (sin Google Fonts) |
 | Accesibilidad | Contraste AA en el tema claro (cambian `--ac`, `--bl`, `--rd` y `--am`, que dejan de ser exactamente los del mock); el diálogo devuelve el foco; la hoja «Más» es un diálogo nativo; los campos enlazan su error con `aria-describedby`; el foco va a `<main>` al cambiar de página; los indicadores de carga son `role=status` |
 | Usabilidad | Confirmación al eliminar una regla, anular un pago y revocar una invitación; página 404; aviso sin conexión y de errores no manejados; icono, manifest y `theme-color` |
-| Operación | `tools/backup.sh` (también antes de migrar prod en Jenkins), integración en CI, `tools/db-roles.sql`, latido del Worker con `HEALTHCHECK`, logs JSON fuera de Development, versión en `/health/live` |
+| Operación | Integración en CI, `tools/db-roles.sql`, latido del Worker con `HEALTHCHECK`, logs JSON fuera de Development, versión en `/health/live` |
 | Documentación | [go-live.md](../devops/go-live.md) nuevo; puestos al día los resúmenes de estado, el diagrama de módulos, Scheduling, Reporting, tiempo real, webhook, `IFileStorage`, despliegue, operación y configuración |
 
 ### 1.0.1 (8-nov-2026, solo la web)
@@ -62,11 +62,15 @@ El quality gate de SonarQube paraba los builds #25 de los dos jobs: 9 problemas 
 
 En ese build los tests de integración ya corrieron en el CI (118 en verde). Los jobs `finanzas-hub-api` y `finanzas-hub-web` no son multibranch: construyen `*/main`. La condición de prod del Jenkinsfile (`develop`) no filtra nada hasta que lo sean.
 
+### 1.0.3 (8-nov-2026, solo la API)
+
+Se retira `tools/backup.sh` y su paso en «Deploy prod». Mercury ya copia sus bases a diario con `mercury-backup.timer`: un segundo mecanismo era redundante, y exigía `finanzas-hub-backup.env` para desplegar prod. El pipeline deja de pedirlo.
+
 ### Lo que falta para dar la 1.0 por buena en Mercury
 
 | Pendiente | Cómo |
 |---|---|
-| Crear `finanzas-hub-backup.env` en prod (y el cron diario) | [operations.md](../devops/operations.md#copias-de-seguridad). Sin él, Jenkins no despliega prod |
+| Confirmar que `mercury-backup.timer` copia la base de prod | [operations.md](../devops/operations.md#copias-de-seguridad) |
 | Primer build con integración en CI | La etapa arranca un PostgreSQL en la red del agente (`--network container:$(hostname)`); no se pudo probar fuera de Mercury |
 | Rol propio de la base (`tools/db-roles.sql`) y `finanzas-hub-migrate.env` | Opcional para la 1.0, recomendado. [secrets.md](../devops/secrets.md) |
 | ¿Hay un CDN (Cloudflare) delante? | Si lo hay, el proxy TLS debe reemplazar `X-Forwarded-For` por `CF-Connecting-IP`, o el límite de `/auth` se reparte entre todos ([deployment.md](../devops/deployment.md)) |
