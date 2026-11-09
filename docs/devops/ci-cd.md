@@ -33,11 +33,11 @@ flowchart LR
 | Imágenes | `dotnet publish` de API y Worker sin recompilar, `mercury-ci package dotnet` con la `Dockerfile` del repo, `mercury-ci trivy-image` | Aborta |
 | Deploy dev | Comprueba los `.env` del ambiente, descarga la imagen, aplica migraciones en un contenedor de un solo uso y despliega API y Worker (256 MB) | Si la migración falla, no se despliega nada |
 | Aprobar prod | `input` manual; sin agente, así que no ocupa recursos mientras espera | Caduca al día |
-| Deploy prod | Copia de la base (`tools/backup.sh`) y lo mismo que dev con las **mismas imágenes** | Sin copia no se migra ni se despliega |
+| Deploy prod | Lo mismo que dev con las **mismas imágenes** | Si la migración falla, no se despliega nada |
 
 **Los tests de integración corren en el CI desde la 1.0**, dentro de la etapa de build. Testcontainers no sirve en el agente, que usa el Docker del host y no llegaría a los puertos que publica. Por eso la etapa arranca un `postgres:18-alpine` de un solo uso con `--network container:$(hostname)`: comparte la red del agente y los tests lo ven en `localhost:5432` (`PERSONALFINANCE_TEST_POSTGRES`). Al terminar se borra.
 
-En **Deploy prod**, antes de migrar, se ejecuta [`tools/backup.sh`](../../finanzas-hub-api/tools/backup.sh) con `/srv/mercury/apps/prod/finanzas-hub-backup.env`. Prod corre sin checkout, así que el script llega por `stash` desde la etapa de imágenes. Si existe `finanzas-hub-migrate.env`, `migrate` usa su cadena de conexión, la del dueño de las tablas ([secrets.md](secrets.md)), sin trazarla.
+Las copias de la base no son cosa del pipeline: las hace el servidor ([operations.md](operations.md#copias-de-seguridad)). En **Deploy prod**, si existe `finanzas-hub-migrate.env`, `migrate` usa su cadena de conexión, la del dueño de las tablas ([secrets.md](secrets.md)), sin trazarla.
 
 ## Pipeline del frontend
 

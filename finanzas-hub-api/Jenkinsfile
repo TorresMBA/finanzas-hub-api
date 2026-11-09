@@ -27,12 +27,6 @@ def deployAll(String targetEnv) {
       api_image="$(mercury-ci image-ref "$APP" "$TAG")"
       docker pull "$api_image"
 
-      # En prod, una copia de la base antes de migrar: si la migración o la versión nueva salen mal, se vuelve a
-      # ella (docs/devops/operations.md). Sin el .env de backups no se despliega prod.
-      if [ "$TARGET_ENV" = prod ]; then
-        sh finanzas-hub-api/tools/backup.sh "$APPS_DIR/$TARGET_ENV/finanzas-hub-backup.env" "pre-deploy-$TAG"
-      fi
-
       echo "Migraciones en $TARGET_ENV con $api_image"
       # Con un rol propio para la app (tools/db-roles.sql), las migraciones usan la conexión del dueño de las tablas,
       # que está en finanzas-hub-migrate.env (ConnectionStrings__PersonalFinance=...). Sin ese archivo, la del API.
@@ -174,8 +168,6 @@ pipeline {
                 mercury-ci trivy-image "$(mercury-ci image-ref "$APP" "$TAG")"
               '''
             }
-            // El deploy de prod corre sin checkout: se lleva el script de backup de este build.
-            stash name: 'backup', includes: 'finanzas-hub-api/tools/backup.sh'
           }
         }
 
@@ -218,7 +210,6 @@ pipeline {
         timeout(time: 10, unit: 'MINUTES')
       }
       steps {
-        unstash 'backup'
         sh 'mercury-ci login'
         deployAll('prod')
       }
