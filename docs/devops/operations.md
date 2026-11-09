@@ -6,32 +6,13 @@ Tareas del día a día con la aplicación en marcha: copias de seguridad, migrac
 
 **Qué contiene la base:** datos financieros, hashes de contraseñas, claves de Data Protection y la auditoría. Una copia es tan sensible como la base ([secrets.md](secrets.md)).
 
-Las hace [`tools/backup.sh`](../../finanzas-hub-api/tools/backup.sh): `pg_dump` en formato custom desde un contenedor en la red de la base, comprueba la copia con `pg_restore --list`, la copia fuera del servidor si se le dice cómo, y borra las de más de `BACKUP_KEEP_DAYS` días. Lee la conexión de un `.env` propio, legible solo por quien hace copias:
+Las hace el servidor, no la aplicación: en Mercury, `mercury-backup.timer` copia a diario las bases, la de prod incluida. Ni el repositorio ni Jenkins tienen otro mecanismo (hasta la 1.0.2, `tools/backup.sh` hacía una copia antes de migrar prod; se retiró por redundante). En otro servidor, programa una copia diaria con `pg_dump --format=custom`, o usa la copia a un punto en el tiempo del proveedor.
 
 ```bash
-# /srv/mercury/apps/prod/finanzas-hub-backup.env
-PGHOST=postgres
-PGPORT=5432
-PGUSER=personal_hub            # basta con un rol que pueda leer todo; el dueño de las tablas sirve
-PGPASSWORD=...
-PGDATABASE=personal_hub
-PG_NETWORK=mercury-db          # la red de Docker donde está la base
-BACKUP_DIR=/srv/backups/personalhub
-BACKUP_KEEP_DAYS=14
-PG_IMAGE=postgres:18-alpine    # misma versión mayor que el servidor, o más nueva
-BACKUP_COPY="rclone copy --no-traverse {} remoto:personalhub"   # opcional
-```
-
-```bash
-# A diario, en el crontab de quien despliega (3:15)
-15 3 * * * /srv/mercury/repos/finanzas-hub-api/tools/backup.sh /srv/mercury/apps/prod/finanzas-hub-backup.env daily >> /var/log/personalhub-backup.log 2>&1
-
 # Restaurar en una base vacía
 createdb personal_hub_restaurada
-pg_restore --no-owner --dbname=personal_hub_restaurada /srv/backups/personalhub/personalhub-20261108T031500Z-daily.dump
+pg_restore --no-owner --dbname=personal_hub_restaurada <copia>.dump
 ```
-
-Jenkins ejecuta el mismo script antes de migrar prod, con la etiqueta `pre-deploy-<build>`. Si falta `finanzas-hub-backup.env`, prod no se despliega.
 
 **Prueba de restauración.** Una vez al mes, y antes de abrir la 1.0: restaurar la última copia en una base aparte, arrancar la API contra ella (`ConnectionStrings__PersonalFinance` apuntando a la restaurada, `Database__MigrateOnStartup=false`) y comprobar `/health/ready` y un inicio de sesión. Anota aquí la fecha:
 
@@ -39,7 +20,7 @@ Jenkins ejecuta el mismo script antes de migrar prod, con la etiqueta `pre-deplo
 |---|---|---|
 | — | — | Pendiente de la primera |
 
-- **Antes de cada despliegue a prod** (lo hace Jenkins) y a diario (cron).
+- **A diario** (el timer del servidor). Antes de una migración delicada, una a mano.
 - Guárdalas cifradas, fuera del servidor y con acceso restringido. Conserva al menos 7 diarias y 4 semanales.
 - **Prueba a restaurar** de vez en cuando en una base aparte: una copia que nunca se restauró no es una copia.
 - Restaurar una copia con otras claves de Data Protection cierra todas las sesiones e invalida los enlaces de correo pendientes; es lo esperado.

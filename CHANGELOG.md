@@ -4,6 +4,18 @@ Lo que cambia en cada versión de PersonalHub (API, Worker y web). El formato si
 
 ## [Sin publicar]
 
+## [1.0.3] - 2026-11-08
+
+Solo la API (el pipeline). La web sigue en 1.0.2.
+
+### Retirado
+
+- `tools/backup.sh` y la copia de la base antes de migrar prod en Jenkins. Las copias las hace el servidor (en Mercury, `mercury-backup.timer`, a diario): un segundo mecanismo era redundante.
+
+### Configuración (para quien despliega)
+
+- Prod ya no necesita `finanzas-hub-backup.env`; si se creó, se puede borrar.
+
 ## [1.0.2] - 2026-11-08
 
 API, Worker y web. Sin cambios de comportamiento: el quality gate de SonarQube no dejaba desplegar (builds #25 de los dos jobs).
@@ -59,7 +71,7 @@ Primera versión para producción: las fases 0 a 13 del [plan](docs/roadmap/phas
 
 ### Operación
 
-- `tools/backup.sh` para las copias (también antes de cada migración en prod) y `tools/db-roles.sql` para que la aplicación use un rol sin permisos sobre el esquema ni sobre la auditoría.
+- `tools/backup.sh` para las copias (también antes de cada migración en prod; retirado en la 1.0.3) y `tools/db-roles.sql` para que la aplicación use un rol sin permisos sobre el esquema ni sobre la auditoría.
 - Los tests de integración corren en el CI.
 - El Worker tiene un health check en su imagen; los logs salen en JSON fuera de Development; `/health/live` dice qué versión corre.
 
@@ -67,10 +79,11 @@ Primera versión para producción: las fases 0 a 13 del [plan](docs/roadmap/phas
 
 - Nuevas: `Auth__OpenRegistration` (`false`) y `WhatsApp__Enabled` (`false`). WhatsApp queda apagado hasta que Meta apruebe las plantillas.
 - Production ya no arranca sin `Email__SmtpHost` ni `Frontend__BaseUrl`, con `WhatsApp__ShowCodesWithoutAccount=true`, con WhatsApp encendido sin sus cuatro claves, o con un origen CORS que no sea https.
-- Prod necesita `/srv/mercury/apps/prod/finanzas-hub-backup.env` ([operations.md](docs/devops/operations.md#copias-de-seguridad)).
+- Prod necesita `/srv/mercury/apps/prod/finanzas-hub-backup.env` (ya no desde la 1.0.3).
 - Las cookies de sesión anteriores a esta versión dejan de valer: cada persona vuelve a iniciar sesión una vez.
 
-[Sin publicar]: https://github.com/TorresMBA/finanzas-hub-api/compare/v1.0.2...HEAD
+[Sin publicar]: https://github.com/TorresMBA/finanzas-hub-api/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/TorresMBA/finanzas-hub-api/releases/tag/v1.0.3
 [1.0.2]: https://github.com/TorresMBA/finanzas-hub-api/releases/tag/v1.0.2
 [1.0.1]: https://github.com/TorresMBA/finanzas-hub-web/releases/tag/v1.0.1
 [1.0.0]: https://github.com/TorresMBA/finanzas-hub-api/releases/tag/v1.0.0
